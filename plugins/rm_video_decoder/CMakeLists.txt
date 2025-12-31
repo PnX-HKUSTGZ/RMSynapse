@@ -3,6 +3,10 @@ project(rm_video_decoder)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# ------------------- rm_common (shared headers) -------------------
+
+add_subdirectory(../rm_common rm_common_build)
+
 # 寻找 OpenCV
 find_package(OpenCV REQUIRED)
 
@@ -25,6 +29,7 @@ target_include_directories(video_core
 )
 target_link_libraries(video_core
     PUBLIC
+    rm_common
     ${OpenCV_LIBS}
     PkgConfig::FFMPEG
 )
@@ -50,6 +55,7 @@ target_include_directories(test_video_show
 target_link_libraries(test_video_show
     PRIVATE
     video_core
+    rm_common
     ${OpenCV_LIBS}
     PkgConfig::FFMPEG
 )

@@ -1,5 +1,5 @@
 #include "video_core.hpp"
-#include <iostream>
+#include <rm_common/logger.hpp>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -9,6 +9,8 @@
 namespace RMVideoDecoder {
 
 namespace {
+constexpr std::string_view kLogTag = "rm_video_decoder.VideoCore";
+
 struct ParsedPacketHeader {
     uint16_t frame_seq = 0;
     uint16_t fragment_seq = 0;
@@ -60,19 +62,19 @@ bool parsePacketHeader(const uint8_t* buffer, size_t len, uint32_t maxFrameBytes
 bool VideoCore::FFmpegContext::init(AVCodecID codec_id) {
     codec = avcodec_find_decoder(codec_id);
     if (!codec) {
-        std::cerr << "HEVC Decoder not found!" << std::endl;
+        RM_LOGE(kLogTag, "Decoder not found.");
         return false;
     }
 
     codec_ctx = avcodec_alloc_context3(codec);
     if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
-        std::cerr << "Failed to open codec" << std::endl;
+        RM_LOGE(kLogTag, "Failed to open codec.");
         return false;
     }
 
     avPacket_ = av_packet_alloc();
     if (!avPacket_) {
-        std::cerr << "Failed to allocate AVPacket" << std::endl;
+        RM_LOGE(kLogTag, "Failed to allocate AVPacket.");
         return false;
     }
 
@@ -97,7 +99,7 @@ bool VideoCore::TripleBuffer::init() {
     for (int i = 0; i < 3; ++i) {
         buffers[i] = av_frame_alloc();
         if (!buffers[i]) {
-            std::cerr << "Failed to allocate AVFrame for TripleBuffer" << std::endl;
+            RM_LOGE(kLogTag, "Failed to allocate AVFrame for TripleBuffer.");
             return false;
         }
     }
@@ -154,7 +156,7 @@ bool VideoCore::setupUdpSocket(){
     // 初始化 UDP Socket
     sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd_ < 0){
-        std::cerr << "Failed to create socket" << std::endl;
+        RM_LOGE(kLogTag, "Failed to create UDP socket.");
         return false;
     }
 
@@ -167,7 +169,7 @@ bool VideoCore::setupUdpSocket(){
     tv.tv_sec = 1;  // 超时时间 1秒
     tv.tv_usec = 0;
     if (setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv) < 0) {
-        std::cerr << "Failed to set socket options" << std::endl;
+        RM_LOGE(kLogTag, "Failed to set UDP socket timeout option.");
         return false;
     }
 
@@ -178,7 +180,7 @@ bool VideoCore::setupUdpSocket(){
     addr.sin_port = htons(port_);
 
     if (bind(sockfd_, (sockaddr*)&addr, sizeof(addr)) < 0) {
-        perror("Bind failed");
+        RM_LOGE(kLogTag, "Bind failed: %s", strerror(errno));
         return false;
     }
 
@@ -203,14 +205,14 @@ bool VideoCore::init() {
     // 初始化 FFmpeg 解码器
     ffmpeg_ctx_ = std::make_unique<FFmpegContext>();
     if (!ffmpeg_ctx_->init(codec_id_)) {
-        std::cerr << "Failed to initialize FFmpeg context" << std::endl;
+        RM_LOGE(kLogTag, "Failed to initialize FFmpeg context.");
         return false;
     }
 
     // 初始化三缓冲区
     triple_buffer_ = std::make_unique<TripleBuffer>();
     if (!triple_buffer_->init()) {
-        std::cerr << "Failed to initialize TripleBuffer" << std::endl;
+        RM_LOGE(kLogTag, "Failed to initialize TripleBuffer.");
         return false;
     }
 
@@ -220,7 +222,7 @@ bool VideoCore::init() {
 void VideoCore::start() {
     running_ = true;
     receive_thread_ = std::thread(&VideoCore::networkLoop, this);
-    std::cout << "VideoCore started receiving thread." << std::endl;
+    RM_LOGI(kLogTag, "VideoCore started receiving thread.");
 }
 
 void VideoCore::stop() {
@@ -234,6 +236,7 @@ void VideoCore::stop() {
 void VideoCore::networkLoop() {
     const int BUF_SIZE = 65535;
     uint8_t buffer[BUF_SIZE];
+    bool last_udp_ok = udp_ok_.load();
 
     while (running_) {
         // 尝试接收
@@ -242,14 +245,21 @@ void VideoCore::networkLoop() {
         if (received > 0) {
             // 收到数据，正常处理
             processPacket(buffer, static_cast<size_t>(received));
+            if (!last_udp_ok) {
+                RM_LOGI(kLogTag, "UDP receiving resumed.");
+                last_udp_ok = true;
+            }
             setUdpStatus(true);
         } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                std::cout << "recvfrom timeout, no data received." << std::endl;
+                if (last_udp_ok) {
+                    RM_LOGW(kLogTag, "UDP recv timeout, no data received.");
+                    last_udp_ok = false;
+                }
                 setUdpStatus(false);
                 continue;
             } else {
-                std::cerr << "recvfrom error: " << strerror(errno) << std::endl;
+                RM_LOGE(kLogTag, "recvfrom error: %s", strerror(errno));
                 setUdpStatus(false);
                 continue;
             }
@@ -267,8 +277,7 @@ void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
     const uint32_t totalSize = header.total_size;
 
     if (totalSize == 0 || totalSize > kMaxFrameBytes) {
-        std::cerr << "Dropping packet: unreasonable total_size=" << totalSize
-                  << " for frame_seq=" << frameSeq << std::endl;
+        RM_LOGW_STREAM(kLogTag, "Dropping packet: unreasonable total_size=" << totalSize << " for frame_seq=" << frameSeq);
         return;
     }
 
@@ -276,8 +285,8 @@ void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
     const uint8_t* payloadData = buffer + sizeof(VideoPacketHeader);
 
     if (payloadLen == 0 || payloadLen > totalSize) {
-        std::cerr << "Dropping packet: payloadLen=" << payloadLen
-                  << " totalSize=" << totalSize << " frame_seq=" << frameSeq << std::endl;
+        RM_LOGW_STREAM(kLogTag, "Dropping packet: payloadLen=" << payloadLen << " totalSize=" << totalSize
+                                                               << " frame_seq=" << frameSeq);
         return;
     }
 
@@ -332,8 +341,9 @@ VideoCore::FrameContext& VideoCore::getOrCreateFrameContext(uint16_t frameSeq, u
     const uint16_t droppedSeq = oldestIt->frame_seq;
     oldestIt->reset();
     oldestIt->markActive(frameSeq, totalSize);
-    std::cout << "Warning: All FrameContext slots are busy. Dropping frame_seq "
-              << droppedSeq << " and reusing slot for frame_seq " << frameSeq << std::endl;
+    RM_LOGW_STREAM(kLogTag, "All FrameContext slots are busy. Dropping frame_seq " << droppedSeq
+                                                                                   << " and reusing slot for frame_seq "
+                                                                                   << frameSeq);
     return *oldestIt;
 }
 
@@ -366,7 +376,7 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
     );
 
     if (!buf_ref) {
-        std::cerr << "Failed to create AVBufferRef" << std::endl;
+        RM_LOGE(kLogTag, "Failed to create AVBufferRef.");
         delete persistent_vector;
         return;
     }
@@ -385,7 +395,7 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
     av_packet_unref(ffmpeg_ctx_->avPacket_);
 
     if (ret < 0) {
-        std::cerr << "Error sending packet: " << ret << std::endl;
+        RM_LOGE_STREAM(kLogTag, "Error sending packet: " << ret);
         return;
     }
 
@@ -398,7 +408,7 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
         } else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             break; 
         } else {
-            std::cerr << "Error during decoding: " << ret << std::endl;
+            RM_LOGE_STREAM(kLogTag, "Error during decoding: " << ret);
             break;
         }
     }
