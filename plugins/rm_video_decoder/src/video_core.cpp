@@ -2,10 +2,58 @@
 #include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <cstring>
 
 namespace RMVideoDecoder {
+
+namespace {
+struct ParsedPacketHeader {
+    uint16_t frame_seq = 0;
+    uint16_t fragment_seq = 0;
+    uint32_t total_size = 0;
+};
+
+bool parsePacketHeader(const uint8_t* buffer, size_t len, uint32_t maxFrameBytes, ParsedPacketHeader& out) {
+    if (len < sizeof(VideoPacketHeader)) return false;
+
+    uint16_t frameSeqBe = 0;
+    uint16_t fragSeqBe = 0;
+    uint32_t totalSizeBe = 0;
+
+    std::memcpy(&frameSeqBe, buffer, sizeof(frameSeqBe));
+    std::memcpy(&fragSeqBe, buffer + sizeof(frameSeqBe), sizeof(fragSeqBe));
+    std::memcpy(&totalSizeBe, buffer + sizeof(frameSeqBe) + sizeof(fragSeqBe), sizeof(totalSizeBe));
+
+    const ParsedPacketHeader netOrder{
+        ntohs(frameSeqBe),
+        ntohs(fragSeqBe),
+        ntohl(totalSizeBe),
+    };
+
+    const ParsedPacketHeader hostOrder{
+        frameSeqBe,
+        fragSeqBe,
+        totalSizeBe,
+    };
+
+    const auto plausible = [&](const ParsedPacketHeader& h) {
+        return h.total_size > 0 && h.total_size <= maxFrameBytes;
+    };
+
+    if (plausible(netOrder)) {
+        out = netOrder;
+        return true;
+    }
+    if (plausible(hostOrder)) {
+        out = hostOrder;
+        return true;
+    }
+    out = netOrder;
+    return true;
+}
+} // namespace
 
 //  =============== FFmpegContext ===============
 
@@ -73,10 +121,12 @@ AVFrame* VideoCore::TripleBuffer::getWriteBuffer() {
 
 std::pair<AVFrame*, bool> VideoCore::TripleBuffer::getReadBuffer() {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!has_new_frame) {
+        return {buffers[read_index], false};
+    }
     std::swap(buffers[ready_index], buffers[read_index]);
-    std::pair<AVFrame*, bool> res = {buffers[read_index], has_new_frame};
     has_new_frame = false;
-    return res;
+    return {buffers[read_index], true};
 }
 
 void VideoCore::TripleBuffer::swapWriteToReadyBuffers() {
@@ -94,7 +144,7 @@ VideoCore::~VideoCore() {
     // 销毁ffmpeg上下文
     ffmpeg_ctx_.reset();
     // 关闭socket
-    if (sockfd_ > 0) {
+    if (sockfd_ >= 0) {
         close(sockfd_);
         sockfd_ = -1;
     }
@@ -137,7 +187,7 @@ bool VideoCore::setupUdpSocket(){
 }
 
 bool VideoCore::cleanupUdpSocket(){
-    if (sockfd_ > 0) {
+    if (sockfd_ >= 0) {
         close(sockfd_);
         sockfd_ = -1;
     }
@@ -159,7 +209,10 @@ bool VideoCore::init() {
 
     // 初始化三缓冲区
     triple_buffer_ = std::make_unique<TripleBuffer>();
-    triple_buffer_->init();
+    if (!triple_buffer_->init()) {
+        std::cerr << "Failed to initialize TripleBuffer" << std::endl;
+        return false;
+    }
 
     return true;
 }
@@ -206,74 +259,82 @@ void VideoCore::networkLoop() {
 
 // 协议解析与重组 (Assembler)
 void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
-    if (len < sizeof(VideoPacketHeader)) return;
+    ParsedPacketHeader header{};
+    if (!parsePacketHeader(buffer, len, kMaxFrameBytes, header)) return;
 
-    const VideoPacketHeader* header = reinterpret_cast<const VideoPacketHeader*>(buffer);
-    
-    // @todo 检测大小端，并做转换。先默认发送端和我们一致。
-    uint16_t frameSeq = header->frame_seq;
-    uint16_t fragSeq = header->fragment_seq;
-    uint32_t totalSize = header->total_size;
+    const uint16_t frameSeq = header.frame_seq;
+    const uint16_t fragSeq = header.fragment_seq;
+    const uint32_t totalSize = header.total_size;
+
+    if (totalSize == 0 || totalSize > kMaxFrameBytes) {
+        std::cerr << "Dropping packet: unreasonable total_size=" << totalSize
+                  << " for frame_seq=" << frameSeq << std::endl;
+        return;
+    }
 
     size_t payloadLen = len - sizeof(VideoPacketHeader);
     const uint8_t* payloadData = buffer + sizeof(VideoPacketHeader);
 
-    // 储存分片
-
-    int target_buffer_index = -1;
-
-    // 更新缓冲区时间戳状态
-    for(int i=0; i < FrameContextBufferSize; ++i){
-        FrameContext& ctx = buffers_[i];
-        if(ctx.isActive() && ctx.frame_seq == frameSeq){
-            target_buffer_index = i;
-            break;
-        }
+    if (payloadLen == 0 || payloadLen > totalSize) {
+        std::cerr << "Dropping packet: payloadLen=" << payloadLen
+                  << " totalSize=" << totalSize << " frame_seq=" << frameSeq << std::endl;
+        return;
     }
 
-    if(target_buffer_index == -1){
-        // 寻找空闲槽位
-        for(int i=0; i < FrameContextBufferSize; ++i){
-            if(!buffers_[i].isActive()){
-                buffers_[i].markActive(frameSeq, totalSize);
-                target_buffer_index = i;
-                break;
-            }
-        }
-    }
-
-    if(target_buffer_index == -1){
-        // 删除最旧的
-        int oldest_index = 0;
-        for(int i=1; i < FrameContextBufferSize; ++i){
-            if(buffers_[i].last_update < buffers_[oldest_index].last_update){
-                oldest_index = i;
-            }
-        }
-        buffers_[oldest_index].reset();
-        buffers_[oldest_index].markActive(frameSeq, totalSize);
-        target_buffer_index = oldest_index;
-        std::cout<<"Warning: All FrameContext slots are busy. Reusing the oldest slot for frame_seq "<<frameSeq<<std::endl;
-    }
-
-    // 插入分片
-    FrameContext& targetCtx = buffers_[target_buffer_index];
+    FrameContext& targetCtx = getOrCreateFrameContext(frameSeq, totalSize);
     targetCtx.insertFragment(fragSeq, std::vector<uint8_t>(payloadData, payloadData + payloadLen));
-    // 检查是否完成
-    if (targetCtx.isComplete()) {
-        // 拼接完整帧数据
-        std::vector<uint8_t> frameData;
-        frameData.reserve(targetCtx.total_size);
-        for (const auto& fragPair : targetCtx.fragments) {
-            frameData.insert(frameData.end(), fragPair.second.begin(), fragPair.second.end());
-        }
-        // 解码该帧
-        decodeFrame(std::move(frameData));
-        // 重置该缓冲区
-        targetCtx.reset();
 
-        // std::cout<<"Frame "<<frameSeq<<" reassembled and sent for decoding."<<std::endl;
+    if (!targetCtx.isComplete()) return;
+
+    std::vector<uint8_t> frameData;
+    frameData.reserve(targetCtx.total_size);
+    for (const auto& fragPair : targetCtx.fragments) {
+        frameData.insert(frameData.end(), fragPair.second.begin(), fragPair.second.end());
+        if (frameData.size() >= targetCtx.total_size) break;
     }
+    if (frameData.size() < targetCtx.total_size) {
+        targetCtx.reset();
+        return;
+    }
+    if (frameData.size() > targetCtx.total_size) {
+        frameData.resize(targetCtx.total_size);
+    }
+
+    decodeFrame(std::move(frameData));
+    targetCtx.reset();
+}
+
+VideoCore::FrameContext& VideoCore::getOrCreateFrameContext(uint16_t frameSeq, uint32_t totalSize) {
+    for (auto& ctx : buffers_) {
+        if (ctx.isActive() && ctx.frame_seq == frameSeq) {
+            if (ctx.total_size != totalSize) {
+                ctx.reset();
+                ctx.markActive(frameSeq, totalSize);
+            }
+            return ctx;
+        }
+    }
+
+    for (auto& ctx : buffers_) {
+        if (!ctx.isActive()) {
+            ctx.markActive(frameSeq, totalSize);
+            return ctx;
+        }
+    }
+
+    auto oldestIt = buffers_.begin();
+    for (auto it = buffers_.begin() + 1; it != buffers_.end(); ++it) {
+        if (it->last_update < oldestIt->last_update) {
+            oldestIt = it;
+        }
+    }
+
+    const uint16_t droppedSeq = oldestIt->frame_seq;
+    oldestIt->reset();
+    oldestIt->markActive(frameSeq, totalSize);
+    std::cout << "Warning: All FrameContext slots are busy. Dropping frame_seq "
+              << droppedSeq << " and reusing slot for frame_seq " << frameSeq << std::endl;
+    return *oldestIt;
 }
 
 void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {

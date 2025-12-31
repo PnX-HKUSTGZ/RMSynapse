@@ -4,6 +4,9 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+#include <array>
+#include <memory>
+#include <utility>
 #include <vector>
 #include <map>
 #include <chrono>
@@ -19,6 +22,7 @@ namespace RMVideoDecoder {
 // 自定义视频包头结构体
 struct VideoPacketHeader {
     // 帧序号，从0开始递增，溢出后回0
+    // 注：按网络传输习惯，字段通常使用网络字节序（大端）；接收端应做 ntohs/ntohl 转换
     uint16_t frame_seq;
     // 该帧内的分片序号
     uint16_t fragment_seq;
@@ -71,10 +75,13 @@ public:
     }
 
 private:
+    struct FrameContext;
 
     // 参数
     int port_ = 3334;
     AVCodecID codec_id_ = AV_CODEC_ID_HEVC;
+    static constexpr uint32_t kMaxFrameBytes = 16 * 1024 * 1024; // 16MB safety cap
+    static constexpr size_t kFrameContextBufferSize = 8;
 
     // --- 内部处理函数 ---
 
@@ -84,6 +91,8 @@ private:
     void processPacket(const uint8_t* buffer, size_t len);
     // FFmpeg 解码
     void decodeFrame(std::vector<uint8_t>&& frameData);
+    // 拼包：获取/创建上下文槽位
+    FrameContext& getOrCreateFrameContext(uint16_t frameSeq, uint32_t totalSize);
 
     inline void setUdpStatus(bool s) { udp_ok_.store(s); }
 
@@ -207,9 +216,8 @@ private:
     // 接收线程
     std::thread receive_thread_;
     
-    // 拼包缓冲区，长度为3
-    std::vector<FrameContext> buffers_= std::vector<FrameContext>(3);
-    const int FrameContextBufferSize = 3;
+    // 拼包缓冲区（支持乱序/丢包时多帧并发）
+    std::array<FrameContext, kFrameContextBufferSize> buffers_{};
 };
 
 } // namespace RMVideoDecoder
