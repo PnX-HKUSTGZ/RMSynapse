@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://b0wlb2cnkwr4q"]
+
+[node name="Node2D" type="Node2D"]
+position = Vector2(7, 10)
+
+[node name="RMVideoCanvas" type="RMVideoCanvas" parent="."]
+offset_left = -7.0
+offset_top = -10.0
+offset_right = 1017.0
+offset_bottom = 638.0

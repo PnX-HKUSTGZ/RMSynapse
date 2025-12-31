@@ -1,0 +1,12 @@
+[configuration]
+entry_symbol="rm_video_decoder_gdextension_init"
+compatibility_minimum="4.1"
+reloadable=true
+
+[libraries]
+linux.debug="res://bin/librm_video_decoder.so"
+linux.release="res://bin/librm_video_decoder.so"
+windows.debug="res://bin/rm_video_decoder.dll"
+windows.release="res://bin/rm_video_decoder.dll"
+macos.debug="res://bin/librm_video_decoder.dylib"
+macos.release="res://bin/librm_video_decoder.dylib"

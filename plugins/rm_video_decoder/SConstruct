@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+import os
+from pathlib import Path
+from SCons.Script import Dir, ARGUMENTS
+
+# Map user-friendly targets to godot-cpp expected values.
+if ARGUMENTS.get("target") == "release":
+    ARGUMENTS["target"] = "template_release"
+if ARGUMENTS.get("target") == "debug":
+    ARGUMENTS["target"] = "template_debug"
+
+# Use SCons Dir('.') to locate this SConstruct reliably.
+this_dir = Path(str(Dir('.').abspath))
+repo_root = this_dir.parent.parent  # /home/.../RMSynapse
+godot_cpp_dir = repo_root / "godot-cpp"
+rm_synapse_bin = repo_root / "rm_synapse" / "bin"
+
+# 1) 初始化 env：直接复用 godot-cpp 提供的 SCons 配置（包含平台/目标等处理）。
+env = SConscript(str(godot_cpp_dir / "SConstruct"))
+
+# 2) 公共编译选项
+env.Append(CPPPATH=[
+    str(this_dir / "include"),
+    str(this_dir / "godot"),
+    str(repo_root / "plugins" / "rm_common" / "include"),
+    str(godot_cpp_dir / "include"),
+    str(godot_cpp_dir / "gen" / "include"),
+])
+env.Append(CXXFLAGS=["-std=c++17", "-fexceptions"])
+
+# 3) 第三方库：FFmpeg（仅解码路径，OpenCV 仅用于 test，可不链接）
+env.ParseConfig("pkg-config --cflags --libs libavcodec libavutil libswscale")
+
+# 4) video_core 静态库（不含测试）
+core_sources = [str(this_dir / "src" / "video_core.cpp")]
+core_objs_shared = env.SharedObject(source=core_sources)
+core_objs_static = env.Object(source=core_sources)
+
+# 5) Godot 扩展源码
+gd_sources = [
+    str(this_dir / "godot" / "register_types.cpp"),
+    str(this_dir / "godot" / "rm_video_canvas.cpp"),
+]
+
+# 6) 生成共享库（Godot 动态加载），其依赖均链接静态库。
+shlib_name = f"librm_video_decoder{env['SHLIBSUFFIX']}"
+shlib_target = str(rm_synapse_bin / shlib_name)
+gd_lib = env.SharedLibrary(
+    target=shlib_target,
+    source=gd_sources + core_objs_shared,
+)
+
+# 7) 将 .gdextension 描述文件复制到同一目录
+gdext_src = this_dir / "godot" / "rm_video_decoder.gdextension"
+gdext_dst = rm_synapse_bin / "rm_video_decoder.gdextension"
+env.Command(str(gdext_dst), str(gdext_src), [Copy("$TARGET", "$SOURCE")])
+
+# 7.1) 复制 shader 资源到 bin，便于 res://bin/video_yuv.gdshader 直接加载
+shader_src = this_dir / "godot" / "shaders" / "video_yuv.gdshader"
+shader_dst = rm_synapse_bin / "video_yuv.gdshader"
+env.Command(str(shader_dst), str(shader_src), [Copy("$TARGET", "$SOURCE")])
+
+# 8) 默认目标
+Default([gd_lib, gdext_dst, shader_dst])
+
+# 9) 可选：构建测试程序（依赖 OpenCV），按需启用
+if ARGUMENTS.get("with_test", "no") == "yes":
+    env.ParseConfig("pkg-config --cflags --libs opencv4")
+    test_bin = env.Program(
+        target=str(this_dir / "build" / "test_video_show"),
+        source=[
+            str(this_dir / "src" / "test" / "test_video_show.cpp"),
+            core_objs_static,
+        ],
+    )
+    Default(test_bin)
