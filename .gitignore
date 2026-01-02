@@ -18,3 +18,4 @@ build/
 .godot/
 
 *.os
+*.uid

@@ -83,10 +83,12 @@ func receiveintobuffer():
 			var E = sslsocket.poll()
 			if E != 0:
 				printerr("Socket poll error: ", E)
+				_transport_lost("TLS poll error %s" % E)
 				return E
 			var n = sslsocket.get_available_bytes()
 			if n == -1:
 				printerr("get_available_bytes returned -1")
+				_transport_lost("TLS available -1")
 				return FAILED
 			if n != 0:
 				assert (n > 0)
@@ -98,10 +100,12 @@ func receiveintobuffer():
 		var E = socket.poll()
 		if E != 0:
 			printerr("Socket poll error: ", E)
+			_transport_lost("TCP poll error %s" % E)
 			return E
 		var n = socket.get_available_bytes()
 		if n == -1:
 			printerr("get_available_bytes returned -1")
+			_transport_lost("TCP available -1")
 			return FAILED
 		if n != 0:
 			assert (n > 0)
@@ -176,6 +180,7 @@ func _process(delta):
 		brokerconnectmode = BCM_WAITING_CONNACK
 		
 	elif brokerconnectmode == BCM_WAITING_CONNACK or brokerconnectmode == BCM_CONNECTED:
+		_check_live_connection()
 		receiveintobuffer()
 		while wait_msg():
 			pass
@@ -185,6 +190,43 @@ func _process(delta):
 
 	elif brokerconnectmode == BCM_FAILED_CONNECTION:
 		cleanupsockets()
+
+func _check_live_connection():
+	# Detect silent disconnections after connected/handshake
+	if websocket != null:
+		var st = websocket.get_ready_state()
+		if st == WebSocketPeer.STATE_CLOSED:
+			if verbose_level:
+				print("WebSocket closed (live check) code: %d reason: %s" % [websocket.get_close_code(), websocket.get_close_reason()])
+			brokerconnectmode = BCM_FAILED_CONNECTION
+			emit_signal("broker_disconnected")
+			cleanupsockets()
+			return
+	if socket != null:
+		var s = socket.get_status()
+		if s == StreamPeerTCP.STATUS_ERROR or s == StreamPeerTCP.STATUS_NONE:
+			if verbose_level:
+				print("TCP socket lost (live check) status=", s)
+			brokerconnectmode = BCM_FAILED_CONNECTION
+			emit_signal("broker_disconnected")
+			cleanupsockets()
+			return
+	if sslsocket != null:
+		var tlsst = sslsocket.get_status()
+		if tlsst >= StreamPeerTLS.STATUS_ERROR:
+			if verbose_level:
+				print("TLS socket lost (live check) status=", tlsst)
+			brokerconnectmode = BCM_FAILED_CONNECTION
+			emit_signal("broker_disconnected")
+			cleanupsockets()
+			return
+
+func _transport_lost(reason: String) -> void:
+	if verbose_level:
+		print("Transport lost: ", reason)
+	brokerconnectmode = BCM_FAILED_CONNECTION
+	emit_signal("broker_disconnected")
+	cleanupsockets()
 
 func _ready():
 	regexbrokerurl.compile('^(tcp://|wss://|ws://|ssl://)?([^:\\s]+)(:\\d+)?(/\\S*)?$')
