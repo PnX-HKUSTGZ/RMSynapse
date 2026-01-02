@@ -196,7 +196,7 @@ void RMVideoCanvas::ensure_textures_rgba(RenderingDevice* rd, int w, int h) {
         return;
     }
     if (w == tex_w_ && h == tex_h_ && tex_rgba_.is_valid()) {
-        RM_LOGD(kLogTag, "RGBA texture already valid for %dx%d", w, h);
+        // RM_LOGD(kLogTag, "RGBA texture already valid for %dx%d", w, h);
         return;
     }
 
@@ -248,7 +248,13 @@ void RMVideoCanvas::upload_frame(RenderingDevice* rd, const RMVideoDecoder::YuvF
     uvdata.resize(static_cast<int64_t>(f.uv.size()));
     std::memcpy(uvdata.ptrw(), f.uv.data(), f.uv.size());
     rd->texture_update(tex_uv_, 0, uvdata);
-    RM_LOGD(kLogTag, "Updated frame %dx%d (Y=%d bytes UV=%d bytes)", f.width, f.height, (int)f.y.size(), (int)f.uv.size());
+    // 每 100 帧打印一次日志
+    {
+        static int frame_counter = 0;
+        if (++frame_counter % 100 == 0) {
+            RM_LOGD(kLogTag, "Uploaded frame %dx%d (Y=%d bytes UV=%d bytes)", f.width, f.height, (int)f.y.size(), (int)f.uv.size());
+        }
+    }
 }
 
 void RMVideoCanvas::upload_frame_rgba(RenderingDevice* rd, const RMVideoDecoder::YuvFrameExtractor::Frame& f) {
@@ -260,14 +266,14 @@ void RMVideoCanvas::upload_frame_rgba(RenderingDevice* rd, const RMVideoDecoder:
     data.resize(static_cast<int64_t>(f.rgba.size()));
     std::memcpy(data.ptrw(), f.rgba.data(), f.rgba.size());
     rd->texture_update(tex_rgba_, 0, data);
-    RM_LOGD(kLogTag, "Updated RGBA frame %dx%d (%d bytes)", f.width, f.height, (int)f.rgba.size());
+    // RM_LOGD(kLogTag, "Updated RGBA frame %dx%d (%d bytes)", f.width, f.height, (int)f.rgba.size());
 }
 
 void RMVideoCanvas::update_shader_params() {
     if (!material_.is_valid()) return;
     material_->set_shader_parameter("use_bt601", use_bt601_);
     material_->set_shader_parameter("use_tv_range", use_tv_range_);
-    RM_LOGD(kLogTag, "Shader params: bt601=%d tv_range=%d", use_bt601_, use_tv_range_);
+    // RM_LOGD(kLogTag, "Shader params: bt601=%d tv_range=%d", use_bt601_, use_tv_range_);
 }
 
 void RMVideoCanvas::set_display_mode(int m) {
