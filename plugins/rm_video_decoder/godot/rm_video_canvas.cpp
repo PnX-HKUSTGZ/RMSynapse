@@ -29,18 +29,22 @@ void RMVideoCanvas::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_use_bt601", "use"), &RMVideoCanvas::set_use_bt601);
     ClassDB::bind_method(D_METHOD("get_use_tv_range"), &RMVideoCanvas::get_use_tv_range);
     ClassDB::bind_method(D_METHOD("set_use_tv_range", "use"), &RMVideoCanvas::set_use_tv_range);
+    ClassDB::bind_method(D_METHOD("get_force_rgba"), &RMVideoCanvas::get_force_rgba);
+    ClassDB::bind_method(D_METHOD("set_force_rgba", "force"), &RMVideoCanvas::set_force_rgba);
     ClassDB::bind_method(D_METHOD("get_display_mode"), &RMVideoCanvas::get_display_mode);
     ClassDB::bind_method(D_METHOD("set_display_mode", "mode"), &RMVideoCanvas::set_display_mode);
 
     ADD_PROPERTY(PropertyInfo(Variant::INT, "port"), "set_port", "get_port");
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_bt601"), "set_use_bt601", "get_use_bt601");
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_tv_range"), "set_use_tv_range", "get_use_tv_range");
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "force_rgba"), "set_force_rgba", "get_force_rgba");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "display_mode", PROPERTY_HINT_ENUM, "Adaptive(keep_aspect),Stretch,Original"), "set_display_mode", "get_display_mode");
 }
 
 void RMVideoCanvas::_ready() {
     rm::common::log::godot::install_global_sink();
     extractor_.set_port(port_);
+    extractor_.set_force_rgba(force_rgba_); // match standalone test by default
     if (!extractor_.init()) {
         RM_LOGE(kLogTag, "Failed to init VideoCore");
         return;
@@ -72,6 +76,12 @@ void RMVideoCanvas::set_port(int p) {
             running_ = false;
         }
     }
+}
+
+void RMVideoCanvas::set_force_rgba(bool v) {
+    force_rgba_ = v;
+    extractor_.set_force_rgba(force_rgba_);
+    RM_LOGI(kLogTag, "Force RGBA set to %d", force_rgba_);
 }
 
 void RMVideoCanvas::_process(double) {

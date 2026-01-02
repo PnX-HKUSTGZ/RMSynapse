@@ -42,6 +42,9 @@ public:
     bool get_use_tv_range() const { return use_tv_range_; }
     void set_use_tv_range(bool b) { use_tv_range_ = b; }
 
+    bool get_force_rgba() const { return force_rgba_; }
+    void set_force_rgba(bool v);
+
     int get_display_mode() const { return display_mode_; }
     void set_display_mode(int m);
 
@@ -66,6 +69,7 @@ private:
     int tex_h_ = 0;
     bool use_bt601_ = false;
     bool use_tv_range_ = false;
+    bool force_rgba_ = true;
     int display_mode_ = DISPLAY_ADAPTIVE;
 
     godot::RID tex_y_;
