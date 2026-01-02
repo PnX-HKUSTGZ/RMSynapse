@@ -64,8 +64,9 @@ signal unknown_message_received(msg)
 
 const Proto = preload("res://protocol/generated/rm_proto.gd")
 
-# MQTT 节点引用；期望场景中已有名为 MQTT 的子节点
-@onready var mqtt: Node = _require_mqtt()
+# MQTT 节点引用；统一复用外部实例（建议 AutoLoad 名为 MQTT，或场景节点名为 MQTT）
+@export var mqtt_path: NodePath = NodePath("MQTT")
+@onready var mqtt: Node = _resolve_mqtt()
 var _next_delay := reconnect_delay_sec
 
 # 状态存储
@@ -110,20 +111,25 @@ func _process(_delta: float) -> void:
 
 #================ MQTT 部分 =================
 
-func _require_mqtt() -> Node:
-	var node = get_node_or_null("MQTT")
-	if node == null:
-		# 动态实例化，仍建议在场景中手动放置便于编辑器连信号
-		push_warning("MQTT node not found. Instancing addons/mqtt/mqtt.tscn as child 'MQTT'.")
-		var scene := preload("res://addons/mqtt/mqtt.tscn")
-		node = scene.instantiate()
-		node.name = "MQTT"
-		add_child(node)
-	return node
+func _resolve_mqtt() -> Node:
+	# 优先使用 AutoLoad 单例 “MQTT”
+	if Engine.has_singleton("MQTT"):
+		_log_info("Using MQTT singleton instance")
+		return Engine.get_singleton("MQTT")
+	# 其次尝试 /root/MQTT
+	var root_mqtt = get_node_or_null("/root/MQTT")
+	if root_mqtt != null:
+		_log_info("Using /root/MQTT instance")
+		return root_mqtt
+	# 再尝试导出的路径（场景内节点）
+	if mqtt_path != NodePath("") and has_node(mqtt_path):
+		return get_node(mqtt_path)
+	push_error("MQTT instance not found. Ensure AutoLoad MQTT or set mqtt_path to existing node.")
+	return null
 
 func _connect_mqtt_signals() -> void:
 	if mqtt == null:
-		push_error("MQTT node missing; cannot connect signals.")
+		push_error("MQTT node missing; please set mqtt_path to shared MQTT instance.")
 		return
 	mqtt.binarymessages = true
 	mqtt.verbose_level = _mqtt_verbose_level()
