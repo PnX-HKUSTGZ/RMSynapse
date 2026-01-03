@@ -31,6 +31,12 @@ void RMVideoCanvas::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_use_tv_range", "use"), &RMVideoCanvas::set_use_tv_range);
     ClassDB::bind_method(D_METHOD("get_force_rgba"), &RMVideoCanvas::get_force_rgba);
     ClassDB::bind_method(D_METHOD("set_force_rgba", "force"), &RMVideoCanvas::set_force_rgba);
+    ClassDB::bind_method(D_METHOD("get_no_frame_timeout"), &RMVideoCanvas::get_no_frame_timeout);
+    ClassDB::bind_method(D_METHOD("set_no_frame_timeout", "seconds"), &RMVideoCanvas::set_no_frame_timeout);
+    ClassDB::bind_method(D_METHOD("get_placeholder_texture"), &RMVideoCanvas::get_placeholder_texture);
+    ClassDB::bind_method(D_METHOD("set_placeholder_texture", "texture"), &RMVideoCanvas::set_placeholder_texture);
+    // ClassDB::bind_method(D_METHOD("get_placeholder_color"), &RMVideoCanvas::get_placeholder_color);
+    // ClassDB::bind_method(D_METHOD("set_placeholder_color", "color"), &RMVideoCanvas::set_placeholder_color);
     ClassDB::bind_method(D_METHOD("get_display_mode"), &RMVideoCanvas::get_display_mode);
     ClassDB::bind_method(D_METHOD("set_display_mode", "mode"), &RMVideoCanvas::set_display_mode);
 
@@ -38,7 +44,14 @@ void RMVideoCanvas::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_bt601"), "set_use_bt601", "get_use_bt601");
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_tv_range"), "set_use_tv_range", "get_use_tv_range");
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "force_rgba"), "set_force_rgba", "get_force_rgba");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "no_frame_timeout_sec", PROPERTY_HINT_RANGE, "0.0,10.0,0.1"), "set_no_frame_timeout", "get_no_frame_timeout");
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "placeholder_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_placeholder_texture", "get_placeholder_texture");
+    ADD_PROPERTY(PropertyInfo(Variant::COLOR, "placeholder_color"), "set_placeholder_color", "get_placeholder_color");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "display_mode", PROPERTY_HINT_ENUM, "Adaptive(keep_aspect),Stretch,Original"), "set_display_mode", "get_display_mode");
+
+    // Signal when stream state changes (true = has frames, false = placeholder)
+    ClassDB::add_signal(get_class_static(), MethodInfo("stream_state_changed",
+        PropertyInfo(Variant::BOOL, "is_streaming")));
 }
 
 void RMVideoCanvas::_ready() {
@@ -96,7 +109,48 @@ void RMVideoCanvas::set_force_rgba(bool v) {
     RM_LOGI(kLogTag, "Force RGBA set to %d, textures cleared", force_rgba_);
 }
 
-void RMVideoCanvas::_process(double) {
+void RMVideoCanvas::show_placeholder() {
+    ensure_texture_rect();
+    hide_placeholder();
+    Ref<Texture2D> tex = placeholder_tex_.is_valid() ? placeholder_tex_ : get_fallback_placeholder();
+    if (rect_ && tex.is_valid()) {
+        rect_->set_material(Ref<Material>());
+        rect_->set_texture(tex);
+        rect_->set_modulate(Color(1, 1, 1, 1));
+        placeholder_visible_ = true;
+    } else if (!tex.is_valid()) {
+        RM_LOGE(kLogTag, "Placeholder texture invalid; nothing to display");
+    }
+}
+
+void RMVideoCanvas::hide_placeholder() {
+    if (!rect_) return;
+    rect_->set_modulate(Color(1, 1, 1, 1));
+    placeholder_visible_ = false;
+}
+
+Ref<Texture2D> RMVideoCanvas::get_fallback_placeholder() {
+    if (placeholder_generated_.is_valid()) return placeholder_generated_;
+    Ref<Image> img = Image::create(10, 10, false, Image::FORMAT_RGBA8);
+    if (!img.is_valid() || img->is_empty()) {
+        RM_LOGE(kLogTag, "Failed to create Image for placeholder");
+        return Ref<Texture2D>();
+    }
+    
+    img->fill(placeholder_color_);
+
+    Ref<ImageTexture> tex;
+    tex.instantiate();
+    if (!tex.is_valid()) {
+        RM_LOGE(kLogTag, "Failed to instantiate ImageTexture for placeholder");
+        return Ref<Texture2D>();
+    }
+    tex->create_from_image(img);
+    placeholder_generated_ = tex;
+    return placeholder_generated_;
+}
+
+void RMVideoCanvas::_process(double delta) {
     // Defensive: ensure the TextureRect exists even if _ready wasn't called for some reason.
     ensure_texture_rect();
     if (!running_) {
@@ -118,16 +172,37 @@ void RMVideoCanvas::_process(double) {
         if (++idle_counter % 120 == 0) {
             RM_LOGD(kLogTag, "No new frame yet.");
         }
+        no_frame_elapsed_ += delta;
+        if (no_frame_elapsed_ > no_frame_timeout_s_ && !placeholder_visible_) {
+            if (streaming_) {
+                streaming_ = false;
+                emit_signal("stream_state_changed", streaming_);
+            }
+            show_placeholder();
+        }
         return; // no new frame is not an error
     }
     idle_counter = 0;
+    no_frame_elapsed_ = 0.0;
+    if (!streaming_) {
+        streaming_ = true;
+        emit_signal("stream_state_changed", streaming_);
+        hide_placeholder();
+    }
 
     if (frame_.layout == RMVideoDecoder::YuvFrameExtractor::UVLayout::RGBA) {
         ensure_textures_rgba(rd, frame_.width, frame_.height);
         upload_frame_rgba(rd, frame_);
+        if (rect_) {
+            rect_->set_texture(tex_rgba_res_);
+        }
     } else {
         ensure_textures(rd, frame_.width, frame_.height);
         upload_frame(rd, frame_);
+        if (rect_) {
+            rect_->set_material(material_);
+            rect_->set_texture(tex_y_res_);
+        }
         if (material_.is_valid()) update_shader_params();
     }
 }

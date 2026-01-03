@@ -1,6 +1,5 @@
-[gd_scene load_steps=5 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=4 format=3 uid="uid://b0wlb2cnkwr4q"]
 
-[ext_resource type="Script" uid="uid://dlry4y68d7vhn" path="res://net/mqtt_game_state.gd" id="1_jmk06"]
 [ext_resource type="Texture2D" uid="uid://d3vbptqo1w2a2" path="res://icon.svg" id="2_ixpqk"]
 [ext_resource type="Script" uid="uid://esu6v4kbwiwi" path="res://sprite_2d.gd" id="3_nv1rm"]
 [ext_resource type="Script" uid="uid://cvkqgb337d88g" path="res://rich_text_label.gd" id="4_nv1rm"]
@@ -8,19 +7,10 @@
 [node name="Node2D" type="Node2D"]
 
 [node name="RMVideoCanvas" type="RMVideoCanvas" parent="."]
-force_rgba = false
 offset_right = 1152.0
 offset_bottom = 648.0
 
-[node name="MQTTClient" type="Node" parent="."]
-script = ExtResource("1_jmk06")
-broker_url = "127.0.0.1:3333"
-client_id = "RMSynapse"
-verbose = "trace"
-reconnect_max_sec = 5.0
-
 [node name="Sprite2D" type="Sprite2D" parent="."]
-visible = false
 position = Vector2(920, 232)
 texture = ExtResource("2_ixpqk")
 script = ExtResource("3_nv1rm")
@@ -34,15 +24,9 @@ text = "disconnected"
 script = ExtResource("4_nv1rm")
 
 [node name="message_show" type="RichTextLabel" parent="."]
-offset_left = 80.0
-offset_top = 16.0
-offset_right = 216.0
-offset_bottom = 40.0
-text = "disconnected"
-script = ExtResource("4_nv1rm")
-
-[connection signal="air_support_status_sync_updated" from="MQTTClient" to="Sprite2D" method="_on_mqtt_client_air_support_status_sync_updated"]
-[connection signal="mqtt_connected" from="MQTTClient" to="RichTextLabel" method="_on_mqtt_client_mqtt_connected"]
-[connection signal="mqtt_connection_failed" from="MQTTClient" to="RichTextLabel" method="_on_mqtt_client_mqtt_connection_failed"]
-[connection signal="mqtt_disconnected" from="MQTTClient" to="RichTextLabel" method="_on_mqtt_client_mqtt_disconnected"]
-[connection signal="robot_dynamic_status_updated" from="MQTTClient" to="message_show" method="_on_mqtt_client_robot_dynamic_status_updated"]
+offset_left = 32.0
+offset_top = 72.0
+offset_right = 168.0
+offset_bottom = 96.0
+text = "-1
+"
