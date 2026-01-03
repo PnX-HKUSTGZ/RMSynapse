@@ -8,6 +8,7 @@
 [node name="Node2D" type="Node2D"]
 
 [node name="RMVideoCanvas" type="RMVideoCanvas" parent="."]
+force_rgba = false
 offset_right = 1152.0
 offset_bottom = 648.0
 
@@ -19,6 +20,7 @@ verbose = "trace"
 reconnect_max_sec = 5.0
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+visible = false
 position = Vector2(920, 232)
 texture = ExtResource("2_ixpqk")
 script = ExtResource("3_nv1rm")

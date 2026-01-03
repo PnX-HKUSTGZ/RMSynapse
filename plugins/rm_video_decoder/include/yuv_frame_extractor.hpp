@@ -59,8 +59,24 @@ public:
         const int w = f->width;
         const int h = f->height;
 
-        // 1) Force RGBA path (matches standalone test: single swscale to BGRA)
+        // 日志控制
+        static bool FORCE_RGBA_LOG = false;
+        static bool SWS_NV12_LOG = false;
+        static bool NATIVE_NV12_LOG = false;
+        static int last_format = -1;
+        
+        if (f->format != last_format) {
+            const char* fmt_name = av_get_pix_fmt_name(static_cast<AVPixelFormat>(f->format));
+            RM_LOGI("rm_video_decoder.YuvFrameExtractor", "Pixel format: %d (%s)", f->format, fmt_name ? fmt_name : "unknown");
+            last_format = f->format;
+        }
+
+        // 1) Force RGBA path
         if (force_rgba_) {
+            if (!FORCE_RGBA_LOG) {
+                RM_LOGI("rm_video_decoder.YuvFrameExtractor", "Using forced RGBA output path");
+                FORCE_RGBA_LOG = true; SWS_NV12_LOG = false; NATIVE_NV12_LOG = false;
+            }
             out.layout = UVLayout::RGBA;
             ensureBuffersRGBA(out, w, h);
             if (!ensureSwscaleRGBA(w, h, static_cast<AVPixelFormat>(f->format))) {
@@ -75,48 +91,35 @@ public:
                 return false;
             }
         }
-        // 2) Native NV12
+        // 2) Native NV12 - 直接复制
         else if (f->format == AV_PIX_FMT_NV12) {
+            if (!NATIVE_NV12_LOG) {
+                RM_LOGI("rm_video_decoder.YuvFrameExtractor", "Using native NV12 output path");
+                NATIVE_NV12_LOG = true; SWS_NV12_LOG = false; FORCE_RGBA_LOG = false;
+            }
             out.layout = UVLayout::NV12;
             ensureBuffers(out, w, h);
             copyPlane(f->data[0], f->linesize[0], w, h, out.y.data());
             copyPlane(f->data[1], f->linesize[1], w, h / 2, out.uv.data());
         }
-        // 3) Native I420
-        else if (f->format == AV_PIX_FMT_YUV420P || f->format == AV_PIX_FMT_YUVJ420P) {
-            out.layout = UVLayout::I420;
-            ensureBuffers(out, w, h);
-            copyPlane(f->data[0], f->linesize[0], w, h, out.y.data());
-            const int uv_w = w / 2;
-            const int uv_h = h / 2;
-            uint8_t* dst = out.uv.data();
-            for (int j = 0; j < uv_h; ++j) {
-                const uint8_t* urow = f->data[1] + j * f->linesize[1];
-                const uint8_t* vrow = f->data[2] + j * f->linesize[2];
-                for (int i = 0; i < uv_w; ++i) {
-                    *dst++ = urow[i];
-                    *dst++ = vrow[i];
-                }
-            }
-        }
-        // 4) Fallback: convert to RGBA via swscale
+        // 3) 其他格式 - 使用swscale转换为NV12
         else {
-            if (!warned_unsupported_once_) {
-                const char* name = av_get_pix_fmt_name(static_cast<AVPixelFormat>(f->format));
-                RM_LOGW("rm_video_decoder.YuvFrameExtractor", "Unsupported pixel format %d (%s), converting via swscale", f->format, name ? name : "unknown");
-                warned_unsupported_once_ = true;
+            if (!SWS_NV12_LOG) {
+                RM_LOGI("rm_video_decoder.YuvFrameExtractor", "Using swscale NV12 conversion for fmt=%d", f->format);
+                SWS_NV12_LOG = true; NATIVE_NV12_LOG = false; FORCE_RGBA_LOG = false;
             }
-            out.layout = UVLayout::RGBA;
-            ensureBuffersRGBA(out, w, h);
-            if (!ensureSwscaleRGBA(w, h, static_cast<AVPixelFormat>(f->format))) {
-                RM_LOGE("rm_video_decoder.YuvFrameExtractor", "Failed to init swscale RGBA for fmt=%d", f->format);
+            out.layout = UVLayout::NV12;
+            ensureBuffers(out, w, h);
+            if (!ensureSwscaleNV12(w, h, static_cast<AVPixelFormat>(f->format))) {
+                RM_LOGE("rm_video_decoder.YuvFrameExtractor", "Failed to init swscale NV12 for fmt=%d", f->format);
                 return false;
             }
-            uint8_t* dst_rgba_data[4] { out.rgba.data(), nullptr, nullptr, nullptr };
-            int dst_rgba_linesize[4] { w * 4, 0, 0, 0 };
-            const int ret = sws_scale(sws_ctx_rgba_cached_, f->data, f->linesize, 0, h, dst_rgba_data, dst_rgba_linesize);
+            // 设置输出缓冲区
+            uint8_t* dst_data[4] = { out.y.data(), out.uv.data(), nullptr, nullptr };
+            int dst_linesize[4] = { w, w, 0, 0 };
+            const int ret = sws_scale(sws_ctx_nv12_, f->data, f->linesize, 0, h, dst_data, dst_linesize);
             if (ret <= 0) {
-                RM_LOGE("rm_video_decoder.YuvFrameExtractor", "sws_scale RGBA failed, ret=%d", ret);
+                RM_LOGE("rm_video_decoder.YuvFrameExtractor", "sws_scale NV12 failed, ret=%d", ret);
                 return false;
             }
         }
@@ -131,6 +134,7 @@ public:
     ~YuvFrameExtractor() {
         if (sws_ctx_) sws_freeContext(sws_ctx_);
         if (sws_ctx_rgba_cached_) sws_freeContext(sws_ctx_rgba_cached_);
+        if (sws_ctx_nv12_) sws_freeContext(sws_ctx_nv12_);
     }
 
 private:
@@ -148,9 +152,13 @@ private:
     int sws_rgba_h_ = 0;
     AVPixelFormat sws_rgba_src_fmt_ = AV_PIX_FMT_NONE;
 
+    SwsContext* sws_ctx_nv12_ = nullptr;
+    int sws_nv12_w_ = 0;
+    int sws_nv12_h_ = 0;
+    AVPixelFormat sws_nv12_src_fmt_ = AV_PIX_FMT_NONE;
+
     bool fallback_to_rgba_ = true;
     bool force_rgba_ = false;
-    bool warned_unsupported_once_ = false;
 
     bool ensureSwscale(int w, int h, AVPixelFormat src_fmt) {
         if (sws_ctx_ && sws_w_ == w && sws_h_ == h && sws_src_fmt_ == src_fmt) return true;
@@ -177,12 +185,26 @@ private:
         sws_ctx_rgba_cached_ = sws_getCachedContext(
             sws_ctx_rgba_cached_,
             w, h, src_fmt,
-            w, h, AV_PIX_FMT_BGRA,
+            w, h, AV_PIX_FMT_RGBA,
             SWS_BILINEAR, nullptr, nullptr, nullptr);
         if (!sws_ctx_rgba_cached_) return false;
         sws_rgba_w_ = w;
         sws_rgba_h_ = h;
         sws_rgba_src_fmt_ = src_fmt;
+        return true;
+    }
+
+    bool ensureSwscaleNV12(int w, int h, AVPixelFormat src_fmt) {
+        if (sws_ctx_nv12_ && sws_nv12_w_ == w && sws_nv12_h_ == h && sws_nv12_src_fmt_ == src_fmt) return true;
+        sws_ctx_nv12_ = sws_getCachedContext(
+            sws_ctx_nv12_,
+            w, h, src_fmt,
+            w, h, AV_PIX_FMT_NV12,
+            SWS_BILINEAR, nullptr, nullptr, nullptr);
+        if (!sws_ctx_nv12_) return false;
+        sws_nv12_w_ = w;
+        sws_nv12_h_ = h;
+        sws_nv12_src_fmt_ = src_fmt;
         return true;
     }
 

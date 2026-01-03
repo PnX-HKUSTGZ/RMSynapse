@@ -37,10 +37,10 @@ public:
     void set_port(int p);
 
     bool get_use_bt601() const { return use_bt601_; }
-    void set_use_bt601(bool b) { use_bt601_ = b; }
+    void set_use_bt601(bool b) { use_bt601_ = b; update_shader_params(); }
 
     bool get_use_tv_range() const { return use_tv_range_; }
-    void set_use_tv_range(bool b) { use_tv_range_ = b; }
+    void set_use_tv_range(bool b) { use_tv_range_ = b; update_shader_params(); }
 
     bool get_force_rgba() const { return force_rgba_; }
     void set_force_rgba(bool v);
@@ -81,6 +81,11 @@ private:
 
     godot::Ref<godot::ShaderMaterial> material_;
     godot::TextureRect* rect_ = nullptr;
+
+    // YUV 数据缓冲区，避免每帧重新分配
+    
+    godot::PackedByteArray buf_y_;
+    godot::PackedByteArray buf_uv_;
 };
 
 } // namespace rm_video_gd

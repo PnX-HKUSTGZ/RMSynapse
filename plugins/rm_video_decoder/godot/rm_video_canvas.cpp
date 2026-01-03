@@ -79,9 +79,21 @@ void RMVideoCanvas::set_port(int p) {
 }
 
 void RMVideoCanvas::set_force_rgba(bool v) {
+    if (force_rgba_ == v) return;
     force_rgba_ = v;
     extractor_.set_force_rgba(force_rgba_);
-    RM_LOGI(kLogTag, "Force RGBA set to %d", force_rgba_);
+    
+    // 切换模式时需要清理所有纹理并重建
+    RenderingServer* rs = RenderingServer::get_singleton();
+    if (rs) {
+        if (tex_y_.is_valid()) { rs->free_rid(tex_y_); tex_y_ = RID(); }
+        if (tex_uv_.is_valid()) { rs->free_rid(tex_uv_); tex_uv_ = RID(); }
+        if (tex_rgba_.is_valid()) { rs->free_rid(tex_rgba_); tex_rgba_ = RID(); }
+    }
+    tex_w_ = 0;
+    tex_h_ = 0;
+    
+    RM_LOGI(kLogTag, "Force RGBA set to %d, textures cleared", force_rgba_);
 }
 
 void RMVideoCanvas::_process(double) {
@@ -126,6 +138,7 @@ void RMVideoCanvas::ensure_texture_rect() {
         rect_->set_anchors_preset(Control::LayoutPreset::PRESET_FULL_RECT);
         rect_->set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
         rect_->set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE); // keep size driven by parent layout
+        rect_->set_modulate(Color(1, 1, 1, 1));
         add_child(rect_);
         set_display_mode(display_mode_);
     }
@@ -137,7 +150,7 @@ void RMVideoCanvas::ensure_textures(RenderingDevice* rd, int w, int h) {
         return;
     }
     if (w == tex_w_ && h == tex_h_ && tex_y_.is_valid() && tex_uv_.is_valid()){
-        RM_LOGD(kLogTag, "Textures already valid for %dx%d", w, h);
+        // RM_LOGD(kLogTag, "Textures already valid for %dx%d", w, h);
         return;
     }
 
@@ -171,11 +184,21 @@ void RMVideoCanvas::ensure_textures(RenderingDevice* rd, int w, int h) {
     blank_uv.resize(static_cast<int64_t>(w * h / 2)); // RG8 => w*h/2 bytes
     init_uv.push_back(blank_uv);
 
-    Ref<RDTextureView> view;
-    view.instantiate();
+    // Y纹理的view：只使用R通道
+    Ref<RDTextureView> view_y;
+    view_y.instantiate();
+    view_y->set_swizzle_r(RenderingDevice::TEXTURE_SWIZZLE_R);
+    view_y->set_swizzle_g(RenderingDevice::TEXTURE_SWIZZLE_R); // 复制R到G方便调试
+    view_y->set_swizzle_b(RenderingDevice::TEXTURE_SWIZZLE_R); // 复制R到B方便调试
+    view_y->set_swizzle_a(RenderingDevice::TEXTURE_SWIZZLE_ONE);
 
-    tex_y_ = rd->texture_create(fmt_y, view, init_y);
-    tex_uv_ = rd->texture_create(fmt_uv, view, init_uv);
+    // UV纹理的view：使用默认的RG通道
+    Ref<RDTextureView> view_uv;
+    view_uv.instantiate();
+    // 默认swizzle即可：R->R, G->G, B->0, A->1
+
+    tex_y_ = rd->texture_create(fmt_y, view_y, init_y);
+    tex_uv_ = rd->texture_create(fmt_uv, view_uv, init_uv);
     if (!tex_y_.is_valid() || !tex_uv_.is_valid()) {
         RM_LOGE(kLogTag, "Failed to create textures (RID invalid).");
         return;
@@ -187,12 +210,26 @@ void RMVideoCanvas::ensure_textures(RenderingDevice* rd, int w, int h) {
     tex_uv_res_.instantiate();
     tex_uv_res_->set_texture_rd_rid(tex_uv_);
 
+    RM_LOGI(kLogTag, "tex_y_res valid: %d, tex_uv_res valid: %d", 
+            tex_y_res_.is_valid() ? 1 : 0, tex_uv_res_.is_valid() ? 1 : 0);
+
     if (material_.is_valid()) {
         material_->set_shader_parameter("texture_y", tex_y_res_);
         material_->set_shader_parameter("texture_uv", tex_uv_res_);
+        RM_LOGI(kLogTag, "Shader parameters set successfully");
     }
     else{
         RM_LOGW(kLogTag, "Material is not valid when setting textures");
+    }
+
+    if (rect_) {
+        // 确保应用了 Shader Material
+        if (rect_->get_material() != material_) {
+            rect_->set_material(material_);
+        }
+        // 将 Y 纹理设为主纹理
+        rect_->set_texture(tex_y_res_);
+        set_display_mode(display_mode_);
     }
 
     tex_w_ = w;
@@ -249,22 +286,27 @@ void RMVideoCanvas::ensure_textures_rgba(RenderingDevice* rd, int w, int h) {
 }
 
 void RMVideoCanvas::upload_frame(RenderingDevice* rd, const RMVideoDecoder::YuvFrameExtractor::Frame& f) {
-    PackedByteArray ydata;
-    ydata.resize(static_cast<int64_t>(f.y.size()));
-    std::memcpy(ydata.ptrw(), f.y.data(), f.y.size());
-    rd->texture_update(tex_y_, 0, ydata);
+    int64_t y_size = static_cast<int64_t>(f.y.size());
+    int64_t uv_size = static_cast<int64_t>(f.uv.size());
 
-    PackedByteArray uvdata;
-    uvdata.resize(static_cast<int64_t>(f.uv.size()));
-    std::memcpy(uvdata.ptrw(), f.uv.data(), f.uv.size());
-    rd->texture_update(tex_uv_, 0, uvdata);
-    // 每 100 帧打印一次日志
-    {
-        static int frame_counter = 0;
-        if (++frame_counter % 100 == 0) {
-            RM_LOGD(kLogTag, "Uploaded frame %dx%d (Y=%d bytes UV=%d bytes)", f.width, f.height, (int)f.y.size(), (int)f.uv.size());
-        }
+    // 调试：检查UV数据
+    static bool once = false;
+    if (!once) {
+        RM_LOGI(kLogTag, "UV data size: %d bytes, tex_uv valid: %d", (int)uv_size, tex_uv_.is_valid() ? 1 : 0);
+        once = true;
     }
+
+    // 只有当 buffer 大小不够时才 resize，复用内存
+    if (buf_y_.size() != y_size) buf_y_.resize(y_size);
+    if (buf_uv_.size() != uv_size) buf_uv_.resize(uv_size);
+
+    // 使用 memcpy 直接拷贝到写指针
+    std::memcpy(buf_y_.ptrw(), f.y.data(), f.y.size());
+    std::memcpy(buf_uv_.ptrw(), f.uv.data(), f.uv.size());
+
+    rd->texture_update(tex_y_, 0, buf_y_);
+    rd->texture_update(tex_uv_, 0, buf_uv_);
+    // RM_LOGD(kLogTag, "Updated YUV frame %dx%d (Y:%d bytes UV:%d bytes)", f.width, f.height, (int)f.y.size(), (int)f.uv.size());
 }
 
 void RMVideoCanvas::upload_frame_rgba(RenderingDevice* rd, const RMVideoDecoder::YuvFrameExtractor::Frame& f) {
