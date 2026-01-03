@@ -1,34 +1,29 @@
 extends RichTextLabel
 
+var _sender: Node = null
 
-# Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	text = "-1"
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-
-
-func _on_mqtt_client_mqtt_disconnected() -> void:
-	text = "disconnected"
-
-
-func _on_mqtt_client_mqtt_connection_failed() -> void:
-	text = "connection failed"
-
-
-func _on_mqtt_client_mqtt_connected() -> void:
-		text = "connected"
-
-
-func _on_mqtt_client_robot_dynamic_status_updated(value: Variant) -> void:
-	text =  str(value.get_current_health())
-
-
-func _on_rm_video_canvas_stream_state_changed(is_streaming: bool) -> void:
-	if(is_streaming):
-		text = "streaming"
+	visible = false
+	# 当前项目把所有 MQTT 逻辑打包到 autoload 场景 `MqttNet`
+	# 其中子节点名为 "MQTTSender"（见 net/mqtt_net.tscn）
+	var net_root: Node = null
+	if Engine.has_singleton("MqttNet"):
+		net_root = Engine.get_singleton("MqttNet")
+	elif get_tree().get_root().has_node("MqttNet"):
+		net_root = get_tree().get_root().get_node("MqttNet")
+	if net_root:
+		_sender = net_root.get_node_or_null("MQTTSender")
+		if _sender and _sender.has_signal("sent"):
+			_sender.connect("sent", Callable(self, "_on_mqtt_sent"))
+		else:
+			_log_error("MQTTSender node not found under MqttNet.")
 	else:
-		text = "no streaming"
+		_log_error("MqttNet autoload not found; demo未激活。")
+
+func _on_mqtt_sent(topic, pid) -> void:
+	# 简单示例：收到任意发送事件后显示标签，并更新内容
+	visible = true
+	text = "MQTT sent: %s (pid=%s)" % [topic, str(pid)]
+
+func _log_error(msg: String) -> void:
+	push_error("%s [RichTextLabel][ERR] %s" % [Time.get_datetime_string_from_system(), msg])

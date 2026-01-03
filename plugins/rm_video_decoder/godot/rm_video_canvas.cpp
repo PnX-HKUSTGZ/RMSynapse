@@ -46,7 +46,7 @@ void RMVideoCanvas::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "force_rgba"), "set_force_rgba", "get_force_rgba");
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "no_frame_timeout_sec", PROPERTY_HINT_RANGE, "0.0,10.0,0.1"), "set_no_frame_timeout", "get_no_frame_timeout");
     ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "placeholder_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_placeholder_texture", "get_placeholder_texture");
-    ADD_PROPERTY(PropertyInfo(Variant::COLOR, "placeholder_color"), "set_placeholder_color", "get_placeholder_color");
+    // ADD_PROPERTY(PropertyInfo(Variant::COLOR, "placeholder_color"), "set_placeholder_color", "get_placeholder_color");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "display_mode", PROPERTY_HINT_ENUM, "Adaptive(keep_aspect),Stretch,Original"), "set_display_mode", "get_display_mode");
 
     // Signal when stream state changes (true = has frames, false = placeholder)
