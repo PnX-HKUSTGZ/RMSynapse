@@ -35,7 +35,7 @@ script = SubResource("GDScript_jmk06")
 [node name="RichTextLabel" type="RichTextLabel" parent="."]
 offset_left = 40.0
 offset_top = 8.0
-offset_right = 176.0
+offset_right = 1144.0
 offset_bottom = 32.0
 text = "disconnected"
 script = ExtResource("2_7hnfv")

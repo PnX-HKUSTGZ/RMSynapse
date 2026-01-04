@@ -252,6 +252,12 @@ func set_user_pass(suser, spswd):
 		self.user = null
 		self.pswd = null
 
+# Generate next valid MQTT packet identifier (1..65535) with wrap-around.
+# MQTT 3.1.1: PID 0 is invalid.
+func _next_pid() -> int:
+	pid = (pid % 65535) + 1
+	return pid
+
 
 static func encoderemaininglength(pkt, sz):
 	assert(sz < 2097152)
@@ -386,7 +392,7 @@ func publish(stopic, smsg, retain=false, qos=0):
 	var remstartpos = len(pkt)
 	encodevarstr(pkt, topic)
 	if qos > 0:
-		pid += 1
+		pid = _next_pid()
 		encodeshortint(pkt, pid)
 	pkt.append_array(msg)
 	assert (len(pkt) - remstartpos == sz)
@@ -396,7 +402,7 @@ func publish(stopic, smsg, retain=false, qos=0):
 	return pid
 
 func subscribe(stopic, qos=0):
-	pid += 1
+	pid = _next_pid()
 	var topic = stopic.to_ascii_buffer()
 	var sz = 2 + 2 + len(topic) + 1
 	var pkt = PackedByteArray()
@@ -418,7 +424,7 @@ func pingreq():
 	senddata(PackedByteArray([CP_PINGREQ, 0x00]))
 
 func unsubscribe(stopic):
-	pid += 1
+	pid = _next_pid()
 	var topic = stopic.to_ascii_buffer()
 	var sz = 2 + 2 + len(topic)
 	var pkt = PackedByteArray()

@@ -6,7 +6,9 @@
 [ext_resource type="Script" uid="uid://d20ikxnjokj5g" path="res://net/remote_control_service.gd" id="4_7pig8"]
 [ext_resource type="Script" uid="uid://yomxjfp636uf" path="res://net/trigger_service.gd" id="5_yqk26"]
 
-[node name="GameState" type="Node2D"]
+[node name="MQTTGameNet" type="Node2D"]
+
+[node name="GameState" type="Node" parent="."]
 script = ExtResource("1_qv21r")
 broker_url = "127.0.0.1:3333"
 
