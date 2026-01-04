@@ -1,58 +1,26 @@
-[gd_scene load_steps=5 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=4 format=3 uid="uid://b0wlb2cnkwr4q"]
 
-[ext_resource type="Script" uid="uid://cvkqgb337d88g" path="res://rich_text_label.gd" id="2_7hnfv"]
-[ext_resource type="Texture2D" uid="uid://d3vbptqo1w2a2" path="res://icon.svg" id="2_ixpqk"]
+[ext_resource type="PackedScene" uid="uid://dxusg3b40frev" path="res://ui/main_game_interface/global_game_state/global_game_state.tscn" id="2_7hnfv"]
 [ext_resource type="PackedScene" uid="uid://babpo8abkagu4" path="res://ui/main_game_interface/remote_control/remote_control_core.tscn" id="3_ixpqk"]
-
-[sub_resource type="GDScript" id="GDScript_jmk06"]
-script/source = "extends Sprite2D
-
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-
-
-func _on_mqtt_client_air_support_status_sync_updated(value: Variant) -> void:
-	visible = not visible
-"
+[ext_resource type="PackedScene" uid="uid://c0ae31iiakvix" path="res://ui/main_game_interface/net_status/net_status_panel.tscn" id="3_nv1rm"]
 
 [node name="Node2D" type="Node2D"]
 
 [node name="RMVideoCanvas" type="RMVideoCanvas" parent="."]
-display_mode = 1
 offset_right = 1152.0
 offset_bottom = 648.0
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-position = Vector2(920, 232)
-texture = ExtResource("2_ixpqk")
-script = SubResource("GDScript_jmk06")
-
-[node name="RichTextLabel" type="RichTextLabel" parent="."]
-offset_left = 40.0
-offset_top = 8.0
-offset_right = 1144.0
-offset_bottom = 32.0
-text = "disconnected"
-script = ExtResource("2_7hnfv")
-
-[node name="message_show" type="RichTextLabel" parent="."]
-offset_left = 32.0
-offset_top = 72.0
-offset_right = 168.0
-offset_bottom = 96.0
-text = "-1
-"
-
 [node name="RemoteControlCore" parent="." instance=ExtResource("3_ixpqk")]
-offset_left = 560.0
-offset_top = 488.0
-offset_right = 1184.0
-offset_bottom = 600.0
+offset_left = 648.0
+offset_top = 536.0
+offset_right = 1272.0
+offset_bottom = 648.0
 scale = Vector2(0.8, 0.8)
+
+[node name="GlobalGameState" parent="." instance=ExtResource("2_7hnfv")]
+position = Vector2(384, 8)
+
+[node name="NetStatusPanel" parent="." instance=ExtResource("3_nv1rm")]
+offset_left = 1048.0
+offset_right = 1384.0
+scale = Vector2(0.3, 0.3)

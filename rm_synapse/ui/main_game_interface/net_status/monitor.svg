@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .line { fill: none; stroke: #3ad88f; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+      .fill { fill: #3ad88f; }
+    </style>
+  </defs>
+  <rect x="10" y="12" width="44" height="30" rx="4" class="line"/>
+  <line x1="20" y1="46" x2="44" y2="46" class="line"/>
+  <rect x="28" y="50" width="8" height="6" class="fill" rx="1"/>
+</svg>

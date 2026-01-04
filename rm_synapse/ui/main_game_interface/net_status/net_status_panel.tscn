@@ -1,0 +1,110 @@
+[gd_scene load_steps=4 format=3 uid="uid://c0ae31iiakvix"]
+
+[ext_resource type="Texture2D" uid="uid://bglhs8hryarek" path="res://ui/main_game_interface/net_status/monitor.svg" id="1_monitor"]
+[ext_resource type="Texture2D" uid="uid://bmmqr6ru1d3u" path="res://ui/main_game_interface/net_status/camera.svg" id="2_camera"]
+[ext_resource type="Script" uid="uid://nkwjrv2xskqq" path="res://ui/main_game_interface/net_status/net_status_panel.gd" id="3_script"]
+
+[node name="NetStatusPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 336.0
+offset_bottom = 224.0
+script = ExtResource("3_script")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 328.0
+offset_bottom = 220.0
+theme_override_constants/separation = 10
+
+[node name="RowUpMQTT" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="IconA" type="TextureRect" parent="VBox/RowUpMQTT"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("1_monitor")
+stretch_mode = 3
+
+[node name="Arrow" type="Label" parent="VBox/RowUpMQTT"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+text = "→"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="IconB" type="TextureRect" parent="VBox/RowUpMQTT"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("1_monitor")
+stretch_mode = 3
+
+[node name="Status" type="Label" parent="VBox/RowUpMQTT"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "MQTT 上行: 未连接"
+vertical_alignment = 1
+
+[node name="RowDownMQTT" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="IconA" type="TextureRect" parent="VBox/RowDownMQTT"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("1_monitor")
+stretch_mode = 3
+
+[node name="Arrow" type="Label" parent="VBox/RowDownMQTT"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+text = "→"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="IconB" type="TextureRect" parent="VBox/RowDownMQTT"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("1_monitor")
+stretch_mode = 3
+
+[node name="Status" type="Label" parent="VBox/RowDownMQTT"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "MQTT 下行: 未连接"
+vertical_alignment = 1
+
+[node name="RowVideo" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="IconA" type="TextureRect" parent="VBox/RowVideo"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("1_monitor")
+stretch_mode = 3
+
+[node name="Arrow" type="Label" parent="VBox/RowVideo"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+text = "→"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="IconB" type="TextureRect" parent="VBox/RowVideo"]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = ExtResource("2_camera")
+stretch_mode = 3
+
+[node name="Status" type="Label" parent="VBox/RowVideo"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "视频流: 未连接"
+vertical_alignment = 1
