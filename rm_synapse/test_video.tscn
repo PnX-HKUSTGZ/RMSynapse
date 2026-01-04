@@ -24,6 +24,7 @@ func _on_mqtt_client_air_support_status_sync_updated(value: Variant) -> void:
 [node name="Node2D" type="Node2D"]
 
 [node name="RMVideoCanvas" type="RMVideoCanvas" parent="."]
+display_mode = 1
 offset_right = 1152.0
 offset_bottom = 648.0
 

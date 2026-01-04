@@ -19,3 +19,4 @@ build/
 
 *.os
 *.uid
+*.import
