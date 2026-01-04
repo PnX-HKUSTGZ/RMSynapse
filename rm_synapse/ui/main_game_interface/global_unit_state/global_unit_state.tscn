@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3 uid="uid://c62hr77fpgdye"]
+
+[ext_resource type="PackedScene" uid="uid://dsqs1c20ga8h6" path="res://ui/main_game_interface/global_unit_state/blue_unit_state.tscn" id="1_ye81x"]
+[ext_resource type="PackedScene" uid="uid://bsyfy02xykgpp" path="res://ui/main_game_interface/global_unit_state/red_unit_state.tscn" id="2_1pq1o"]
+
+[node name="GlobalUnitState" type="Node2D"]
+
+[node name="GlobalUnitState" parent="." instance=ExtResource("1_ye81x")]
+position = Vector2(721, 30)
+scale = Vector2(0.35, 0.35)
+
+[node name="GlobalUnitState2" parent="." instance=ExtResource("2_1pq1o")]
+position = Vector2(88, 24)
+scale = Vector2(0.35, 0.35)
