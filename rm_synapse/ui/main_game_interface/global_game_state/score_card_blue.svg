@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="90" viewBox="0 0 150 90">
+  <defs>
+    <linearGradient id="cardBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f6aa3"/>
+      <stop offset="100%" stop-color="#0f3a5c"/>
+    </linearGradient>
+    <linearGradient id="cardEdgeBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6dd5ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#6dd5ff" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M12 10 H110 L138 20 L138 70 L110 80 H12 Z"
+        fill="url(#cardBlue)" stroke="url(#cardEdgeBlue)" stroke-width="2" stroke-linejoin="round"/>
+</svg>

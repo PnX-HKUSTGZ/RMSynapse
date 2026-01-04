@@ -1,0 +1,33 @@
+[gd_scene load_steps=2 format=3 uid="uid://4l41wixl5gt"]
+
+[ext_resource type="Texture2D" uid="uid://cbkv7lsago2nh" path="res://ui/main_game_interface/global_game_state/timer_display.svg" id="1_s3m4g"]
+
+[node name="OtherGameStateShow" type="Node2D"]
+
+[node name="TimerDisplay" type="Sprite2D" parent="."]
+scale = Vector2(2.6100001, 0.9)
+texture = ExtResource("1_s3m4g")
+
+[node name="OtherStatusName" type="RichTextLabel" parent="."]
+offset_left = -109.0
+offset_top = -10.0
+offset_right = -12.0
+offset_bottom = 10.0
+size_flags_vertical = 0
+theme_override_font_sizes/normal_font_size = 10
+text = "Other Game State"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="OtherStatusTime" type="RichTextLabel" parent="."]
+offset_left = 14.0
+offset_top = -10.0
+offset_right = 111.0
+offset_bottom = 10.0
+size_flags_vertical = 0
+theme_override_font_sizes/normal_font_size = 14
+text = "--/--"
+horizontal_alignment = 1
+vertical_alignment = 1
+metadata/_edit_use_anchors_ = true

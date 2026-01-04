@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40" viewBox="0 0 100 40">
+  <defs>
+    <linearGradient id="timerBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e2024"/>
+      <stop offset="100%" stop-color="#14161a"/>
+    </linearGradient>
+    <linearGradient id="timerGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7cf0ff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#7cf0ff" stop-opacity="0.15"/>
+    </linearGradient>
+    <filter id="innerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- 计时器背景框 -->
+  <rect x="4" y="4" width="92" height="32" rx="6" ry="6"
+        fill="url(#timerBg)" stroke="url(#timerGlow)" stroke-width="1.5"/>
+  
+  <!-- 内部暗边框 -->
+  <rect x="8" y="8" width="84" height="24" rx="4" ry="4"
+        fill="none" stroke="#2a2c30" stroke-width="1"/>
+  
+  <!-- 底部指示条 -->
+  <rect x="30" y="32" width="40" height="3" rx="1.5"
+        fill="#7cf0ff" opacity="0.4"/>
+</svg>

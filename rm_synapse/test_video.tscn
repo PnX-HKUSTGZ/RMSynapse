@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=5 format=3 uid="uid://b0wlb2cnkwr4q"]
 
 [ext_resource type="Script" uid="uid://cvkqgb337d88g" path="res://rich_text_label.gd" id="2_7hnfv"]
 [ext_resource type="Texture2D" uid="uid://d3vbptqo1w2a2" path="res://icon.svg" id="2_ixpqk"]
+[ext_resource type="PackedScene" uid="uid://babpo8abkagu4" path="res://ui/main_game_interface/remote_control/remote_control_core.tscn" id="3_ixpqk"]
 
 [sub_resource type="GDScript" id="GDScript_jmk06"]
 script/source = "extends Sprite2D
@@ -48,3 +49,10 @@ offset_right = 168.0
 offset_bottom = 96.0
 text = "-1
 "
+
+[node name="RemoteControlCore" parent="." instance=ExtResource("3_ixpqk")]
+offset_left = 560.0
+offset_top = 488.0
+offset_right = 1184.0
+offset_bottom = 600.0
+scale = Vector2(0.8, 0.8)
