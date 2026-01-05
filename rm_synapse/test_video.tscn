@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=6 format=3 uid="uid://b0wlb2cnkwr4q"]
 
 [ext_resource type="PackedScene" uid="uid://dxusg3b40frev" path="res://ui/main_game_interface/global_game_state/global_game_state.tscn" id="2_7hnfv"]
 [ext_resource type="PackedScene" uid="uid://babpo8abkagu4" path="res://ui/main_game_interface/remote_control/remote_control_core.tscn" id="3_ixpqk"]
 [ext_resource type="PackedScene" uid="uid://c0ae31iiakvix" path="res://ui/main_game_interface/net_status/net_status_panel.tscn" id="3_nv1rm"]
 [ext_resource type="PackedScene" uid="uid://c62hr77fpgdye" path="res://ui/main_game_interface/global_unit_state/global_unit_state.tscn" id="4_nv1rm"]
+[ext_resource type="PackedScene" uid="uid://di85v7icuhrp7" path="res://ui/main_game_interface/global_logistics_status/global_logistics_status.tscn" id="5_5ag1o"]
 
 [node name="Node2D" type="Node2D"]
 
@@ -28,3 +29,6 @@ scale = Vector2(0.3, 0.3)
 
 [node name="GlobalUnitState" parent="." instance=ExtResource("4_nv1rm")]
 position = Vector2(-8, 96)
+
+[node name="GlobalLogisticsStatus" parent="." instance=ExtResource("5_5ag1o")]
+position = Vector2(920, 8)
