@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=13 format=3 uid="uid://b0wlb2cnkwr4q"]
 
 [ext_resource type="PackedScene" uid="uid://dxusg3b40frev" path="res://ui/main_game_interface/global_game_state/global_game_state.tscn" id="2_7hnfv"]
 [ext_resource type="PackedScene" uid="uid://babpo8abkagu4" path="res://ui/main_game_interface/remote_control/remote_control_core.tscn" id="3_ixpqk"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" uid="uid://c7ygxb4h5k3ga" path="res://ui/main_game_interface/robot_respawn/robot_respawn.tscn" id="9_pk5is"]
 [ext_resource type="PackedScene" uid="uid://c4cq121vbp5jn" path="res://ui/main_game_interface/robot_status/robot_status.tscn" id="10_rqeeh"]
 [ext_resource type="PackedScene" uid="uid://vo4nj5dldr45" path="res://ui/main_game_interface/robot_running_status/robot_running.tscn" id="11_7h4td"]
+[ext_resource type="PackedScene" uid="uid://275iesn2om82" path="res://ui/main_game_interface/robot_moduls_status/robot_module_status.tscn" id="12_smvdg"]
 
 [node name="Node2D" type="Node2D"]
 
@@ -59,7 +60,14 @@ offset_bottom = 504.0
 position = Vector2(472, 272)
 
 [node name="RobotStatus" parent="." instance=ExtResource("10_rqeeh")]
-position = Vector2(8, 472)
+position = Vector2(8, 448)
 
 [node name="RobotRunning" parent="." instance=ExtResource("11_7h4td")]
 position = Vector2(472, 272)
+
+[node name="RobotModuleStatus" parent="." instance=ExtResource("12_smvdg")]
+offset_left = 16.0
+offset_top = 587.0
+offset_right = 872.0
+offset_bottom = 907.0
+scale = Vector2(0.6, 0.6)
