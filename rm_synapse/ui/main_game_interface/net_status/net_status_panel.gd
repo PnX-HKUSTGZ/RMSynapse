@@ -3,6 +3,7 @@ extends Control
 const COLOR_OK := Color(0.14, 0.85, 0.56)
 const COLOR_FAIL := Color(0.89, 0.36, 0.36)
 const COLOR_IDLE := Color(0.5, 0.5, 0.5)
+const COLOR_WARN := Color(0.95, 0.77, 0.25)
 
 @export var game_state_path: NodePath = NodePath("/root/MqttNet/GameState")
 @export var video_canvas_path: NodePath = NodePath("/root/RMVideoCanvas")
@@ -15,6 +16,9 @@ func _ready() -> void:
 	set_mqtt_up_status("MQTT 上行: 未连接", COLOR_IDLE)
 	set_mqtt_down_status("MQTT 下行: 未连接", COLOR_IDLE)
 	set_video_status("视频流: 未连接", COLOR_IDLE)
+	set_robot_conn_status("机器人连接: 未知", COLOR_IDLE)
+	set_robot_field_status("上场状态: 未知", COLOR_IDLE)
+	set_robot_alive_status("存活状态: 未知", COLOR_IDLE)
 	_gs = _resolve_game_state()
 	if _gs:
 		print("[NetStatus] GameState resolved: ", _gs)
@@ -32,6 +36,11 @@ func _ready() -> void:
 			_gs.connect("mqtt_connection_failed", Callable(self, "_on_mqtt_disconnected"))
 		else:
 			push_warning("[NetStatus] GameState has NO mqtt_connected/mqtt_disconnected/mqtt_connection_failed signals.")
+
+		if _gs.has_signal("robot_static_status_updated"):
+			_gs.connect("robot_static_status_updated", Callable(self, "_on_robot_static_status"))
+		else:
+			push_warning("[NetStatus] GameState missing robot_static_status_updated signal.")
 	else:
 		push_warning("[NetStatus] GameState node NOT found.")
 
@@ -54,6 +63,15 @@ func set_mqtt_down_status(text: String, color: Color = Color(0.23, 0.91, 0.56)) 
 func set_video_status(text: String, color: Color = Color(0.23, 0.91, 0.56)) -> void:
 	_set_row_status($"VBox/RowVideo/Status", text, color)
 
+func set_robot_conn_status(text: String, color: Color = COLOR_IDLE) -> void:
+	_set_row_status($"VBox/RowRobotConn/Status", text, color)
+
+func set_robot_field_status(text: String, color: Color = COLOR_IDLE) -> void:
+	_set_row_status($"VBox/RowRobotField/Status", text, color)
+
+func set_robot_alive_status(text: String, color: Color = COLOR_IDLE) -> void:
+	_set_row_status($"VBox/RowRobotAlive/Status", text, color)
+
 func _set_row_status(label: Label, text: String, color: Color) -> void:
 	if label == null:
 		return
@@ -74,6 +92,26 @@ func _on_video_stream_state(is_streaming: bool) -> void:
 	else:
 		set_video_status("视频流: 未接收", COLOR_FAIL)
 
+func _on_robot_static_status(value) -> void:
+	var conn = int(_get_val(value, "connection_state", -1))
+	match conn:
+		1: set_robot_conn_status("机器人连接: 已连接", COLOR_OK)
+		0: set_robot_conn_status("机器人连接: 未连接", COLOR_FAIL)
+		_: set_robot_conn_status("机器人连接: 未知", COLOR_IDLE)
+
+	var field = int(_get_val(value, "field_state", -1))
+	match field:
+		0: set_robot_field_status("上场状态: 已上场", COLOR_OK)
+		1: set_robot_field_status("上场状态: 未上场", COLOR_WARN)
+		_: set_robot_field_status("上场状态: 未知", COLOR_IDLE)
+
+	var alive = int(_get_val(value, "alive_state", -1))
+	match alive:
+		1: set_robot_alive_status("存活状态: 存活", COLOR_OK)
+		2: set_robot_alive_status("存活状态: 阵亡", COLOR_FAIL)
+		0: set_robot_alive_status("存活状态: 未知", COLOR_IDLE)
+		_: set_robot_alive_status("存活状态: 未知", COLOR_IDLE)
+
 func _resolve_game_state() -> Node:
 	if game_state_path != NodePath("") and has_node(game_state_path):
 		return get_node(game_state_path)
@@ -92,3 +130,14 @@ func _resolve_video() -> Node:
 			if candidate:
 				return candidate
 	return null
+
+func _get_val(src, key_name: String, default_val):
+	if typeof(src) == TYPE_DICTIONARY:
+		return src.get(key_name, default_val)
+	if src == null:
+		return default_val
+	if src.has_method("get_" + key_name):
+		return src.call("get_" + key_name)
+	if src.has_method("has") and src.has(key_name):
+		return src.get(key_name)
+	return default_val

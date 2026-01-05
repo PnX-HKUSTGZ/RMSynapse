@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://fmq4olxxmlub"]
+
+[ext_resource type="Script" uid="uid://dglgtxmjv6ex7" path="res://ui/main_game_interface/robot_running_status/robot_shootor_status.gd" id="1_script"]
+
+[node name="RobotShootorStatus" type="Node2D"]
+position = Vector2(72, 56)
+script = ExtResource("1_script")
