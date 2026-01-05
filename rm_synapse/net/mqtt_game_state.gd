@@ -247,15 +247,7 @@ func _decode(topic: String, payload: PackedByteArray):
 	if err != Proto.PB_ERR.NO_ERRORS and err != 0:
 		_log_warn("Decode failed for %s err=%s hex=%s" % [topic, err, _hex_preview(payload)])
 		return null
-	_fill_defaults(msg)
 	return msg
-
-func _fill_defaults(msg) -> void:
-	# 对未出现的字段显式填入 proto3 默认值
-	for service_field in msg.data.values():
-		if service_field.state != Proto.PB_SERVICE_STATE.FILLED:
-			service_field.state = Proto.PB_SERVICE_STATE.FILLED
-			service_field.field.value = Proto.DEFAULT_VALUES_3[service_field.field.type]
 
 #================ 状态存储 / 信号部分 =================
 
