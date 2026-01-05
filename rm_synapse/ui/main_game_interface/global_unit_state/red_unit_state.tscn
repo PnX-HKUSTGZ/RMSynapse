@@ -12,31 +12,31 @@ offset_top = 32.0
 offset_right = 568.0
 offset_bottom = 92.0
 
-[node name="UnitRed1" parent="." instance=ExtResource("2_odly2")]
+[node name="UnitRed8" parent="." instance=ExtResource("2_odly2")]
 position = Vector2(104, 160)
-unit_id = 7
+unit_id = 8
 
-[node name="UnitRed2" parent="." instance=ExtResource("2_odly2")]
+[node name="UnitRed6" parent="." instance=ExtResource("2_odly2")]
 position = Vector2(408, 160)
-unit_id = 5
-
-[node name="UnitRed3" parent="." instance=ExtResource("2_odly2")]
-position = Vector2(256, 160)
 unit_id = 6
+
+[node name="UnitRed7" parent="." instance=ExtResource("2_odly2")]
+position = Vector2(256, 160)
+unit_id = 7
 
 [node name="UnitRed4" parent="." instance=ExtResource("2_odly2")]
 position = Vector2(560, 160)
 unit_id = 4
 
-[node name="UnitRed5" parent="." instance=ExtResource("2_odly2")]
+[node name="UnitRed3" parent="." instance=ExtResource("2_odly2")]
 position = Vector2(716, 160)
 unit_id = 3
 
-[node name="UnitRed6" parent="." instance=ExtResource("2_odly2")]
+[node name="UnitRed2" parent="." instance=ExtResource("2_odly2")]
 position = Vector2(872, 160)
 unit_id = 2
 
-[node name="UnitRed7" parent="." instance=ExtResource("2_odly2")]
+[node name="UnitRed1" parent="." instance=ExtResource("2_odly2")]
 position = Vector2(1024, 160)
 unit_id = 1
 

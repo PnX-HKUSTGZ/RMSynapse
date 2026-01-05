@@ -1,4 +1,5 @@
 extends Node2D
+class_name RM_Unit_Node
 
 @export var unit_id: int = -1
 @export var unit_image: Texture2D = null

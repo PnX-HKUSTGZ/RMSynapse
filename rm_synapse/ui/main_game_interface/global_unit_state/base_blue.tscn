@@ -1,10 +1,13 @@
-[gd_scene format=3 uid="uid://chwkoloauskh"]
+[gd_scene load_steps=3 format=3 uid="uid://chwkoloauskh"]
 
-[ext_resource type="Texture2D" path="res://ui/main_game_interface/global_unit_state/score_card_blue.svg" id="1_814rc"]
-[ext_resource type="Script" path="res://ui/main_game_interface/global_unit_state/base.gd" id="1_c1mst"]
+[ext_resource type="Texture2D" uid="uid://dcjlg3h3xcqs6" path="res://ui/main_game_interface/global_unit_state/score_card_blue.svg" id="1_814rc"]
+[ext_resource type="Script" uid="uid://b50gagth3lhyl" path="res://ui/main_game_interface/global_unit_state/base.gd" id="1_c1mst"]
 
 [node name="BaseBlue" type="Node2D"]
 script = ExtResource("1_c1mst")
+shield_hp = null
+base_max_hp = null
+base_current_hp = null
 
 [node name="PHBar" type="ProgressBar" parent="."]
 offset_left = 112.0
@@ -45,3 +48,9 @@ offset_bottom = 72.0
 text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="BaseStatus" type="RichTextLabel" parent="."]
+offset_left = 176.0
+offset_top = 40.0
+offset_right = 272.0
+offset_bottom = 80.0
