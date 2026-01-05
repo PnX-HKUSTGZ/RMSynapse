@@ -26,29 +26,55 @@ func _base_status_to_string(status_id : int) -> String:
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	var base_hp_bar = get_node("PHBar") as ProgressBar
-	var base_current_hp_label = get_node("BasePH") as RichTextLabel
-	var shield_hp_label = get_node("ShieldPH") as RichTextLabel
+	var base_hp_bar = get_node_or_null("PHBar") as ProgressBar
+	var base_current_hp_label = get_node_or_null("BasePH") as RichTextLabel
+	var shield_hp_label = get_node_or_null("ShieldPH") as RichTextLabel
 
-	base_hp_bar.max_value = base_max_hp
-	base_hp_bar.value = base_current_hp
-	base_current_hp_label.text = str(base_current_hp)
-	shield_hp_label.text = str(shield_hp)
+	if base_hp_bar:
+		base_hp_bar.max_value = base_max_hp
+		base_hp_bar.value = base_current_hp
+	else:
+		push_warning("Base node missing PHBar ProgressBar")
+
+	if base_current_hp_label:
+		base_current_hp_label.text = str(base_current_hp)
+	else:
+		push_warning("Base node missing BasePH label")
+
+	if shield_hp_label:
+		shield_hp_label.text = str(shield_hp)
+	else:
+		push_warning("Base node missing ShieldPH label")
 
 func set_base_max_hp(hp: float) -> void:
-	var base_hp_bar = get_node("PHBar") as ProgressBar
-	base_hp_bar.max_value = hp
+	var base_hp_bar = get_node_or_null("PHBar") as ProgressBar
+	if base_hp_bar:
+		base_hp_bar.max_value = hp
+	else:
+		push_warning("set_base_max_hp: PHBar not found")
 
 func set_base_current_hp(hp: float) -> void:
-	var base_hp_bar = get_node("PHBar") as ProgressBar
-	var base_current_hp_label = get_node("BasePH") as RichTextLabel
-	base_hp_bar.value = hp
-	base_current_hp_label.text = str(hp)
+	var base_hp_bar = get_node_or_null("PHBar") as ProgressBar
+	var base_current_hp_label = get_node_or_null("BasePH") as RichTextLabel
+	if base_hp_bar:
+		base_hp_bar.value = hp
+	else:
+		push_warning("set_base_current_hp: PHBar not found")
+	if base_current_hp_label:
+		base_current_hp_label.text = str(hp)
+	else:
+		push_warning("set_base_current_hp: BasePH not found")
 
 func set_shield_hp(hp: float) -> void:
-	var shield_hp_label = get_node("ShieldPH") as RichTextLabel
-	shield_hp_label.text = str(hp)
+	var shield_hp_label = get_node_or_null("ShieldPH") as RichTextLabel
+	if shield_hp_label:
+		shield_hp_label.text = str(hp)
+	else:
+		push_warning("set_shield_hp: ShieldPH not found")
 	
 func set_base_status(status_id : int) -> void:
-	var status_label = get_node("BaseStatus") as RichTextLabel
-	status_label.text = _base_status_to_string(status_id)
+	var status_label = get_node_or_null("BaseStatus") as RichTextLabel
+	if status_label:
+		status_label.text = _base_status_to_string(status_id)
+	else:
+		push_warning("set_base_status: BaseStatus not found")

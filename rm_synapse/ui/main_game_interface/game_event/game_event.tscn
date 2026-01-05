@@ -1,0 +1,31 @@
+[gd_scene load_steps=2 format=3 uid="uid://bswq7scdicti7"]
+
+[ext_resource type="Script" uid="uid://n6xx77j3yvyf" path="res://ui/main_game_interface/game_event/game_event.gd" id="1_tl3yv"]
+
+[node name="GameEvent" type="Control"]
+custom_minimum_size = Vector2(600, 56)
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_tl3yv")
+
+[node name="Background" type="ColorRect" parent="."]
+visible = false
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.05, 0.6)
+
+[node name="EventLabel" type="RichTextLabel" parent="."]
+layout_mode = 0
+anchor_right = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = 48.0
+grow_horizontal = 2
+grow_vertical = 0
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+horizontal_alignment = 1
+vertical_alignment = 1
