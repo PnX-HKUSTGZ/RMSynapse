@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=9 format=3 uid="uid://b0wlb2cnkwr4q"]
 
 [ext_resource type="PackedScene" uid="uid://dxusg3b40frev" path="res://ui/main_game_interface/global_game_state/global_game_state.tscn" id="2_7hnfv"]
 [ext_resource type="PackedScene" uid="uid://babpo8abkagu4" path="res://ui/main_game_interface/remote_control/remote_control_core.tscn" id="3_ixpqk"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://di85v7icuhrp7" path="res://ui/main_game_interface/global_logistics_status/global_logistics_status.tscn" id="5_5ag1o"]
 [ext_resource type="PackedScene" uid="uid://dkrwouedd1sc0" path="res://ui/main_game_interface/global_special_mechanism/global_special_mechanism.tscn" id="6_q2j3c"]
 [ext_resource type="PackedScene" uid="uid://bswq7scdicti7" path="res://ui/main_game_interface/game_event/game_event.tscn" id="7_fltyv"]
+[ext_resource type="PackedScene" uid="uid://c2ta4edk2ne7d" path="res://ui/main_game_interface/robot_injury_stat/robot_injury_display.tscn" id="8_njqes"]
 
 [node name="Node2D" type="Node2D"]
 
@@ -43,3 +44,11 @@ offset_left = 304.0
 offset_top = 216.0
 offset_right = 904.0
 offset_bottom = 272.0
+
+[node name="RobotInjuryDisplay" parent="." instance=ExtResource("8_njqes")]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 280.0
+offset_right = 460.0
+offset_bottom = 520.0
