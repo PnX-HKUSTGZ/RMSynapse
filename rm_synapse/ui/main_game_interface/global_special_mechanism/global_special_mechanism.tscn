@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://dkrwouedd1sc0"]
+
+[ext_resource type="Script" uid="uid://dy37nc2dpujj0" path="res://ui/main_game_interface/global_special_mechanism/global_special_mechanism.gd" id="1_pl8yk"]
+
+[node name="GlobalSpecialMechanism" type="Node2D"]
+script = ExtResource("1_pl8yk")
+
+[node name="EnemyOverOwnFortress" type="RichTextLabel" parent="."]
+offset_right = 488.0
+offset_bottom = 40.0
+text = "己方堡垒被对方占领计时"
+vertical_alignment = 1
+
+[node name="OwnOverEnemyFortress" type="RichTextLabel" parent="."]
+offset_top = 40.0
+offset_right = 488.0
+offset_bottom = 80.0
+text = "对方堡垒被己方占领计时"
+vertical_alignment = 1

@@ -178,9 +178,6 @@ func _schedule_reconnect() -> void:
 
 func _on_received_message(topic: String, payload) -> void:
 	# payload 是二进制 PackedByteArray
-	if payload.size() == 0:
-		_log_warn("Recv %s empty payload, dropped" % topic)
-		return
 	var decoded = _decode(topic, payload)
 	if decoded == null:
 		if not log_decode_errors_only:
@@ -243,6 +240,8 @@ func _decode(topic: String, payload: PackedByteArray):
 			msg = Proto.CustomByteBlock.new()
 		_:
 			return null
+	if payload.size() == 0:
+		return msg
 	var err = msg.from_bytes(payload)
 	if err != Proto.PB_ERR.NO_ERRORS and err != 0:
 		_log_warn("Decode failed for %s err=%s hex=%s" % [topic, err, _hex_preview(payload)])
