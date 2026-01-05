@@ -24,6 +24,7 @@ var _hero_deploy: Dictionary = {"mode": 0}                        # 0=退出
 var _rune_activate: Dictionary = {"activate": 0}                  # 0=未激活
 var _perf_select: Dictionary = {"shooter": 0, "chassis": 0}       # 未选择
 var _assembly: Dictionary = {"operation": 0, "difficulty": 0}     # 未操作
+var _assembly_pending: bool = false                               # 是否待发送
 var _air_support: Dictionary = {"command_id": 0}                  # 未呼叫
 var _dart_cmd: Dictionary = {"target_id": 0, "open": false}       # 默认不打开
 
@@ -51,6 +52,7 @@ func set_robot_performance_selection(shooter: int, chassis: int) -> void:
 
 func set_assembly_command(operation: int, difficulty: int) -> void:
 	_assembly = {"operation": operation, "difficulty": difficulty}
+	_assembly_pending = true
 
 func set_air_support_command(command_id: int) -> void:
 	_air_support = {"command_id": command_id}
@@ -104,13 +106,16 @@ func _send_perf_select():
 	_log(LVL_DEBUG, "Sent PerfSelection shooter=%d chassis=%d" % [_perf_select.get("shooter", 0), _perf_select.get("chassis", 0)])
 
 func _send_assembly():
-	if _assembly == null:
+	if _assembly == null or not _assembly_pending:
 		return
 	var msg = Proto.AssemblyCommand.new()
 	msg.set_operation(_assembly.get("operation", 0))
 	msg.set_difficulty(_assembly.get("difficulty", 0))
 	sender.publish_now("AssemblyCommand", msg.to_bytes(), 1, false)
 	_log(LVL_DEBUG, "Sent Assembly op=%d diff=%d" % [_assembly.get("operation", 0), _assembly.get("difficulty", 0)])
+	# 发送完成后置零，避免持续重复下发
+	_assembly = {"operation": 0, "difficulty": 0}
+	_assembly_pending = false
 
 func _send_air_support():
 	if _air_support == null:

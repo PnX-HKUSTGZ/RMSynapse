@@ -1,0 +1,28 @@
+[gd_scene load_steps=2 format=3 uid="uid://b3x4majp8r4of"]
+
+[ext_resource type="Script" uid="uid://b4pha5duwx255" path="res://ui/main_game_interface/assembly/assembly_progress.gd" id="1_vwt83"]
+
+[node name="AssemblyProgress" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_vwt83")
+
+[node name="EscShow" type="RichTextLabel" parent="."]
+layout_mode = 0
+offset_left = 128.0
+offset_top = 128.0
+offset_right = 312.0
+offset_bottom = 168.0
+text = "按下 Esc 键取消装配"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CoreStatusShow" type="RichTextLabel" parent="."]
+layout_mode = 0
+offset_left = 360.0
+offset_top = 400.0
+offset_right = 584.0
+offset_bottom = 440.0
+text = "核心状态显示"
+horizontal_alignment = 1
+vertical_alignment = 1

@@ -18,6 +18,7 @@ script = ExtResource("2_de1hx")
 [node name="LowRateSender" type="Node" parent="."]
 script = ExtResource("3_eawvy")
 mqtt_sender_path = NodePath("../MQTTSender")
+verbose = "debug"
 
 [node name="RemoteControlSender" type="Node" parent="."]
 script = ExtResource("4_7pig8")

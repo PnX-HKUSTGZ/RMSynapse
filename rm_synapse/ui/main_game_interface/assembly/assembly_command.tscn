@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3 uid="uid://cbm1k2ygkun41"]
+
+[ext_resource type="Script" uid="uid://bi0ooacly0gx0" path="res://ui/main_game_interface/assembly/assembly_command.gd" id="1_script"]
+
+[node name="AssemblyCommand" type="Control"]
+custom_minimum_size = Vector2(360, 160)
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.12, 0.12, 0.12, 0.75)
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+theme_override_constants/separation = 8
+
+[node name="Status" type="Label" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "状态: 未进入装配"
+
+[node name="RowSelect" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Label" type="Label" parent="VBox/RowSelect"]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+text = "装配难度"
+vertical_alignment = 1
+
+[node name="Dropdown" type="OptionButton" parent="VBox/RowSelect"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RowButtons" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ConfirmBtn" type="Button" parent="VBox/RowButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "确认装配"
+
+[node name="CancelBtn" type="Button" parent="VBox/RowButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "取消装配"
