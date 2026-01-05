@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://c7ygxb4h5k3ga" load_steps=2]
+
+[ext_resource type="Script" uid="uid://bdmx7x052p75a" path="res://ui/main_game_interface/robot_respawn/robot_respawn.gd" id="1_lqaha"]
+
+[node name="RobotRespawn" type="Node2D"]
+script = ExtResource("1_lqaha")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 672.0
+offset_bottom = 216.0
+color = Color(0.25565878, 0.25565878, 0.25565878, 1)
+
+[node name="Title" type="RichTextLabel" parent="."]
+offset_left = 208.0
+offset_top = 24.0
+offset_right = 472.0
+offset_bottom = 64.0
+text = "Dead"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RespawnProgressTitle" type="RichTextLabel" parent="."]
+offset_left = 64.0
+offset_top = 64.0
+offset_right = 272.0
+offset_bottom = 96.0
+text = "复活进度"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RespawnProgressBar" type="ProgressBar" parent="."]
+offset_left = 64.0
+offset_top = 104.0
+offset_right = 272.0
+offset_bottom = 131.0
+
+[node name="FreeReSpawn" type="Button" parent="."]
+offset_left = 344.0
+offset_top = 80.0
+offset_right = 432.0
+offset_bottom = 104.0
+text = "免费复活"
+
+[node name="PayReSpawn" type="Button" parent="."]
+offset_left = 344.0
+offset_top = 128.0
+offset_right = 432.0
+offset_bottom = 152.0
+text = "付费复活"
