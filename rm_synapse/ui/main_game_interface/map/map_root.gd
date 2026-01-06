@@ -8,6 +8,9 @@ extends Control
 @export var red_side_color : Color = Color(1, 0, 0, 1)
 @export var blue_side_color : Color = Color(0, 0, 1, 1)
 @export var pos_timeout : float = 1.0 # 位置数据超时时间（秒）超时后将会不显示位置
+@export var sentry_path_color : Color = Color(0, 1, 0, 1)
+@export var sentry_path_width : float = 4.0
+@export var sentry_path_timeout : float = 5.0 # 哨兵路径显示时间（秒）
 
 #不支持热重载的参数
 @export var game_state_path: NodePath = NodePath("/root/MqttNet/GameState")
@@ -16,6 +19,14 @@ extends Control
 @onready var map_texture = $MapContainer/MapTexture
 @onready var paths_layer = $MapContainer/PathsLayer
 @onready var icons_layer = $MapContainer/IconsLayer
+
+class Line2DTime:
+	var line: Line2D
+	var timestamp: float
+
+	func _init(_line: Line2D):
+		self.line = _line
+		self.timestamp = Time.get_ticks_msec() / 1000.0
 
 const ROBOT_ICON_TSCN_PATH = "res://ui/main_game_interface/map/robot_icon.tscn"
 
@@ -34,6 +45,7 @@ var self_icon : Node2D = preload(ROBOT_ICON_TSCN_PATH).instantiate()
 
 var last_pos_update_times : Dictionary
 var robot_positions : Dictionary
+var sentry_path_list : Array[Line2DTime]
 
 func _build_robot_positions() -> Dictionary:
 	var dict = {}
@@ -58,6 +70,17 @@ func _build_last_pos_update_times() -> Dictionary:
 		dict[robot_id] = Time.get_ticks_msec() / 1000.0
 	return dict
 
+func _sentry_intention_map(intention: int) -> String:
+	match intention:
+		1:
+			return "攻击"
+		2:
+			return "防守"
+		3:
+			return "移动"
+		_:
+			return "未知"
+
 func _ready():
 	
 	# 初始化尺寸数据
@@ -71,6 +94,8 @@ func _ready():
 	self_icon.name = "SelfRobotIcon"
 	icons_layer.add_child(self_icon)
 	print("Added SelfRobotIcon to map.")
+
+	sentry_path_list = []
 
 
 	# 监听游戏状态变化
@@ -96,7 +121,61 @@ func _ready():
 		game_state.connect("rader_info_updated", Callable(self, "_on_radar_info_updated"))
 	else:
 		push_error("GameState node has no signal 'rader_info_updated'")
-		
+
+	# 获取哨兵规划信息
+	if game_state.has_signal("robot_path_plan_info_updated"):
+		game_state.connect("robot_path_plan_info_updated", Callable(self, "_on_robot_path_plan_info_updated"))
+	else:
+		push_error("GameState node has no signal 'robot_path_plan_info_updated'")
+
+
+func _on_robot_path_plan_info_updated(value) -> void:
+	var sentry_id = value.get_sender_id()
+
+	if not robot_positions.has(sentry_id):
+		push_warning("Received path plan info for unknown robot ID: %d" % sentry_id)
+		return
+	var icon = robot_positions[sentry_id]
+
+	# 更新意图显示
+	icon.intention = _sentry_intention_map(value.get_intention())
+
+	# 更新路径显示 注意获取的是分米
+
+	# 清除之前的路径
+	for i in sentry_path_list.size():
+		var line : Line2DTime = sentry_path_list[i]
+		paths_layer.remove_child(line.line)
+	sentry_path_list.clear()
+
+	# 构建新的路径
+	var map_path : Array[Vector3] = []
+	var screen_path : Array[Vector2] = []
+	var start_point = Vector3(value.get_start_pos_x()/10, value.get_start_pos_y()/10, 0)
+	map_path.push_back(start_point)
+
+	var offset_x : Array[int] = value.get_offset_x()
+	var offset_y : Array[int] = value.get_offset_y()
+
+	if offset_x.size() != offset_y.size():
+		push_warning("Offset X and Y size mismatch for robot ID: %d" % sentry_id)
+		return
+	
+	for i in offset_x.size():
+		var point = Vector3(start_point.x + offset_x[i] / 10.0, start_point.y + offset_y[i] / 10.0, 0)
+		map_path.append(point)
+
+	for point in map_path:
+		var map_co = world_to_map_co(point)
+		screen_path.append(map_co)
+	# 绘制路径
+	var line2d = Line2D.new()
+	line2d.width = sentry_path_width
+	line2d.default_color = sentry_path_color
+	line2d.points = screen_path
+	line2d.name = "PathLine_%d" % sentry_id
+	paths_layer.add_child(line2d)
+	sentry_path_list.append(Line2DTime.new(line2d))
 
 
 func _on_robot_position_updated(value) -> void:
@@ -155,3 +234,11 @@ func _process(_delta: float) -> void:
 			icon.visible = false
 		else:
 			icon.visible = true
+
+	# 处理哨兵路径超时
+	for i in sentry_path_list.size():
+		var line_time : Line2DTime = sentry_path_list[i]
+		if current_time - line_time.timestamp > sentry_path_timeout:
+			paths_layer.remove_child(line_time.line)
+			sentry_path_list.remove_at(i)
+			i -= 1

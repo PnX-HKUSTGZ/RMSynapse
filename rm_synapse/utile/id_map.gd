@@ -148,3 +148,14 @@ func client_to_robot_id(id: int) -> int:
 
 func to_robot_number(robot_id: int) -> int:
 	return ROBOT_NUMBER_MAP.get(robot_id, -1)
+
+# 根据任意 ID（机器人或选手端）返回对应阵营的哨兵机器人 ID，未知返回 -1
+func get_sentinel_id(id: int) -> int:
+	var team = get_team(id)
+	match team:
+		TEAM_RED:
+			return 7
+		TEAM_BLUE:
+			return 107
+		_:
+			return -1
