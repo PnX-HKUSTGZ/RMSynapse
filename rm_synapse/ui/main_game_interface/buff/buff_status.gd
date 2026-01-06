@@ -9,6 +9,7 @@ extends Control
 
 var _gs: Node = null
 var _robot_id: int = -1
+var _id_map: IdMap = null
 
 const BUFF_NAME := {
 	1: "攻击增益",
@@ -22,6 +23,7 @@ const BUFF_NAME := {
 
 func _ready() -> void:
 	visible = false
+	_id_map = get_node("/root/IDMap")
 	_gs = _resolve_game_state()
 	if _gs:
 		if _gs.has_signal("buff_updated"):
@@ -46,7 +48,7 @@ func _on_buff(value) -> void:
 		visible = false
 		return
 
-	var robot_name = ROBOT_ID_NAME.get(_robot_id, "ID %d" % _robot_id)
+	var robot_name = _id_map.get_robot_name(_robot_id, true) if _id_map else "ID %d" % _robot_id
 	_name.text = "%s - %s" % [robot_name, BUFF_NAME.get(buff_type, "Buff %d" % buff_type)]
 	_level.text = "Lv.%d" % buff_level
 	_param.text = param_str
@@ -98,28 +100,3 @@ func _getv(src, key_name: String, default_val):
 	if src.has_method("has") and src.has(key_name):
 		return src.get(key_name)
 	return default_val
-
-const ROBOT_ID_NAME := {
-	1: "红方英雄机器人",
-	2: "红方工程机器人",
-	3: "红方步兵机器人1",
-	4: "红方步兵机器人2",
-	5: "红方步兵机器人3",
-	6: "红方空中机器人",
-	7: "红方哨兵机器人",
-	8: "红方飞镖",
-	9: "红方雷达",
-	10: "红方前哨站",
-	11: "红方基地",
-	101: "蓝方英雄机器人",
-	102: "蓝方工程机器人",
-	103: "蓝方步兵机器人1",
-	104: "蓝方步兵机器人2",
-	105: "蓝方步兵机器人3",
-	106: "蓝方空中机器人",
-	107: "蓝方哨兵机器人",
-	108: "蓝方飞镖",
-	109: "蓝方雷达",
-	110: "蓝方前哨站",
-	111: "蓝方基地"
-}

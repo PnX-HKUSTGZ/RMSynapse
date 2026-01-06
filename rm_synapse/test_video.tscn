@@ -17,13 +17,26 @@
 [ext_resource type="PackedScene" uid="uid://cbm1k2ygkun41" path="res://ui/main_game_interface/assembly/assembly_command.tscn" id="15_kgoyu"]
 [ext_resource type="PackedScene" uid="uid://b3x4majp8r4of" path="res://ui/main_game_interface/assembly/assembly_progress.tscn" id="16_55dxw"]
 
-[node name="Node2D" type="Node2D"]
+[node name="Node2D" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="RMVideoCanvas" type="RMVideoCanvas" parent="."]
-offset_right = 1152.0
-offset_bottom = 648.0
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_right = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="RemoteControlCore" parent="." instance=ExtResource("3_ixpqk")]
+layout_mode = 1
 offset_left = 648.0
 offset_top = 536.0
 offset_right = 1272.0
@@ -34,6 +47,7 @@ scale = Vector2(0.8, 0.8)
 position = Vector2(384, 8)
 
 [node name="NetStatusPanel" parent="." instance=ExtResource("3_nv1rm")]
+layout_mode = 0
 offset_left = 1048.0
 offset_right = 1384.0
 scale = Vector2(0.3, 0.3)
@@ -48,13 +62,13 @@ position = Vector2(920, 8)
 position = Vector2(136, 32)
 
 [node name="GameEvent" parent="." instance=ExtResource("7_fltyv")]
+layout_mode = 0
 offset_left = 304.0
 offset_top = 216.0
 offset_right = 904.0
 offset_bottom = 272.0
 
 [node name="RobotInjuryDisplay" parent="." instance=ExtResource("8_njqes")]
-layout_mode = 3
 anchors_preset = 0
 offset_top = 264.0
 offset_right = 420.0
@@ -70,6 +84,7 @@ position = Vector2(8, 448)
 position = Vector2(472, 272)
 
 [node name="RobotModuleStatus" parent="." instance=ExtResource("12_smvdg")]
+layout_mode = 0
 offset_left = 16.0
 offset_top = 587.0
 offset_right = 872.0
@@ -77,6 +92,7 @@ offset_bottom = 907.0
 scale = Vector2(0.6, 0.6)
 
 [node name="BuffStatus" parent="." instance=ExtResource("13_i3ag8")]
+layout_mode = 0
 offset_left = 32.0
 offset_top = 110.0
 offset_right = 292.0
@@ -84,6 +100,7 @@ offset_bottom = 150.0
 scale = Vector2(0.5, 0.5)
 
 [node name="PenaltyInfo" parent="." instance=ExtResource("14_qmgb1")]
+layout_mode = 0
 offset_left = 16.0
 offset_top = 134.0
 offset_right = 276.0
@@ -91,12 +108,21 @@ offset_bottom = 170.0
 scale = Vector2(0.5, 0.5)
 
 [node name="AssemblyCommand" parent="." instance=ExtResource("15_kgoyu")]
-offset_left = 279.0
-offset_top = 248.0
-offset_right = 639.0
-offset_bottom = 408.0
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -80.0
+offset_right = 180.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="AssemblyProgress" parent="." instance=ExtResource("16_55dxw")]
+layout_mode = 0
 offset_left = 72.0
 offset_top = 64.0
 offset_right = 72.0

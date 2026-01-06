@@ -16,6 +16,7 @@ extends Node2D
 @onready var _exp_show: RichTextLabel = $ExpShow
 
 var _gs: Node = null
+var _id_map: IdMap = null
 var _max_hp: int = 0
 var _cur_exp: int = 0
 var _max_exp: int = 0
@@ -36,6 +37,7 @@ const CHASSIS_MAP := {
 
 func _ready() -> void:
 	_reset_ui()
+	_id_map = get_node("/root/IDMap")
 	_gs = _resolve_game_state()
 	if _gs:
 		if _gs.has_signal("robot_static_status_updated"):
@@ -173,59 +175,9 @@ func _format_alive(state: int) -> String:
 		_: return "存活:未知"
 
 func _format_id_and_type(robot_id: int, robot_type: int) -> String:
-	var id_name = ROBOT_ID_NAME.get(robot_id, "未知机器人")
-	var type_name = ROBOT_TYPE_NAME.get(robot_type, "类型:未知")
+	var id_name = _id_map.get_robot_name(robot_id) if _id_map else "未知机器人"
+	var type_name = _id_map.get_robot_type_name(robot_type) if _id_map else "类型:未知"
 	return "%s\n类型:%s" % [id_name, type_name]
-
-const ROBOT_TYPE_NAME := {
-	1: "英雄",
-	2: "工程",
-	3: "步兵",
-	4: "步兵",
-	5: "步兵",
-	6: "空中",
-	7: "哨兵",
-	8: "飞镖",
-	9: "雷达/前哨",
-	10: "前哨站",
-	11: "基地"
-}
-
-const ROBOT_ID_NAME := {
-	1: "红方英雄",
-	2: "红方工程",
-	3: "红方步兵1",
-	4: "红方步兵2",
-	5: "红方步兵3",
-	6: "红方空中",
-	7: "红方哨兵",
-	8: "红方飞镖",
-	9: "红方雷达",
-	10: "红方前哨",
-	11: "红方基地",
-	101: "蓝方英雄",
-	102: "蓝方工程",
-	103: "蓝方步兵1",
-	104: "蓝方步兵2",
-	105: "蓝方步兵3",
-	106: "蓝方空中",
-	107: "蓝方哨兵",
-	108: "蓝方飞镖",
-	109: "蓝方雷达",
-	110: "蓝方前哨",
-	111: "蓝方基地",
-	0x0101: "红方英雄选手端",
-	0x0102: "红方工程选手端",
-	0x0103: "红方步兵1选手端",
-	0x0104: "红方步兵2选手端",
-	0x0105: "红方步兵3选手端",
-	0x0165: "红方空中选手端",
-	0x0166: "红方工程选手端",
-	0x0167: "红方步兵1选手端",
-	0x0168: "红方步兵2选手端",
-	0x0169: "红方步兵3选手端",
-	0x8100: "裁判系统服务器"
-}
 
 func _resolve_game_state() -> Node:
 	if game_state_path != NodePath("") and has_node(game_state_path):
