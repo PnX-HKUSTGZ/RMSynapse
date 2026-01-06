@@ -32,9 +32,9 @@ class client_state:
 var ROBOT_META := {
 	1: robot_state.new(TEAM_RED, 1, "红方英雄", "红方英雄机器人"),
 	2: robot_state.new(TEAM_RED, 2, "红方工程", "红方工程机器人"),
-	3: robot_state.new(TEAM_RED, 3, "红方步兵1", "红方步兵机器人1"),
-	4: robot_state.new(TEAM_RED, 3, "红方步兵2", "红方步兵机器人2"),
-	5: robot_state.new(TEAM_RED, 3, "红方步兵3", "红方步兵机器人3"),
+	3: robot_state.new(TEAM_RED, 3, "红方步兵三号", "红方步兵机器人三号"),
+	4: robot_state.new(TEAM_RED, 3, "红方步兵四号", "红方步兵机器人四号"),
+	5: robot_state.new(TEAM_RED, 3, "红方步兵五号", "红方步兵机器人五号"),
 	6: robot_state.new(TEAM_RED, 6, "红方空中", "红方空中机器人"),
 	7: robot_state.new(TEAM_RED, 7, "红方哨兵", "红方哨兵机器人"),
 	8: robot_state.new(TEAM_RED, 8, "红方飞镖", "红方飞镖"),
@@ -43,9 +43,9 @@ var ROBOT_META := {
 	11: robot_state.new(TEAM_RED, 11, "红方基地", "红方基地"),
 	101: robot_state.new(TEAM_BLUE, 1, "蓝方英雄", "蓝方英雄机器人"),
 	102: robot_state.new(TEAM_BLUE, 2, "蓝方工程", "蓝方工程机器人"),
-	103: robot_state.new(TEAM_BLUE, 3, "蓝方步兵1", "蓝方步兵机器人1"),
-	104: robot_state.new(TEAM_BLUE, 3, "蓝方步兵2", "蓝方步兵机器人2"),
-	105: robot_state.new(TEAM_BLUE, 3, "蓝方步兵3", "蓝方步兵机器人3"),
+	103: robot_state.new(TEAM_BLUE, 3, "蓝方步兵三号", "蓝方步兵机器人三号"),
+	104: robot_state.new(TEAM_BLUE, 3, "蓝方步兵四号", "蓝方步兵机器人四号"),
+	105: robot_state.new(TEAM_BLUE, 3, "蓝方步兵五号", "蓝方步兵机器人五号"),
 	106: robot_state.new(TEAM_BLUE, 6, "蓝方空中", "蓝方空中机器人"),
 	107: robot_state.new(TEAM_BLUE, 7, "蓝方哨兵", "蓝方哨兵机器人"),
 	108: robot_state.new(TEAM_BLUE, 8, "蓝方飞镖", "蓝方飞镖"),
@@ -53,6 +53,10 @@ var ROBOT_META := {
 	110: robot_state.new(TEAM_BLUE, 10, "蓝方前哨", "蓝方前哨站"),
 	111: robot_state.new(TEAM_BLUE, 11, "蓝方基地", "蓝方基地")
 }
+
+var MOVEABLE_ROBOT_IDS := [
+	1,2,4,5,6,7,101,102,104,105,106,107
+]
 
 const ROBOT_TYPE_NAME = {
 	1: "英雄",
@@ -72,15 +76,15 @@ const ROBOT_TYPE_NAME = {
 var CLIENT_META := {
 	0x0101: client_state.new(TEAM_RED, 1, "红方英雄机器人选手端"),
 	0x0102: client_state.new(TEAM_RED, 2, "红方工程机器人选手端"),
-	0x0103: client_state.new(TEAM_RED, 3, "红方步兵机器人1选手端"),
-	0x0104: client_state.new(TEAM_RED, 4, "红方步兵机器人2选手端"),
-	0x0105: client_state.new(TEAM_RED, 5, "红方步兵机器人3选手端"),
+	0x0103: client_state.new(TEAM_RED, 3, "红方步兵机器人三号选手端"),
+	0x0104: client_state.new(TEAM_RED, 4, "红方步兵机器人四号选手端"),
+	0x0105: client_state.new(TEAM_RED, 5, "红方步兵机器人五号选手端"),
 	0x0106: client_state.new(TEAM_RED, 6, "红方空中机器人选手端"),
 	0x0165: client_state.new(TEAM_BLUE, 101, "蓝方英雄机器人选手端"),
 	0x0166: client_state.new(TEAM_BLUE, 102, "蓝方工程机器人选手端"),
-	0x0167: client_state.new(TEAM_BLUE, 103, "蓝方步兵机器人1选手端"),
-	0x0168: client_state.new(TEAM_BLUE, 104, "蓝方步兵机器人2选手端"),
-	0x0169: client_state.new(TEAM_BLUE, 105, "蓝方步兵机器人3选手端"),
+	0x0167: client_state.new(TEAM_BLUE, 103, "蓝方步兵机器人一号选手端"),
+	0x0168: client_state.new(TEAM_BLUE, 104, "蓝方步兵机器人二号选手端"),
+	0x0169: client_state.new(TEAM_BLUE, 105, "蓝方步兵机器人三号选手端"),
 	0x016A: client_state.new(TEAM_BLUE, 106, "蓝方空中机器人选手端"),
 	0x8080: client_state.new(TEAM_REF, -1, "裁判系统服务器")
 }
