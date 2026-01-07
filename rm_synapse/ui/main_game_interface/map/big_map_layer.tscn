@@ -1,0 +1,82 @@
+[gd_scene load_steps=3 format=3 uid="uid://c756wg5sgjfd0"]
+
+[ext_resource type="Texture2D" uid="uid://ccpmairv5r0bd" path="res://ui/main_game_interface/map/map.png" id="1_5j1v1"]
+[ext_resource type="Script" uid="uid://d1o00sxl2mbhd" path="res://ui/main_game_interface/map/big_map_root.gd" id="1_tq7lb"]
+
+[node name="BigMapLayer" type="CanvasLayer"]
+
+[node name="MapWindow" type="Panel" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_tq7lb")
+map_transparency = 0.5
+
+[node name="BackgroundDim" type="ColorRect" parent="MapWindow"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.15487596, 0.154876, 0.15487596, 0.29803923)
+
+[node name="MapContainer" type="Control" parent="MapWindow"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -898.0
+offset_top = -490.5
+offset_right = 898.0
+offset_bottom = 490.5
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(1796, 0)
+
+[node name="MapTexture" type="TextureRect" parent="MapWindow/MapContainer"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -895.6202
+offset_top = -492.0
+offset_right = 895.6202
+offset_bottom = 492.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1_5j1v1")
+
+[node name="PathsLayer" type="Control" parent="MapWindow/MapContainer"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -896.0
+offset_top = -492.0
+offset_right = 896.0
+offset_bottom = 492.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="IconsLayer" type="Control" parent="MapWindow/MapContainer"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -896.0
+offset_top = -492.0
+offset_right = 896.0
+offset_bottom = 492.0
+grow_horizontal = 2
+grow_vertical = 2

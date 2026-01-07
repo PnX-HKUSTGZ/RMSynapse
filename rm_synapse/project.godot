@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 MQTT="*res://addons/mqtt/mqtt.tscn"
 MqttNet="*res://net/mqtt_net.tscn"
+IDMap="*res://utile/id_map.gd"
 
 [display]
 
