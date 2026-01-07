@@ -16,7 +16,7 @@
 [ext_resource type="PackedScene" uid="uid://fmro3ej3tedd" path="res://ui/main_game_interface/penalty_info/penalty_info.tscn" id="14_qmgb1"]
 [ext_resource type="PackedScene" uid="uid://cbm1k2ygkun41" path="res://ui/main_game_interface/assembly/assembly_command.tscn" id="15_kgoyu"]
 [ext_resource type="PackedScene" uid="uid://b3x4majp8r4of" path="res://ui/main_game_interface/assembly/assembly_progress.tscn" id="16_55dxw"]
-[ext_resource type="PackedScene" uid="uid://c756wg5sgjfd0" path="res://ui/main_game_interface/map/big_map_layer.tscn" id="17_55dxw"]
+[ext_resource type="PackedScene" uid="uid://b1yts0ogr2iwu" path="res://ui/main_game_interface/map/map_system.tscn" id="17_55dxw"]
 
 [node name="Node2D" type="Control"]
 layout_mode = 3
@@ -135,4 +135,4 @@ offset_top = 64.0
 offset_right = 72.0
 offset_bottom = 64.0
 
-[node name="BigMapLayer" parent="." instance=ExtResource("17_55dxw")]
+[node name="MapSystem" parent="." instance=ExtResource("17_55dxw")]

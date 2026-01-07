@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://c756wg5sgjfd0"]
 
 [ext_resource type="Texture2D" uid="uid://ccpmairv5r0bd" path="res://ui/main_game_interface/map/map.png" id="1_5j1v1"]
-[ext_resource type="Script" uid="uid://d1o00sxl2mbhd" path="res://ui/main_game_interface/map/map_root.gd" id="1_tq7lb"]
+[ext_resource type="Script" uid="uid://d1o00sxl2mbhd" path="res://ui/main_game_interface/map/big_map_root.gd" id="1_tq7lb"]
 
 [node name="BigMapLayer" type="CanvasLayer"]
 
