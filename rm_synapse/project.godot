@@ -25,6 +25,5 @@ IDMap="*res://utile/id_map.gd"
 
 window/size/viewport_width=2520
 window/size/viewport_height=1440
-window/size/mode=3
 window/size/resizable=false
 window/size/borderless=true

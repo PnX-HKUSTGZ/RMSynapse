@@ -12,10 +12,19 @@ extends Control
 @export var sentry_path_width : float = 4.0
 @export var sentry_path_timeout : float = 5.0 # 哨兵路径显示时间（秒）
 
+@export_group("地图设置")
+@export var reset_map : Key = KEY_R # 重置地图按键
+@export var max_map_scale : float = 3.0
+@export var min_map_scale : float = 0.5
+@export var map_scale_step : float = 0.1
+@export var map_transparency : float = 1.0 # 地图透明度 0~1
+@export var drag_button : MouseButton = MOUSE_BUTTON_LEFT # 拖动地图的按键
+
 #不支持热重载的参数
 @export var game_state_path: NodePath = NodePath("/root/MqttNet/GameState")
 @export var id_map_path: NodePath = NodePath("/root/IDMap")
 
+@onready var map_container = $MapContainer
 @onready var map_texture = $MapContainer/MapTexture
 @onready var paths_layer = $MapContainer/PathsLayer
 @onready var icons_layer = $MapContainer/IconsLayer
@@ -46,6 +55,11 @@ var self_icon : Node2D = preload(ROBOT_ICON_TSCN_PATH).instantiate()
 var last_pos_update_times : Dictionary
 var robot_positions : Dictionary
 var sentry_path_list : Array[Line2DTime]
+
+# Map 整体相关
+var _current_scale : float = 1.0
+var _is_dragging : bool = false
+var _last_press_mouse_pos : Vector2 = Vector2.ZERO
 
 func _build_robot_positions() -> Dictionary:
 	var dict = {}
@@ -82,6 +96,9 @@ func _sentry_intention_map(intention: int) -> String:
 			return "未知"
 
 func _ready():
+	
+	set_process(true)
+	set_process_unhandled_input(true)
 	
 	# 初始化尺寸数据
 	map_pixel_size = map_texture.size
@@ -242,3 +259,72 @@ func _process(_delta: float) -> void:
 			paths_layer.remove_child(line_time.line)
 			sentry_path_list.remove_at(i)
 			i -= 1
+
+	# 处理地图
+	map_container.modulate.a = map_transparency
+
+	# 地图平移
+	if Input.is_mouse_button_pressed(drag_button):
+		if not _is_dragging:
+			_is_dragging = true
+			print("Started dragging map.")
+		else:
+			map_container.global_position += get_global_mouse_position() - _last_press_mouse_pos
+		_last_press_mouse_pos = get_global_mouse_position()
+	else :
+		_is_dragging = false
+
+func _unhandled_input(event: InputEvent) -> void:
+	# 处理重置地图按键
+	if event is InputEventKey:
+		if event.pressed and event.keycode == reset_map:
+			_reset_map()
+			return
+	
+	if event is InputEventMouseButton:
+		# 处理缩放 (滚轮)
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if event.pressed:
+				_handle_zoom_at_mouse(event)
+
+# 处理以鼠标为中心的缩放逻辑
+func _handle_zoom_at_mouse(event: InputEventMouseButton) -> void:
+	var old_scale = _current_scale
+	var new_scale = old_scale
+
+	# 计算新比例
+	if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		new_scale += map_scale_step
+	elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		new_scale -= map_scale_step
+	else :
+		push_warning("Unhandled mouse button for zoom: %d" % event.button_index)
+		return
+	
+	new_scale = clamp(new_scale, min_map_scale, max_map_scale)
+	print("Zooming map from scale %.2f to %.2f" % [old_scale, new_scale])
+	
+	if new_scale == old_scale:
+		return
+	
+	# 获取缩放前鼠标在 map_container 局部坐标系中的位置
+	var mouse_in_container = map_container.get_local_mouse_position()
+	
+	# 获取缩放前鼠标的全局位置
+	var mouse_global = get_global_mouse_position()
+	
+	# 应用新缩放
+	_current_scale = new_scale
+	map_container.scale = Vector2(_current_scale, _current_scale)
+	
+	# 缩放后，调整 map_container 的全局位置，使鼠标仍然指向相同的地图点
+	# 公式: 新全局位置 = 鼠标全局位置 - 鼠标在容器中的局部位置 * 新缩放
+	map_container.global_position = mouse_global - mouse_in_container * _current_scale
+
+# 重置地图位置和缩放
+func _reset_map() -> void:
+	_current_scale = 1.0
+	map_container.scale = Vector2(1.0, 1.0)
+	# 重置到居中位置（计算窗口中心减去地图容器一半尺寸）
+	var window_center = global_position + size / 2
+	map_container.global_position = window_center - map_pixel_size / 2

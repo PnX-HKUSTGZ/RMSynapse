@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=18 format=3 uid="uid://b0wlb2cnkwr4q"]
 
 [ext_resource type="PackedScene" uid="uid://dxusg3b40frev" path="res://ui/main_game_interface/global_game_state/global_game_state.tscn" id="2_7hnfv"]
 [ext_resource type="PackedScene" uid="uid://babpo8abkagu4" path="res://ui/main_game_interface/remote_control/remote_control_core.tscn" id="3_ixpqk"]
@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" uid="uid://fmro3ej3tedd" path="res://ui/main_game_interface/penalty_info/penalty_info.tscn" id="14_qmgb1"]
 [ext_resource type="PackedScene" uid="uid://cbm1k2ygkun41" path="res://ui/main_game_interface/assembly/assembly_command.tscn" id="15_kgoyu"]
 [ext_resource type="PackedScene" uid="uid://b3x4majp8r4of" path="res://ui/main_game_interface/assembly/assembly_progress.tscn" id="16_55dxw"]
+[ext_resource type="PackedScene" uid="uid://c756wg5sgjfd0" path="res://ui/main_game_interface/map/big_map_layer.tscn" id="17_55dxw"]
 
 [node name="Node2D" type="Control"]
 layout_mode = 3
@@ -37,10 +38,16 @@ grow_vertical = 2
 
 [node name="RemoteControlCore" parent="." instance=ExtResource("3_ixpqk")]
 layout_mode = 1
-offset_left = 648.0
-offset_top = 536.0
-offset_right = 1272.0
-offset_bottom = 648.0
+anchors_preset = -1
+anchor_left = 0.75600004
+anchor_top = 0.906
+anchor_right = 0.94600004
+anchor_bottom = 0.97200006
+offset_left = -1.1201172
+offset_top = 7.3599854
+offset_right = 120.079834
+offset_bottom = 24.319946
+grow_vertical = 0
 scale = Vector2(0.8, 0.8)
 
 [node name="GlobalGameState" parent="." instance=ExtResource("2_7hnfv")]
@@ -127,3 +134,5 @@ offset_left = 72.0
 offset_top = 64.0
 offset_right = 72.0
 offset_bottom = 64.0
+
+[node name="BigMapLayer" parent="." instance=ExtResource("17_55dxw")]
