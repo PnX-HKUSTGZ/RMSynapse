@@ -11,7 +11,7 @@
 layout_mode = 3
 anchors_preset = 0
 offset_right = 360.0
-offset_bottom = 310.0
+offset_bottom = 440.0
 script = ExtResource("3_script")
 
 [node name="VBox" type="VBoxContainer" parent="."]

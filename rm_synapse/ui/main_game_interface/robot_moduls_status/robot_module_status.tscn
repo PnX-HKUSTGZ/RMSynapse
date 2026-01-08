@@ -4,11 +4,10 @@
 [ext_resource type="Texture2D" uid="uid://cuut7nf0fd048" path="res://ui/main_game_interface/robot_moduls_status/module_offline.svg" id="2_o2ate"]
 
 [node name="RobotModuleStatus" type="Control"]
-custom_minimum_size = Vector2(220, 320)
 layout_mode = 3
 anchors_preset = 0
-offset_right = 865.0
-offset_bottom = 320.0
+offset_right = 840.0
+offset_bottom = 68.0
 script = ExtResource("1_script")
 
 [node name="VBox" type="VBoxContainer" parent="."]

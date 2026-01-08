@@ -61,9 +61,9 @@ value = 50.0
 show_percentage = false
 
 [node name="HPShow" type="RichTextLabel" parent="."]
-offset_left = 328.0
+offset_left = 336.0
 offset_top = 32.0
-offset_right = 384.0
+offset_right = 392.0
 offset_bottom = 64.0
 text = "--/--"
 horizontal_alignment = 1
@@ -89,9 +89,9 @@ vertical_alignment = 1
 
 [node name="ExpBar" type="ProgressBar" parent="."]
 offset_left = 144.0
-offset_top = 8.0
+offset_top = 6.0
 offset_right = 320.0
-offset_bottom = 24.0
+offset_bottom = 22.0
 value = 50.0
 show_percentage = false
 

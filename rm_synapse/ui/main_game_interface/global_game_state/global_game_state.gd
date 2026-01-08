@@ -1,4 +1,4 @@
-extends Node2D
+extends Control
 
 const STAGE_NAME := {
 	0: "未开始比赛",

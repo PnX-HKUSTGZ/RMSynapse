@@ -1,4 +1,4 @@
-extends Node2D
+extends Control
 
 # 未完成，因为官方没有提供完整的信号数据
 

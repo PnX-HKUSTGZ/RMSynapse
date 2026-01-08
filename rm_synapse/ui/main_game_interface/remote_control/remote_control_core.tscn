@@ -5,10 +5,10 @@
 
 [node name="RemoteControlCore" type="Control"]
 layout_mode = 3
-anchors_preset = 10
-anchor_right = 1.0
-offset_right = -552.0
-offset_bottom = 120.0
+anchor_right = 0.238
+anchor_bottom = 0.083000004
+offset_right = 0.23999023
+offset_bottom = 0.47999573
 grow_horizontal = 2
 script = ExtResource("1_core")
 
@@ -17,9 +17,9 @@ position = Vector2(472, 0)
 
 [node name="InputLabel" type="Label" parent="."]
 layout_mode = 0
-offset_top = 11.0
+offset_top = 16.0
 offset_right = 32.0
-offset_bottom = 34.0
+offset_bottom = 39.0
 text = "输入"
 
 [node name="CaptureLabel" type="Label" parent="."]

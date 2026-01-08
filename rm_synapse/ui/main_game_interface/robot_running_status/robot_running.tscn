@@ -6,12 +6,15 @@
 [ext_resource type="PackedScene" uid="uid://bb8elqfflt1a3" path="res://ui/main_game_interface/robot_running_status/robot_running_info.tscn" id="4_l44d0"]
 [ext_resource type="PackedScene" uid="uid://137ogcrvleec" path="res://ui/main_game_interface/robot_running_status/robot_cooldown_rate.tscn" id="5_a5idh"]
 
-[node name="RobotRunning" type="Node2D"]
+[node name="RobotRunning" type="Control"]
+layout_mode = 3
+anchors_preset = 0
 
 [node name="RobotShootorStatus" parent="." instance=ExtResource("1_svom8")]
 position = Vector2(0, 0)
 
 [node name="ChassisEnergyStatus" parent="." instance=ExtResource("2_a5idh")]
+layout_mode = 0
 offset_left = 56.0
 offset_top = -48.0
 offset_right = 276.0
@@ -19,6 +22,7 @@ offset_bottom = -8.0
 metadata/_edit_use_anchors_ = true
 
 [node name="BufferEnergyStatus" parent="." instance=ExtResource("3_qj0b2")]
+layout_mode = 0
 offset_left = 56.0
 offset_right = 276.0
 offset_bottom = 40.0

@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=17 format=3 uid="uid://b0wlb2cnkwr4q"]
 
 [ext_resource type="PackedScene" uid="uid://dxusg3b40frev" path="res://ui/main_game_interface/global_game_state/global_game_state.tscn" id="2_7hnfv"]
 [ext_resource type="PackedScene" uid="uid://babpo8abkagu4" path="res://ui/main_game_interface/remote_control/remote_control_core.tscn" id="3_ixpqk"]
@@ -16,7 +16,6 @@
 [ext_resource type="PackedScene" uid="uid://fmro3ej3tedd" path="res://ui/main_game_interface/penalty_info/penalty_info.tscn" id="14_qmgb1"]
 [ext_resource type="PackedScene" uid="uid://cbm1k2ygkun41" path="res://ui/main_game_interface/assembly/assembly_command.tscn" id="15_kgoyu"]
 [ext_resource type="PackedScene" uid="uid://b3x4majp8r4of" path="res://ui/main_game_interface/assembly/assembly_progress.tscn" id="16_55dxw"]
-[ext_resource type="PackedScene" uid="uid://b1yts0ogr2iwu" path="res://ui/main_game_interface/map/map_system.tscn" id="17_55dxw"]
 
 [node name="Node2D" type="Control"]
 layout_mode = 3
@@ -38,35 +37,51 @@ grow_vertical = 2
 
 [node name="RemoteControlCore" parent="." instance=ExtResource("3_ixpqk")]
 layout_mode = 1
-anchors_preset = -1
-anchor_left = 0.75600004
-anchor_top = 0.906
-anchor_right = 0.94600004
-anchor_bottom = 0.97200006
-offset_left = -1.1201172
-offset_top = 7.3599854
-offset_right = 120.079834
-offset_bottom = 24.319946
+anchor_left = 0.77800006
+anchor_top = 0.92800003
+anchor_right = 0.96800005
+anchor_bottom = 0.989
+offset_left = -0.56018066
+offset_top = -0.32006836
+offset_right = 120.63989
+offset_bottom = 23.839966
 grow_vertical = 0
 scale = Vector2(0.8, 0.8)
 
 [node name="GlobalGameState" parent="." instance=ExtResource("2_7hnfv")]
-position = Vector2(384, 8)
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -208.0
+offset_right = 208.0
+grow_horizontal = 2
 
 [node name="NetStatusPanel" parent="." instance=ExtResource("3_nv1rm")]
-layout_mode = 0
-offset_left = 1048.0
-offset_right = 1384.0
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -96.0
+offset_right = 224.0
+offset_bottom = 453.3333
+grow_horizontal = 0
 scale = Vector2(0.3, 0.3)
 
 [node name="GlobalUnitState" parent="." instance=ExtResource("4_nv1rm")]
-position = Vector2(-8, 96)
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -860.0
+offset_right = 860.0
+grow_horizontal = 2
 
 [node name="GlobalLogisticsStatus" parent="." instance=ExtResource("5_5ag1o")]
-position = Vector2(920, 8)
+position = Vector2(1699, 464)
 
 [node name="GlobalSpecialMechanism" parent="." instance=ExtResource("6_q2j3c")]
-position = Vector2(136, 32)
+position = Vector2(120, 28)
 
 [node name="GameEvent" parent="." instance=ExtResource("7_fltyv")]
 layout_mode = 0
@@ -76,42 +91,59 @@ offset_right = 904.0
 offset_bottom = 272.0
 
 [node name="RobotInjuryDisplay" parent="." instance=ExtResource("8_njqes")]
-anchors_preset = 0
-offset_top = 264.0
-offset_right = 420.0
-offset_bottom = 504.0
+layout_mode = 1
+anchor_left = 0.07300001
+anchor_top = 0.46100003
+anchor_right = 0.23900001
+anchor_bottom = 0.628
+offset_left = 5.11998
+offset_top = 0.15997314
+offset_right = 0.15997314
+offset_bottom = -0.32000732
 
 [node name="RobotRespawn" parent="." instance=ExtResource("9_pk5is")]
-position = Vector2(472, 272)
+position = Vector2(1680, 640)
 
 [node name="RobotStatus" parent="." instance=ExtResource("10_rqeeh")]
-position = Vector2(8, 448)
+position = Vector2(64, 1208)
 
 [node name="RobotRunning" parent="." instance=ExtResource("11_7h4td")]
-position = Vector2(472, 272)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="RobotModuleStatus" parent="." instance=ExtResource("12_smvdg")]
-layout_mode = 0
-offset_left = 16.0
-offset_top = 587.0
-offset_right = 872.0
-offset_bottom = 907.0
-scale = Vector2(0.6, 0.6)
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.025
+anchor_top = 0.93700004
+anchor_right = 0.365
+anchor_bottom = 0.984
+offset_left = 1.0
+offset_top = -0.2800293
+offset_right = 0.19995117
+offset_bottom = 0.37316895
+grow_vertical = 0
 
 [node name="BuffStatus" parent="." instance=ExtResource("13_i3ag8")]
 layout_mode = 0
-offset_left = 32.0
-offset_top = 110.0
-offset_right = 292.0
-offset_bottom = 150.0
+offset_left = 285.0
+offset_top = 384.0
+offset_right = 545.0
+offset_bottom = 424.0
 scale = Vector2(0.5, 0.5)
 
 [node name="PenaltyInfo" parent="." instance=ExtResource("14_qmgb1")]
 layout_mode = 0
-offset_left = 16.0
-offset_top = 134.0
-offset_right = 276.0
-offset_bottom = 170.0
+offset_left = 269.0
+offset_top = 408.0
+offset_right = 529.0
+offset_bottom = 444.0
 scale = Vector2(0.5, 0.5)
 
 [node name="AssemblyCommand" parent="." instance=ExtResource("15_kgoyu")]
@@ -130,9 +162,7 @@ grow_vertical = 2
 
 [node name="AssemblyProgress" parent="." instance=ExtResource("16_55dxw")]
 layout_mode = 0
-offset_left = 72.0
-offset_top = 64.0
-offset_right = 72.0
-offset_bottom = 64.0
-
-[node name="MapSystem" parent="." instance=ExtResource("17_55dxw")]
+offset_left = 776.0
+offset_top = 456.0
+offset_right = 776.0
+offset_bottom = 456.0

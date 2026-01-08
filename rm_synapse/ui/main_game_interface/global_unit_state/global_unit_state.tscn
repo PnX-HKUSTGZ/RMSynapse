@@ -4,11 +4,15 @@
 [ext_resource type="PackedScene" uid="uid://dsqs1c20ga8h6" path="res://ui/main_game_interface/global_unit_state/blue_unit_state.tscn" id="1_ye81x"]
 [ext_resource type="PackedScene" uid="uid://bsyfy02xykgpp" path="res://ui/main_game_interface/global_unit_state/red_unit_state.tscn" id="2_1pq1o"]
 
-[node name="GlobalUnitState" type="Node2D"]
+[node name="GlobalUnitState" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 1720.0
+offset_bottom = 136.0
 script = ExtResource("1_1pq1o")
 
 [node name="BlueUnitState" parent="." instance=ExtResource("1_ye81x")]
-position = Vector2(721, 30)
+position = Vector2(1215.9999, 24)
 scale = Vector2(0.35, 0.35)
 
 [node name="RedUnitState" parent="." instance=ExtResource("2_1pq1o")]
