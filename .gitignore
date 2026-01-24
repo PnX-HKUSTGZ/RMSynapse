@@ -20,5 +20,5 @@ build/
 *.os
 *.uid
 *.import
-
+.DS_Store
 rm_synapse/Export/
