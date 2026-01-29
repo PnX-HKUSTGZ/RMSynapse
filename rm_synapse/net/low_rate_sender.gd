@@ -43,6 +43,7 @@ func set_guard_ctrl_command(command_id: int) -> void:
 
 func set_hero_deploy_mode(mode: int) -> void:
 	_hero_deploy = {"mode": mode}
+	print("英雄部署模式切换")
 
 func set_rune_activate(activate: int) -> void:
 	_rune_activate = {"activate": activate}

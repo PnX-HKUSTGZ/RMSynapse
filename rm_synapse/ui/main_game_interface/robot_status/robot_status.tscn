@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://c4cq121vbp5jn"]
 
-[ext_resource type="Script" uid="uid://cvdq3ffyd7i5o" path="res://ui/main_game_interface/robot_status/robot_status.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://be53ewgjweaei" path="res://ui/main_game_interface/robot_status/robot_status.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://d3vbptqo1w2a2" path="res://icon.svg" id="1_t3hu2"]
 
 [node name="RobotStatus" type="Node2D"]

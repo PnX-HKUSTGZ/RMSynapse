@@ -1,16 +1,16 @@
 [gd_scene load_steps=6 format=3 uid="uid://d2xa56qrw3f32"]
 
-[ext_resource type="Script" uid="uid://dlry4y68d7vhn" path="res://net/mqtt_game_state.gd" id="1_qv21r"]
-[ext_resource type="Script" uid="uid://dy0swx1hrwty0" path="res://net/mqtt_sender.gd" id="2_de1hx"]
-[ext_resource type="Script" uid="uid://c038ohs874fm4" path="res://net/low_rate_sender.gd" id="3_eawvy"]
-[ext_resource type="Script" uid="uid://d20ikxnjokj5g" path="res://net/remote_control_service.gd" id="4_7pig8"]
+[ext_resource type="Script" uid="uid://kpxqja4x4886" path="res://net/mqtt_game_state.gd" id="1_qv21r"]
+[ext_resource type="Script" uid="uid://c8a6mkmsiuxgr" path="res://net/mqtt_sender.gd" id="2_de1hx"]
+[ext_resource type="Script" uid="uid://dran6pqpogfnw" path="res://net/low_rate_sender.gd" id="3_eawvy"]
+[ext_resource type="Script" uid="uid://dcl1144cbrfcl" path="res://net/remote_control_service.gd" id="4_7pig8"]
 [ext_resource type="Script" uid="uid://yomxjfp636uf" path="res://net/trigger_service.gd" id="5_yqk26"]
 
 [node name="MQTTGameNet" type="Node2D"]
 
 [node name="GameState" type="Node" parent="."]
 script = ExtResource("1_qv21r")
-broker_url = "10.4.181.53:3333"
+broker_url = "127.0.0.1:3333"
 
 [node name="MQTTSender" type="Node" parent="."]
 script = ExtResource("2_de1hx")
