@@ -10,11 +10,7 @@
 
 [node name="GameState" type="Node" parent="."]
 script = ExtResource("1_qv21r")
-<<<<<<< HEAD
-broker_url = "127.0.0.1:3333"
-=======
-
->>>>>>> 69bb10541138a9f19f0efcabb309bf10a1bed0a0
+broker_url = "tcp://localhost:1883"
 
 [node name="MQTTSender" type="Node" parent="."]
 script = ExtResource("2_de1hx")
