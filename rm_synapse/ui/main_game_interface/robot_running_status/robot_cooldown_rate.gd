@@ -42,4 +42,3 @@ func _resolve_game_state() -> Node:
 	if Engine.has_singleton("GameState"):
 		return Engine.get_singleton("GameState")
 	return null
-

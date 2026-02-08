@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://buf0pykspapnl"]
+[gd_scene load_steps=3 format=3 uid="uid://buf0pykspapnl"]
 
-[ext_resource type="Script" uid="uid://d1apudvwxb5jr" path="res://ui/main_game_interface/robot_running_status/buffer_energy_status.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cdvwdft7db1jh" path="res://ui/main_game_interface/robot_running_status/buffer_energy_status.gd" id="1_script"]
+[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/Chinese_font/GeelyDesignType-B.ttf" id="2_c3gv8"]
 
 [node name="BufferEnergyStatus" type="Control"]
 custom_minimum_size = Vector2(220, 40)
@@ -22,8 +23,9 @@ show_percentage = false
 [node name="Label" type="RichTextLabel" parent="."]
 layout_mode = 0
 offset_top = 8.0
-offset_right = 80.0
+offset_right = 106.0
 offset_bottom = 40.0
+theme_override_fonts/normal_font = ExtResource("2_c3gv8")
 text = "缓冲: --/--"
 horizontal_alignment = 1
 vertical_alignment = 1

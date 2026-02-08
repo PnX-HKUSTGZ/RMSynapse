@@ -1,106 +1,235 @@
-[gd_scene load_steps=3 format=3 uid="uid://c4cq121vbp5jn"]
+[gd_scene load_steps=14 format=3 uid="uid://c4cq121vbp5jn"]
 
-[ext_resource type="Script" uid="uid://cvdq3ffyd7i5o" path="res://ui/main_game_interface/robot_status/robot_status.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://be53ewgjweaei" path="res://ui/main_game_interface/robot_status/robot_status.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://d3vbptqo1w2a2" path="res://icon.svg" id="1_t3hu2"]
+[ext_resource type="Texture2D" uid="uid://bup23dayycijr" path="res://icon_backgrouond.png" id="2_f6lfi"]
+[ext_resource type="Script" uid="uid://dypdho1fb0ufp" path="res://ui/main_game_interface/robot_status/combatcountdown.gd" id="3_nkd5k"]
+[ext_resource type="FontFile" path="res://fonts/xolonium/Xolonium.tres" id="3_xgtjr"]
+[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/Chinese_font/GeelyDesignType-B.ttf" id="4_c3f70"]
+[ext_resource type="FontFile" uid="uid://c321yy1vvr0p2" path="res://fonts/xolonium/xolonium-fonts-4.1/ttf/Xolonium-Regular.ttf" id="6_f6lfi"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3nnc0"]
+bg_color = Color(0.27387273, 0.27387276, 0.27387264, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22310287, 0.22310293, 0.22310272, 1)
+corner_radius_top_left = 150
+corner_radius_top_right = 5
+corner_radius_bottom_right = 175
+corner_radius_bottom_left = 30
+expand_margin_left = 1.0
+expand_margin_top = 1.0
+expand_margin_right = 1.0
+expand_margin_bottom = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nkd5k"]
+bg_color = Color(0.16470589, 0.7176471, 1, 1)
+corner_radius_top_left = 150
+corner_radius_top_right = 5
+corner_radius_bottom_right = 175
+corner_radius_bottom_left = 30
+shadow_color = Color(0.5019608, 0.84705883, 1, 1)
+shadow_size = 3
+shadow_offset = Vector2(2, -2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xgtjr"]
+bg_color = Color(0.27450982, 0.27450982, 0.27450982, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2123048, 0.21230483, 0.21230477, 1)
+corner_radius_top_left = 150
+corner_radius_top_right = 5
+corner_radius_bottom_right = 175
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_c3f70"]
+bg_color = Color(0.16470589, 0.78431374, 0.14509805, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0, 0.8260351, 0.42428616, 1)
+corner_radius_top_left = 150
+corner_radius_top_right = 5
+corner_radius_bottom_right = 175
+corner_radius_bottom_left = 30
+shadow_color = Color(0.6982475, 1, 0.6716039, 0.6)
+shadow_size = 4
+shadow_offset = Vector2(2, -2)
+
+[sub_resource type="FontFile" id="FontFile_xgtjr"]
+subpixel_positioning = 0
+msdf_pixel_range = 14
+msdf_size = 128
+cache/0/16/0/ascent = 0.0
+cache/0/16/0/descent = 0.0
+cache/0/16/0/underline_position = 0.0
+cache/0/16/0/underline_thickness = 0.0
+cache/0/16/0/scale = 1.0
+
+[sub_resource type="LabelSettings" id="LabelSettings_c3f70"]
+font = SubResource("FontFile_xgtjr")
+font_color = Color(0.7490196, 0.76862746, 0.105882354, 0.7411765)
+outline_size = 2
+outline_color = Color(0.80316114, 0.799783, 0, 1)
+shadow_size = 3
+shadow_color = Color(0.5254902, 0.59607846, 0.21960784, 0.44705883)
 
 [node name="RobotStatus" type="Node2D"]
 script = ExtResource("1_script")
+
+[node name="LogoBackGround" type="Sprite2D" parent="."]
+position = Vector2(87, 73)
+scale = Vector2(0.25, 0.259)
+texture = ExtResource("2_f6lfi")
+
+[node name="IDBackGround" type="Sprite2D" parent="."]
+position = Vector2(114, 134.00002)
+scale = Vector2(0.062, 0.065)
+texture = ExtResource("2_f6lfi")
 
 [node name="RobotLogo" type="TextureRect" parent="."]
 offset_right = 128.0
 offset_bottom = 128.0
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("1_t3hu2")
+metadata/_edit_use_anchors_ = true
 
 [node name="RobotIDShow" type="RichTextLabel" parent="."]
-offset_left = 344.0
-offset_right = 416.0
+offset_left = 443.0
+offset_right = 515.0
 offset_bottom = 24.0
+theme_override_fonts/normal_font = ExtResource("3_xgtjr")
 text = "ID:-1"
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="RobotTypeShow" type="RichTextLabel" parent="."]
-offset_top = 72.0
-offset_right = 184.0
-offset_bottom = 120.0
+offset_left = 115.0
+offset_top = 102.0
+offset_right = 299.0
+offset_bottom = 150.0
+theme_override_fonts/normal_font = ExtResource("4_c3f70")
 text = "Type = -1"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="Level" type="RichTextLabel" parent="."]
-offset_left = 80.0
-offset_right = 168.0
+offset_left = 179.0
+offset_right = 267.0
 offset_bottom = 24.0
+theme_override_fonts/normal_font = ExtResource("3_xgtjr")
 text = "level:-1"
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="RobotChassisProShow" type="RichTextLabel" parent="."]
-offset_left = 192.0
-offset_top = 72.0
-offset_right = 360.0
-offset_bottom = 96.0
+offset_left = 307.0
+offset_top = 102.0
+offset_right = 475.0
+offset_bottom = 126.0
+theme_override_fonts/normal_font = ExtResource("4_c3f70")
 text = "NO Apply"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="RobotShooterProShow" type="RichTextLabel" parent="."]
-offset_left = 192.0
-offset_top = 96.0
-offset_right = 360.0
-offset_bottom = 120.0
+offset_left = 307.0
+offset_top = 126.0
+offset_right = 475.0
+offset_bottom = 150.0
+theme_override_fonts/normal_font = ExtResource("4_c3f70")
 text = "NO Apply"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="HPBar" type="ProgressBar" parent="."]
-offset_left = 64.0
+offset_left = 163.0
 offset_top = 32.0
-offset_right = 392.0
+offset_right = 491.0
 offset_bottom = 64.0
+theme_override_styles/background = SubResource("StyleBoxFlat_3nnc0")
+theme_override_styles/fill = SubResource("StyleBoxFlat_nkd5k")
 value = 50.0
 show_percentage = false
+metadata/_edit_use_anchors_ = true
 
 [node name="HPShow" type="RichTextLabel" parent="."]
-offset_left = 328.0
+offset_left = 418.0
 offset_top = 32.0
-offset_right = 384.0
+offset_right = 498.0
 offset_bottom = 64.0
 text = "--/--"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="RobotConnectShow" type="RichTextLabel" parent="."]
-offset_left = 368.0
-offset_top = 72.0
-offset_right = 552.0
-offset_bottom = 96.0
+offset_left = 449.0
+offset_top = 104.0
+offset_right = 633.0
+offset_bottom = 128.0
+theme_override_fonts/normal_font = ExtResource("4_c3f70")
 text = "连接"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="RobotFieldShow" type="RichTextLabel" parent="."]
-offset_left = 368.0
-offset_top = 96.0
-offset_right = 552.0
-offset_bottom = 120.0
+offset_left = 449.0
+offset_top = 128.0
+offset_right = 633.0
+offset_bottom = 152.0
+theme_override_fonts/normal_font = ExtResource("4_c3f70")
 text = "上场"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
 
 [node name="ExpBar" type="ProgressBar" parent="."]
-offset_left = 144.0
+offset_left = 243.0
 offset_top = 8.0
-offset_right = 320.0
+offset_right = 419.0
 offset_bottom = 24.0
+theme_override_styles/background = SubResource("StyleBoxFlat_xgtjr")
+theme_override_styles/fill = SubResource("StyleBoxFlat_c3f70")
 value = 50.0
 show_percentage = false
+metadata/_edit_use_anchors_ = true
 
 [node name="ExpShow" type="RichTextLabel" parent="."]
-offset_left = 283.0
+offset_left = 382.0
 offset_top = 6.0
-offset_right = 339.0
+offset_right = 438.0
 offset_bottom = 38.0
 scale = Vector2(0.6, 0.6)
 text = "--/--"
 horizontal_alignment = 1
 vertical_alignment = 1
+metadata/_edit_use_anchors_ = true
+
+[node name="CombatCountDown" type="Label" parent="."]
+offset_left = 508.0
+offset_top = 33.0
+offset_right = 606.0
+offset_bottom = 56.0
+theme_override_fonts/font = ExtResource("6_f6lfi")
+text = "脱战"
+label_settings = SubResource("LabelSettings_c3f70")
+script = ExtResource("3_nkd5k")
+metadata/_edit_use_anchors_ = true
+
+[node name="IDShow" type="Label" parent="."]
+offset_left = 106.0
+offset_top = 118.0
+offset_right = 146.0
+offset_bottom = 155.0
+theme_override_fonts/font = ExtResource("6_f6lfi")
+theme_override_font_sizes/font_size = 25

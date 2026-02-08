@@ -1,0 +1,40 @@
+[gd_scene load_steps=6 format=3 uid="uid://b27l22ccejsah"]
+
+[ext_resource type="PackedScene" uid="uid://c4cq121vbp5jn" path="res://ui/main_game_interface/robot_status/robot_status.tscn" id="1_usp5l"]
+[ext_resource type="PackedScene" uid="uid://buf0pykspapnl" path="res://ui/main_game_interface/robot_running_status/buffer_energy_status.tscn" id="2_u0ch8"]
+[ext_resource type="PackedScene" uid="uid://da7s1icwyv8cb" path="res://ui/main_game_interface/robot_running_status/chassis_energy_status.tscn" id="3_mud5q"]
+[ext_resource type="PackedScene" uid="uid://275iesn2om82" path="res://ui/main_game_interface/robot_moduls_status/robot_module_status.tscn" id="4_ich1p"]
+[ext_resource type="PackedScene" uid="uid://buffstatus" path="res://ui/main_game_interface/buff/buff_status.tscn" id="5_pcjes"]
+
+[node name="UnitInfo" type="Node"]
+
+[node name="RobotStatus" parent="." instance=ExtResource("1_usp5l")]
+position = Vector2(-2, 1329)
+
+[node name="BufferEnergyStatus" parent="." instance=ExtResource("2_u0ch8")]
+offset_left = 165.0
+offset_top = 1391.0
+offset_right = 385.0
+offset_bottom = 1431.0
+metadata/_edit_use_anchors_ = true
+
+[node name="ChassisEnergyStatus" parent="." instance=ExtResource("3_mud5q")]
+offset_left = 403.0
+offset_top = 1391.0
+offset_right = 623.0
+offset_bottom = 1431.0
+metadata/_edit_use_anchors_ = true
+
+[node name="RobotModuleStatus" parent="." instance=ExtResource("4_ich1p")]
+offset_left = -2.0
+offset_top = 1501.0
+offset_right = 848.0
+offset_bottom = 1821.0
+metadata/_edit_use_anchors_ = true
+
+[node name="BuffStatus" parent="." instance=ExtResource("5_pcjes")]
+offset_left = 151.0
+offset_top = 1284.0
+offset_right = 411.0
+offset_bottom = 1324.0
+metadata/_edit_use_anchors_ = true
