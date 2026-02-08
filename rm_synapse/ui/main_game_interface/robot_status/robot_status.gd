@@ -3,7 +3,9 @@ extends Node2D
 @export var game_state_path: NodePath = NodePath("/root/MqttNet/GameState")
 @export var target_robot_id: int = -1   # -1 表示不筛选，取第一条
 
+@onready var _robot_logo: TextureRect = $RobotLogo
 @onready var _id_label: RichTextLabel = $RobotIDShow
+@onready var _id_show: Label = $IDShow
 @onready var _type_label: RichTextLabel = $RobotTypeShow
 @onready var _level_label: RichTextLabel = $Level
 @onready var _chassis_label: RichTextLabel = $RobotChassisProShow
@@ -35,6 +37,30 @@ const CHASSIS_MAP := {
 	4: "英雄远程优先"
 }
 
+const id_2_logo : = {
+	1: "res://imgs/英雄 icon.png",
+	2: "res://imgs/工程 icon.png",
+	3: "res://imgs/步兵 icon.png",
+	4: "res://imgs/步兵 icon.png",
+	5: "res://imgs/步兵 icon.png",
+	6: "res://imgs/飞行 icon.png",
+	7: "res://imgs/哨兵 icon.png",
+	8: "res://imgs/飞镖 icon.png",
+	9: "res://imgs/雷达 icon.png"
+}
+
+const id_2_scale : ={
+	1: 0.35,
+	2: 0.4,
+	3: 0.07,
+	4: 0.07,
+	5: 0.07,
+	6: 0.4,
+	7: 0.4,
+	8: 0.13,
+	9: 0.13
+}
+
 func _ready() -> void:
 	_reset_ui()
 	_id_map = get_node("/root/IDMap")
@@ -49,7 +75,9 @@ func _ready() -> void:
 
 func _reset_ui() -> void:
 	_max_hp = 0
+	if _robot_logo: _robot_logo.texture=load("res://icon.svg")
 	if _id_label: _id_label.text = "ID: --"
+	if _id_show: _id_show.text = "--"
 	if _type_label: _type_label.text = "Type: --"
 	if _level_label: _level_label.text = "Level: --"
 	if _chassis_label: _chassis_label.text = "底盘: --"
@@ -57,7 +85,7 @@ func _reset_ui() -> void:
 	if _conn_label: _conn_label.text = "连接:未知"
 	if _field_label: _field_label.text = "上场:未知"
 	if _hp_bar:
-		_hp_bar.max_value = 1
+		_hp_bar.max_value = 100
 		_hp_bar.value = 0
 	if _hp_show:
 		_hp_show.text = "--/--"
@@ -81,8 +109,17 @@ func _on_static(value) -> void:
 	var field_state = int(_get_val(entry, "field_state", -1))
 
 	if _id_label: _id_label.text = "ID: %s" % str(robot_id)
+	if _id_show: _id_show.text = "%s" % str(robot_id)
+	if _robot_logo: 
+		var target_path = id_2_logo.get(robot_id, "res://icon.svg")
+		# 加载图片并设置
+		_robot_logo.texture = load(target_path)
 	if _type_label:
 		_type_label.text = _format_id_and_type(robot_id, robot_type)
+		var target_scale = id_2_scale.get(robot_id, 1)
+		# 等比例赋值（x/y同比例，避免拉伸）
+		_robot_logo.scale = Vector2(target_scale, target_scale)
+		
 	if _level_label: _level_label.text = "Level: %s" % str(level)
 	if _chassis_label: _chassis_label.text = CHASSIS_MAP.get(chassis, "底盘: --")
 	if _shooter_label: _shooter_label.text = SHOOTER_MAP.get(shooter, "发射: --")
@@ -113,9 +150,42 @@ func _on_dynamic(value) -> void:
 func _update_hp_show() -> void:
 	if _hp_show == null or _hp_bar == null:
 		return
+	
 	var current = int(_hp_bar.value)
 	var maxv = int(_hp_bar.max_value)
 	_hp_show.text = "%d/%d" % [current, maxv]
+	
+	if maxv <= 0: return
+	var hp_percent = float(current) / float(maxv)
+
+	# 1. 获取或创建样式
+	var fill_style: StyleBoxFlat
+	if _hp_bar.has_theme_stylebox_override("fill"):
+		fill_style = _hp_bar.get_theme_stylebox("fill")
+	else:
+		fill_style = StyleBoxFlat.new()
+		_hp_bar.add_theme_stylebox_override("fill", fill_style)
+
+	# 2. 设置样式参数 (核心修正部分)
+	# 确保圆角和你的设计一致（可选）
+	fill_style.corner_radius_top_left = 150
+	fill_style.corner_radius_top_right = 5
+	fill_style.corner_radius_bottom_right = 175
+	fill_style.corner_radius_bottom_left = 30
+	
+	# 设置颜色和发光（阴影）
+	if hp_percent < 0.3:
+		fill_style.bg_color = Color(1.0, 0.012, 0.2, 1.0)        # 橙红色背景
+		fill_style.shadow_color = Color(0.729, 0.0, 0.357, 0.761) # ❌ 改正：这里是 shadow_color
+		fill_style.shadow_size = 4                       # ✅ 新增：必须设置大小，否则看不见光晕
+	elif hp_percent < 0.6:
+		fill_style.bg_color = Color(0.0, 0.89, 0.89, 1.0)
+		fill_style.shadow_color = Color(0.71, 0.933, 0.988, 0.922)
+		fill_style.shadow_size = 4
+	else:
+		fill_style.bg_color = Color(0.251, 0.459, 1.0, 0.957)       # 正常蓝色
+		fill_style.shadow_color = Color(0.384, 0.918, 1.0, 0.588)
+		fill_style.shadow_size = 2
 
 func _update_exp_show() -> void:
 	if _exp_show == null or _exp_bar == null:

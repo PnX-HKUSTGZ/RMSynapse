@@ -13,13 +13,10 @@ font_size = 18
 
 [node name="RobotPerformanceSelectionSync" type="Control"]
 process_mode = 3
+custom_minimum_size = Vector2(360, 160)
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_bottom = 3.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_right = 1154.0
+offset_bottom = 648.0
 script = ExtResource("1_by0me")
 
 [node name="ColorRect" type="ColorRect" parent="."]
@@ -95,15 +92,18 @@ text = "取消选择"
 show_behind_parent = true
 light_mask = 2
 visibility_layer = 2
-offset_left = 98.0
-offset_top = 607.0
-offset_right = 412.0
-offset_bottom = 647.0
+custom_minimum_size = Vector2(100, 10)
+offset_left = 1593.0
+offset_top = 1560.0
+offset_right = 1907.0
+offset_bottom = 1600.0
 color = Color(0.17641911, 0.17641908, 0.17641908, 1)
+metadata/_edit_use_anchors_ = true
 
 [node name="Label" type="Label" parent="CanvasLayer/ColorRect2"]
 layout_mode = 0
 offset_right = 233.0
 offset_bottom = 39.0
+metadata/_edit_use_anchors_ = true
 
 [connection signal="item_selected" from="ColorRect/VBoxContainer/OptionButton" to="." method="_on_option_button_item_selected"]

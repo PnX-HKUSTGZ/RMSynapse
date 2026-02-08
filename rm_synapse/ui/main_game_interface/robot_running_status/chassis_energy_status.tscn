@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://da7s1icwyv8cb"]
+[gd_scene load_steps=3 format=3 uid="uid://da7s1icwyv8cb"]
 
 [ext_resource type="Script" uid="uid://d0b3om5enkimv" path="res://ui/main_game_interface/robot_running_status/chassis_energy_status.gd" id="1_script"]
+[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/吉利银河美好体_100font/GeelyDesignType-B.ttf" id="2_s35wb"]
 
 [node name="ChassisEnergyStatus" type="Control"]
 custom_minimum_size = Vector2(220, 40)
@@ -24,6 +25,7 @@ layout_mode = 0
 offset_top = 8.0
 offset_right = 96.0
 offset_bottom = 40.0
+theme_override_fonts/normal_font = ExtResource("2_s35wb")
 text = "底盘: --/--"
 horizontal_alignment = 1
 vertical_alignment = 1

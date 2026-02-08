@@ -2,8 +2,10 @@ extends Control
 
 @export var game_state_path: NodePath = NodePath("/root/MqttNet/GameState")
 
-const ONLINE_TEX := preload("res://ui/main_game_interface/robot_moduls_status/module_online.svg")
+#const ONLINE_TEX := preload("res://ui/main_game_interface/robot_moduls_status/module_online.svg")
 const OFFLINE_TEX := preload("res://ui/main_game_interface/robot_moduls_status/module_offline.svg")
+const ONLINE_TEX := preload("res://imgs/light.png")
+#const OFFLINE_TEX := preload("res://imgs/light.png")
 
 const MODULE_FIELDS := [
 	{"field": "power_manager", "node": "PowerManager"},

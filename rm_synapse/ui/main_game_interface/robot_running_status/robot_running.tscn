@@ -12,16 +12,19 @@
 position = Vector2(0, 0)
 
 [node name="ChassisEnergyStatus" parent="." instance=ExtResource("2_a5idh")]
-offset_left = 56.0
-offset_top = -48.0
-offset_right = 276.0
-offset_bottom = -8.0
+custom_minimum_size = Vector2(220, 20)
+offset_left = -304.0
+offset_top = 241.0
+offset_right = -84.0
+offset_bottom = 261.0
 metadata/_edit_use_anchors_ = true
 
 [node name="BufferEnergyStatus" parent="." instance=ExtResource("3_qj0b2")]
-offset_left = 56.0
-offset_right = 276.0
-offset_bottom = 40.0
+custom_minimum_size = Vector2(220, 20)
+offset_left = -62.0
+offset_top = 242.0
+offset_right = 158.0
+offset_bottom = 262.0
 metadata/_edit_use_anchors_ = true
 
 [node name="RobotRunningInfo" parent="." instance=ExtResource("4_l44d0")]

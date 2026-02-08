@@ -1,8 +1,14 @@
-[gd_scene load_steps=4 format=3 uid="uid://b25mhnxg33sqf"]
+[gd_scene load_steps=10 format=3 uid="uid://b25mhnxg33sqf"]
 
-[ext_resource type="Script" uid="uid://6yub6y5ypbb5" path="res://ui/main_game_interface/global_unit_state/unit.gd" id="1_dpw4j"]
-[ext_resource type="Texture2D" path="res://ui/main_game_interface/global_unit_state/unit_tile_blue.svg" id="1_tile"]
-[ext_resource type="Texture2D" uid="uid://d3vbptqo1w2a2" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Script" uid="uid://cahc750rbwq0l" path="res://ui/main_game_interface/global_unit_state/unit.gd" id="1_dpw4j"]
+[ext_resource type="Texture2D" uid="uid://bf23xgvwqyxl4" path="res://ui/main_game_interface/global_unit_state/unit_tile_blue.svg" id="1_tile"]
+[ext_resource type="Texture2D" uid="uid://366iap6l81k3" path="res://imgs/哨兵 icon.png" id="3_7frpj"]
+[ext_resource type="Texture2D" uid="uid://ds7ap74fskeid" path="res://imgs/步兵 icon.png" id="4_u1bf3"]
+[ext_resource type="Texture2D" uid="uid://cnjquvduuq326" path="res://imgs/雷达 icon.png" id="5_6ests"]
+[ext_resource type="Texture2D" uid="uid://dnrna6xhcowq3" path="res://imgs/英雄 icon.png" id="6_j06ff"]
+[ext_resource type="Texture2D" uid="uid://dr2drlfu4enr1" path="res://imgs/飞镖 icon.png" id="7_isybi"]
+[ext_resource type="Texture2D" uid="uid://ben1yo140d2vf" path="res://imgs/工程 icon.png" id="8_po0jk"]
+[ext_resource type="Texture2D" uid="uid://d0orqpxbc81yv" path="res://imgs/飞行 icon.png" id="9_uhtqa"]
 
 [node name="UnitBlue" type="Node2D"]
 script = ExtResource("1_dpw4j")
@@ -11,15 +17,74 @@ unit_id = 0
 [node name="Tile" type="Sprite2D" parent="."]
 texture = ExtResource("1_tile")
 
-[node name="Icon" type="TextureRect" parent="."]
-offset_left = -20.999998
-offset_top = -46.0
-offset_right = 107.0
-offset_bottom = 82.0
+[node name="步兵icon" type="TextureRect" parent="."]
+offset_left = -44.000004
+offset_top = -78.00001
+offset_right = 2004.0
+offset_bottom = 1970.0
 rotation = 0.1721324
-scale = Vector2(0.5, 0.5)
-texture = ExtResource("2_icon")
-metadata/_edit_use_anchors_ = true
+scale = Vector2(0.06, 0.06)
+texture = ExtResource("4_u1bf3")
+
+[node name="雷达icon" type="TextureRect" parent="."]
+visible = false
+offset_left = -24.000002
+offset_top = -79.00001
+offset_right = 816.0
+offset_bottom = 1127.0
+rotation = 0.1721324
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("5_6ests")
+
+[node name="英雄icon" type="TextureRect" parent="."]
+visible = false
+offset_left = -40.000004
+offset_top = -72.0
+offset_right = 412.0
+offset_bottom = 356.0
+rotation = 0.1721324
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("6_j06ff")
+
+[node name="飞镖icon" type="TextureRect" parent="."]
+visible = false
+offset_left = -35.0
+offset_top = -80.00001
+offset_right = 845.0
+offset_bottom = 908.0
+rotation = 0.1721324
+scale = Vector2(0.12, 0.12)
+texture = ExtResource("7_isybi")
+
+[node name="工程icon" type="TextureRect" parent="."]
+visible = false
+offset_left = -43.0
+offset_top = -66.0
+offset_right = 427.0
+offset_bottom = 378.0
+rotation = 0.1721324
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("8_po0jk")
+
+[node name="飞行icon" type="TextureRect" parent="."]
+visible = false
+offset_left = -45.000004
+offset_top = -69.00001
+offset_right = 395.0
+offset_bottom = 313.0
+rotation = 0.1721324
+scale = Vector2(0.27, 0.27)
+texture = ExtResource("9_uhtqa")
+
+[node name="哨兵icon" type="TextureRect" parent="."]
+visible = false
+offset_left = -42.000004
+offset_top = -69.00001
+offset_right = 370.0
+offset_bottom = 313.0
+rotation = 0.1721324
+scale = Vector2(0.27, 0.27)
+texture = ExtResource("3_7frpj")
 
 [node name="ID" type="RichTextLabel" parent="."]
 offset_left = 57.0
@@ -28,12 +93,3 @@ offset_right = 72.0
 offset_bottom = 25.0
 rotation = 0.19037633
 metadata/_edit_use_anchors_ = true
-
-[node name="HPBar" type="ProgressBar" parent="."]
-offset_left = -63.0
-offset_top = 36.0
-offset_right = 64.0
-offset_bottom = 63.0
-value = 20.0
-fill_mode = 1
-show_percentage = false
