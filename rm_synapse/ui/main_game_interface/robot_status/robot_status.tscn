@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" uid="uid://be53ewgjweaei" path="res://ui/main_game_interface/robot_status/robot_status.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://d3vbptqo1w2a2" path="res://icon.svg" id="1_t3hu2"]
+[ext_resource type="Texture2D" uid="uid://bup23dayycijr" path="res://icon_backgrouond.png" id="2_f6lfi"]
 [ext_resource type="Script" uid="uid://dypdho1fb0ufp" path="res://ui/main_game_interface/robot_status/combatcountdown.gd" id="3_nkd5k"]
 [ext_resource type="FontFile" path="res://fonts/xolonium/Xolonium.tres" id="3_xgtjr"]
-[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/吉利银河美好体_100font/GeelyDesignType-B.ttf" id="4_c3f70"]
-[ext_resource type="Texture2D" uid="uid://besg45pslk14m" path="res://20260207-094416.png" id="6_bengs"]
+[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/Chinese_font/GeelyDesignType-B.ttf" id="4_c3f70"]
 [ext_resource type="FontFile" uid="uid://c321yy1vvr0p2" path="res://fonts/xolonium/xolonium-fonts-4.1/ttf/Xolonium-Regular.ttf" id="6_f6lfi"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3nnc0"]
@@ -85,12 +85,12 @@ script = ExtResource("1_script")
 [node name="LogoBackGround" type="Sprite2D" parent="."]
 position = Vector2(87, 73)
 scale = Vector2(0.25, 0.259)
-texture = ExtResource("6_bengs")
+texture = ExtResource("2_f6lfi")
 
 [node name="IDBackGround" type="Sprite2D" parent="."]
 position = Vector2(114, 134.00002)
 scale = Vector2(0.062, 0.065)
-texture = ExtResource("6_bengs")
+texture = ExtResource("2_f6lfi")
 
 [node name="RobotLogo" type="TextureRect" parent="."]
 offset_right = 128.0

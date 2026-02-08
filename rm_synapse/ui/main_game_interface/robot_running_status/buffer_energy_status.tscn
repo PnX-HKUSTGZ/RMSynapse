@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://buf0pykspapnl"]
 
 [ext_resource type="Script" uid="uid://cdvwdft7db1jh" path="res://ui/main_game_interface/robot_running_status/buffer_energy_status.gd" id="1_script"]
-[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/吉利银河美好体_100font/GeelyDesignType-B.ttf" id="2_c3gv8"]
+[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/Chinese_font/GeelyDesignType-B.ttf" id="2_c3gv8"]
 
 [node name="BufferEnergyStatus" type="Control"]
 custom_minimum_size = Vector2(220, 40)

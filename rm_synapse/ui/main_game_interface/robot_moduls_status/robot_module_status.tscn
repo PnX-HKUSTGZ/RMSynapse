@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dsql3bds8oeh8" path="res://ui/main_game_interface/robot_moduls_status/robot_module_status.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://dk8m6lhr0u4jd" path="res://imgs/light.png" id="2_2ynsm"]
 [ext_resource type="Script" uid="uid://c638vuhjo0li0" path="res://ui/main_game_interface/robot_moduls_status/icon.gd" id="3_mifl8"]
-[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/吉利银河美好体_100font/GeelyDesignType-B.ttf" id="4_mifl8"]
+[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/Chinese_font/GeelyDesignType-B.ttf" id="4_mifl8"]
 
 [node name="RobotModuleStatus" type="Control"]
 custom_minimum_size = Vector2(220, 320)

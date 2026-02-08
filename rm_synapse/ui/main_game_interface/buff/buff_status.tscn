@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://buffstatus"]
 
 [ext_resource type="Script" uid="uid://cikenj1447sba" path="res://ui/main_game_interface/buff/buff_status.gd" id="1_leuhe"]
-[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/吉利银河美好体_100font/GeelyDesignType-B.ttf" id="2_ru6ap"]
+[ext_resource type="FontFile" uid="uid://c5v2do8f8vp0a" path="res://fonts/Chinese_font/GeelyDesignType-B.ttf" id="2_ru6ap"]
 
 [node name="BuffStatus" type="Control"]
 custom_minimum_size = Vector2(260, 40)

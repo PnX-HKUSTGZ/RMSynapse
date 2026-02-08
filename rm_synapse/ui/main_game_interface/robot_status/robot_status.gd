@@ -38,15 +38,15 @@ const CHASSIS_MAP := {
 }
 
 const id_2_logo : = {
-	1: "res://imgs/英雄 icon.png",
-	2: "res://imgs/工程 icon.png",
-	3: "res://imgs/步兵 icon.png",
-	4: "res://imgs/步兵 icon.png",
-	5: "res://imgs/步兵 icon.png",
-	6: "res://imgs/飞行 icon.png",
-	7: "res://imgs/哨兵 icon.png",
-	8: "res://imgs/飞镖 icon.png",
-	9: "res://imgs/雷达 icon.png"
+	1: "res://imgs/yingxiong.png",
+	2: "res://imgs/gongcheng.png",
+	3: "res://imgs/bubing.png",
+	4: "res://imgs/bubing.png",
+	5: "res://imgs/bubing.png",
+	6: "res://imgs/kongzhong.png",
+	7: "res://imgs/shaobing.png",
+	8: "res://imgs/feibiao.png",
+	9: "res://imgs/leida.png"
 }
 
 const id_2_scale : ={
