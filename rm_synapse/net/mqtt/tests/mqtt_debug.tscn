@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://tpanw3yfsrx8"]
+
+[ext_resource type="Script" uid="uid://s6bb1jkpfxsd" path="res://net/mqtt/transport/network_transport.gd" id="1"]
+[ext_resource type="Script" uid="uid://7j5atrbqcrhw" path="res://net/mqtt/adapter/protocol_adapter.gd" id="2"]
+
+[node name="MqttDebug" type="Node"]
+
+[node name="NetworkTransport" type="Node" parent="."]
+script = ExtResource("1")
+broker_url = "127.0.0.1:3333"
+auto_connect = true
+
+[node name="ProtocolAdapter" type="Node" parent="."]
+script = ExtResource("2")
+transport_path = NodePath("../NetworkTransport")
