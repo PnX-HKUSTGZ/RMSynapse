@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 class_name NetworkTransport
 
 signal connected
@@ -8,11 +8,10 @@ signal raw_message(topic, payload)
 signal text_message(topic, text)
 
 @export var broker_url: String = "192.168.12.1:3333"
-@export var auto_connect: bool = false
+@export var auto_connect: bool = true
 @export var auto_reconnect: bool = true
 @export var reconnect_delay_ms: int = 2000
 @export var ping_interval_sec: int = 30
-@export var verbose_level: int = 1
 @export var binary_messages: bool = true
 @export var client_id: String = ""
 @export var username: String = ""
@@ -23,8 +22,6 @@ var _connected: bool = false
 var _shutting_down: bool = false
 var _desired_subscriptions: Dictionary = {}
 var _reconnect_timer: Timer
-
-const LOG_PREFIX := "[NetworkTransport] "
 
 func _ready() -> void:
 	_mqtt = preload("res://addons/mqtt/mqtt.gd").new()
@@ -44,15 +41,16 @@ func _ready() -> void:
 	if auto_connect:
 		connect_to_broker()
 
-func _log(level: int, message: String) -> void:
-	if verbose_level >= level:
-		print(LOG_PREFIX + message)
-
 func _apply_settings() -> void:
 	if _mqtt == null:
 		return
 	_mqtt.binarymessages = binary_messages
-	_mqtt.verbose_level = verbose_level
+	var mqtt_verbose = 0
+	if Log.min_level <= Log.Level.DEBUG:
+		mqtt_verbose = 2
+	elif Log.min_level <= Log.Level.INFO:
+		mqtt_verbose = 1
+	_mqtt.verbose_level = mqtt_verbose
 	_mqtt.pinginterval = ping_interval_sec
 	if client_id != "":
 		_mqtt.client_id = client_id
@@ -68,58 +66,57 @@ func connect_to_broker() -> bool:
 	_shutting_down = false
 	_apply_settings()
 	_reconnect_timer.stop()
-	_log(1, "Connecting to broker: %s" % broker_url)
+	Log.info("[NetworkTransport] Connecting to broker: %s" % broker_url)
 	return _mqtt.connect_to_broker(broker_url)
 
 func disconnect_from_broker() -> void:
 	_shutting_down = true
 	_reconnect_timer.stop()
-	_log(1, "Disconnecting from broker")
+	Log.info("[NetworkTransport] Disconnecting from broker")
 	if _mqtt != null:
 		_mqtt.disconnect_from_server()
 
 func restart_connection() -> bool:
 	disconnect_from_broker()
 	_shutting_down = false
-	_log(1, "Restarting broker connection")
+	Log.info("[NetworkTransport] Restarting broker connection")
 	return connect_to_broker()
 
 func subscribe(topic: String, qos: int = 0, remember: bool = true) -> void:
 	if remember:
 		_desired_subscriptions[topic] = qos
 	if _connected:
-		_log(1, "Subscribe topic=%s qos=%d" % [topic, qos])
+		Log.info("[NetworkTransport] Subscribe topic=%s qos=%d" % [topic, qos])
 		_mqtt.subscribe(topic, qos)
 
 func unsubscribe(topic: String) -> void:
 	_desired_subscriptions.erase(topic)
 	if _connected:
-		_log(1, "Unsubscribe topic=%s" % topic)
+		Log.info("[NetworkTransport] Unsubscribe topic=%s" % topic)
 		_mqtt.unsubscribe(topic)
 
 func publish_bytes(topic: String, payload: PackedByteArray, retain: bool = false, qos: int = 0) -> int:
 	if not binary_messages:
 		binary_messages = true
 		_mqtt.binarymessages = true
-	_log(2, "Publish bytes topic=%s size=%d qos=%d retain=%s" % [topic, payload.size(), qos, str(retain)])
+	Log.debug("[NetworkTransport] Publish bytes topic=%s size=%d qos=%d retain=%s" % [topic, payload.size(), qos, str(retain)])
 	return _mqtt.publish(topic, payload, retain, qos)
 
 func publish_text(topic: String, text: String, retain: bool = false, qos: int = 0) -> int:
 	if binary_messages:
 		binary_messages = false
 		_mqtt.binarymessages = false
-	_log(2, "Publish text topic=%s len=%d qos=%d retain=%s" % [topic, text.length(), qos, str(retain)])
+	Log.debug("[NetworkTransport] Publish text topic=%s len=%d qos=%d retain=%s" % [topic, text.length(), qos, str(retain)])
 	return _mqtt.publish(topic, text, retain, qos)
 
 func clear_subscriptions() -> void:
 	_desired_subscriptions.clear()
 
 func _on_received_message(topic, message) -> void:
-	if verbose_level >= 2:
-		if message is PackedByteArray:
-			_log(2, "Recv bytes topic=%s size=%d" % [topic, message.size()])
-		else:
-			_log(2, "Recv text topic=%s len=%d" % [topic, str(message).length()])
+	if message is PackedByteArray:
+		Log.debug("[NetworkTransport] Recv bytes topic=%s size=%d" % [topic, message.size()])
+	else:
+		Log.debug("[NetworkTransport] Recv text topic=%s len=%d" % [topic, str(message).length()])
 	if message is PackedByteArray:
 		emit_signal("raw_message", topic, message)
 	else:
@@ -127,20 +124,20 @@ func _on_received_message(topic, message) -> void:
 
 func _on_broker_connected() -> void:
 	_connected = true
-	_log(1, "Broker connected")
+	Log.info("[NetworkTransport] Broker connected")
 	for topic in _desired_subscriptions.keys():
 		_mqtt.subscribe(topic, int(_desired_subscriptions[topic]))
 	emit_signal("connected")
 
 func _on_broker_disconnected() -> void:
 	_connected = false
-	_log(1, "Broker disconnected")
+	Log.warn("[NetworkTransport] Broker disconnected")
 	emit_signal("disconnected", "broker_disconnected")
 	_schedule_reconnect()
 
 func _on_broker_connection_failed() -> void:
 	_connected = false
-	_log(1, "Broker connection failed")
+	Log.warn("[NetworkTransport] Broker connection failed")
 	emit_signal("connection_failed", "broker_connection_failed")
 	_schedule_reconnect()
 
@@ -152,7 +149,7 @@ func _schedule_reconnect() -> void:
 	var delay_ms = reconnect_delay_ms
 	if delay_ms < 0:
 		delay_ms = 0
-	_log(1, "Reconnect scheduled in %d ms" % delay_ms)
+	Log.info("[NetworkTransport] Reconnect scheduled in %d ms" % delay_ms)
 	_reconnect_timer.stop()
 	_reconnect_timer.wait_time = float(delay_ms) / 1000.0
 	_reconnect_timer.start()
@@ -160,5 +157,5 @@ func _schedule_reconnect() -> void:
 func _on_reconnect_timeout() -> void:
 	if _shutting_down:
 		return
-	_log(1, "Reconnect attempt")
+	Log.info("[NetworkTransport] Reconnect attempt")
 	connect_to_broker()

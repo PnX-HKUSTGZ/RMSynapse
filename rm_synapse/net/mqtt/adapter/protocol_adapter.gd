@@ -40,13 +40,10 @@ signal sentry_ctrl_result(message)
 signal air_support_command(message)
 signal air_support_status_sync(message)
 
-@export var transport_path: NodePath = NodePath("")
+@export var transport_path: NodePath = NodePath("../Transport")
 @export var auto_subscribe: bool = true
-@export var verbose_level: int = 1
 
 var RMProto: Variant = preload("res://net/mqtt/proto/generated/rm_custom_pb.gd")
-
-const LOG_PREFIX := "[ProtocolAdapter] "
 
 const TOPIC_KEYBOARD_MOUSE_CONTROL = "KeyboardMouseControl"
 const TOPIC_CUSTOM_CONTROL = "CustomControl"
@@ -163,13 +160,13 @@ func bind_transport(node: Node) -> void:
 	_transport = node
 	_transport.raw_message.connect(_on_transport_message)
 	_transport.connected.connect(_on_transport_connected)
-	_log(1, "Bound transport: %s" % str(node))
+	Log.info("[ProtocolAdapter] Bound transport: %s" % str(node))
 	if auto_subscribe:
 		subscribe_all()
 
 func register_mapping(topic: String, message_class) -> void:
 	_topic_to_class[topic] = message_class
-	_log(2, "Register mapping: %s" % topic)
+	Log.debug("[ProtocolAdapter] Register mapping: %s" % topic)
 
 func clear_mappings() -> void:
 	_topic_to_class.clear()
@@ -177,7 +174,7 @@ func clear_mappings() -> void:
 func subscribe_all() -> void:
 	if _transport == null:
 		return
-	_log(1, "Subscribing to %d topics" % SUBSCRIBE_TOPICS.size())
+	Log.info("[ProtocolAdapter] Subscribing to %d topics" % SUBSCRIBE_TOPICS.size())
 	for topic in SUBSCRIBE_TOPICS:
 		_transport.subscribe(topic)
 
@@ -185,7 +182,7 @@ func send_message(topic: String, message) -> int:
 	if _transport == null:
 		return -1
 	var payload = message.to_bytes()
-	_log(2, "Send message topic=%s size=%d" % [topic, payload.size()])
+	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d" % [topic, payload.size()])
 	return _transport.publish_bytes(topic, payload)
 
 func send_keyboard_mouse_control(message) -> int:
@@ -259,6 +256,7 @@ func _register_default_mappings() -> void:
 	register_mapping(TOPIC_AIR_SUPPORT_STATUS_SYNC, RMProto.AirSupportStatusSync)
 
 func _on_transport_connected() -> void:
+	Log.info("[ProtocolAdapter] mqtt broker connected! try to subscribe topic.")
 	if auto_subscribe:
 		subscribe_all()
 
@@ -269,27 +267,25 @@ func _on_transport_message(topic, payload) -> void:
 		bytes = str(payload).to_utf8_buffer()
 	var message_class = _topic_to_class.get(topic_str, null)
 	if message_class == null:
-		_log(1, "Unmapped topic: %s (size=%d)" % [topic_str, bytes.size()])
+		Log.warn("[ProtocolAdapter] Unmapped topic: %s (size=%d)" % [topic_str, bytes.size()])
 		emit_signal("unmapped_message", topic_str, bytes)
 		return
 	var message = message_class.new()
 	var res = message.from_bytes(bytes)
 	if res != RMProto.PB_ERR.NO_ERRORS:
-		_log(1, "Decode failed topic=%s err=%d" % [topic_str, res])
+		Log.warn("[ProtocolAdapter] Decode failed topic=%s err=%d" % [topic_str, res])
 		emit_signal("decode_failed", topic_str, res)
 		return
-	_log(2, "Decoded topic=%s" % topic_str)
+	Log.debug("[ProtocolAdapter] Decoded topic=%s" % topic_str)
 	emit_signal("decoded_message", topic_str, message)
 	_emit_topic_signal(topic_str, message)
-
-func _log(level: int, message: String) -> void:
-	if verbose_level >= level:
-		print(LOG_PREFIX + message)
 
 func _emit_topic_signal(topic: String, message) -> void:
 	var signal_name = TOPIC_SIGNAL_MAP.get(topic, "")
 	if signal_name == "":
+		Log.warn("[ProtocolAdapter] topic " + topic + " dosen't have corresponding signal.")
 		return
+	Log.debug("[ProtocolAdapter] topic " + topic + " emit signal " + " signal_name with content " + message)
 	emit_signal(signal_name, message)
 
 # func _mark_signals_used() -> void:

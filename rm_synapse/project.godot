@@ -15,6 +15,11 @@ run/main_scene="uid://b0wlb2cnkwr4q"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+Log="*res://utile/Log.gd"
+Mqtt="*res://net/mqtt/mqtt.tscn"
+
 [display]
 
 window/size/viewport_width=2520
