@@ -42,8 +42,19 @@ signal air_support_status_sync(message)
 
 @export var transport_path: NodePath = NodePath("../Transport")
 @export var auto_subscribe: bool = true
+enum Qos {
+	QOS0 = 0,
+	QOS1 = 1,
+	QOS2 = 2
+}
+
+@export var publish_qos_default: Qos = Qos.QOS0
+@export var subscribe_qos_default: Qos = Qos.QOS0
+@export var publish_qos_by_topic: Dictionary = {}
+@export var subscribe_qos_by_topic: Dictionary = {}
 
 var RMProto: Variant = preload("res://net/mqtt/proto/generated/rm_custom_pb.gd")
+const AdapterTypes = preload("res://net/mqtt/adapter/adapter_types.gd")
 
 const TOPIC_KEYBOARD_MOUSE_CONTROL = "KeyboardMouseControl"
 const TOPIC_CUSTOM_CONTROL = "CustomControl"
@@ -150,6 +161,7 @@ var _transport: Node
 var _topic_to_class: Dictionary = {}
 
 func _ready() -> void:
+	_ensure_qos_maps()
 	_register_default_mappings()
 	if transport_path != NodePath(""):
 		var node = get_node_or_null(transport_path)
@@ -173,50 +185,124 @@ func clear_mappings() -> void:
 
 func subscribe_all() -> void:
 	if _transport == null:
+		Log.error("[ProtocolAdapter] Cannot subscribe topics because transport is not bound.")
 		return
 	Log.info("[ProtocolAdapter] Subscribing to %d topics" % SUBSCRIBE_TOPICS.size())
 	for topic in SUBSCRIBE_TOPICS:
-		_transport.subscribe(topic)
+		_transport.subscribe(topic, _get_subscribe_qos(topic))
 
 func send_message(topic: String, message) -> int:
 	if _transport == null:
+		Log.error("[ProtocolAdapter] Cannot send message because transport is not bound.")
 		return -1
 	var payload = message.to_bytes()
-	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d" % [topic, payload.size()])
-	return _transport.publish_bytes(topic, payload)
+	var qos = _get_publish_qos(topic)
+	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d qos=%d" % [topic, payload.size(), qos])
+	return _transport.publish_bytes(topic, payload, false, qos)
 
-func send_keyboard_mouse_control(message) -> int:
+func send_keyboard_mouse_control(data: AdapterTypes.KeyboardMouseControlData) -> int:
+	var message = RMProto.KeyboardMouseControl.new()
+	message.set_mouse_x(data.mouse_x)
+	message.set_mouse_y(data.mouse_y)
+	message.set_mouse_z(data.mouse_z)
+	message.set_left_button_down(data.left_button_down)
+	message.set_right_button_down(data.right_button_down)
+	message.set_keyboard_value(data.keyboard_value)
+	message.set_mid_button_down(data.mid_button_down)
 	return send_message(TOPIC_KEYBOARD_MOUSE_CONTROL, message)
 
-func send_custom_control(message) -> int:
+func send_custom_control(data: AdapterTypes.CustomControlData) -> int:
+	var message = RMProto.CustomControl.new()
+	message.set_data(data.data)
 	return send_message(TOPIC_CUSTOM_CONTROL, message)
 
-func send_map_click_info_notify(message) -> int:
+func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> int:
+	var message = RMProto.MapClickInfoNotify.new()
+	message.set_is_send_all(data.is_send_all)
+	message.set_robot_id(data.robot_id)
+	message.set_mode(data.mode)
+	message.set_enemy_id(data.enemy_id)
+	message.set_ascii(data.ascii)
+	message.set_type(data.type)
+	message.set_screen_x(data.screen_x)
+	message.set_screen_y(data.screen_y)
+	message.set_map_x(data.map_x)
+	message.set_map_y(data.map_y)
 	return send_message(TOPIC_MAP_CLICK_INFO_NOTIFY, message)
 
-func send_assembly_command(message) -> int:
+func send_assembly_command(data: AdapterTypes.AssemblyCommandData) -> int:
+	var message = RMProto.AssemblyCommand.new()
+	message.set_operation(data.operation)
+	message.set_difficulty(data.difficulty)
 	return send_message(TOPIC_ASSEMBLY_COMMAND, message)
 
-func send_robot_performance_selection_command(message) -> int:
+func send_robot_performance_selection_command(data: AdapterTypes.RobotPerformanceSelectionCommandData) -> int:
+	var message = RMProto.RobotPerformanceSelectionCommand.new()
+	message.set_shooter(data.shooter)
+	message.set_chassis(data.chassis)
+	message.set_sentry_control(data.sentry_control)
 	return send_message(TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND, message)
 
-func send_common_command(message) -> int:
+func send_common_command(data: AdapterTypes.CommonCommandData) -> int:
+	var message = RMProto.CommonCommand.new()
+	message.set_cmd_type(data.cmd_type)
+	message.set_param(data.param)
 	return send_message(TOPIC_COMMON_COMMAND, message)
 
-func send_hero_deploy_mode_event_command(message) -> int:
+func send_hero_deploy_mode_event_command(data: AdapterTypes.HeroDeployModeEventCommandData) -> int:
+	var message = RMProto.HeroDeployModeEventCommand.new()
+	message.set_mode(data.mode)
 	return send_message(TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND, message)
 
-func send_rune_activate_command(message) -> int:
+func send_rune_activate_command(data: AdapterTypes.RuneActivateCommandData) -> int:
+	var message = RMProto.RuneActivateCommand.new()
+	message.set_activate(data.activate)
 	return send_message(TOPIC_RUNE_ACTIVATE_COMMAND, message)
 
-func send_dart_command(message) -> int:
+func send_dart_command(data: AdapterTypes.DartCommandData) -> int:
+	var message = RMProto.DartCommand.new()
+	message.set_target_id(data.target_id)
+	message.set_open(data.open)
+	message.set_launch_confirm(data.launch_confirm)
 	return send_message(TOPIC_DART_COMMAND, message)
 
-func send_sentry_ctrl_command(message) -> int:
+func send_sentry_ctrl_command(data: AdapterTypes.SentryCtrlCommandData) -> int:
+	var message = RMProto.SentryCtrlCommand.new()
+	message.set_command_id(data.command_id)
 	return send_message(TOPIC_SENTRY_CTRL_COMMAND, message)
 
-func send_air_support_command(message) -> int:
+func send_air_support_command(data: AdapterTypes.AirSupportCommandData) -> int:
+	var message = RMProto.AirSupportCommand.new()
+	message.set_command_id(data.command_id)
 	return send_message(TOPIC_AIR_SUPPORT_COMMAND, message)
+
+func set_publish_qos(topic: String, qos: Qos) -> void:
+	publish_qos_by_topic[topic] = _normalize_qos(qos)
+
+func set_subscribe_qos(topic: String, qos: Qos) -> void:
+	subscribe_qos_by_topic[topic] = _normalize_qos(qos)
+
+func _get_publish_qos(topic: String) -> int:
+	return _normalize_qos(int(publish_qos_by_topic.get(topic, publish_qos_default)))
+
+func _get_subscribe_qos(topic: String) -> int:
+	return _normalize_qos(int(subscribe_qos_by_topic.get(topic, subscribe_qos_default)))
+
+func _normalize_qos(qos: int) -> int:
+	if qos < 0:
+		Log.warn("[ProtocolAdapter] QoS %d is less than 0, normalized to 0" % qos)
+		return 0
+	if qos > 2:
+		Log.warn("[ProtocolAdapter] QoS %d is greater than 2, normalized to 2" % qos)
+		return 2
+	return qos
+
+func _ensure_qos_maps() -> void:
+	for topic in TOPIC_SIGNAL_MAP.keys():
+		if not publish_qos_by_topic.has(topic):
+			publish_qos_by_topic[topic] = publish_qos_default
+		if not subscribe_qos_by_topic.has(topic):
+			subscribe_qos_by_topic[topic] = subscribe_qos_default
 
 func _register_default_mappings() -> void:
 	register_mapping(TOPIC_KEYBOARD_MOUSE_CONTROL, RMProto.KeyboardMouseControl)
@@ -271,57 +357,49 @@ func _on_transport_message(topic, payload) -> void:
 		emit_signal("unmapped_message", topic_str, bytes)
 		return
 	var message = message_class.new()
-	var res = message.from_bytes(bytes)
-	if res != RMProto.PB_ERR.NO_ERRORS:
-		Log.warn("[ProtocolAdapter] Decode failed topic=%s err=%d" % [topic_str, res])
-		emit_signal("decode_failed", topic_str, res)
-		return
+	if bytes.size() == 0:
+		_fill_default_values(message)
+		Log.info("[ProtocolAdapter] Empty payload topic=%s, use default message" % topic_str)
+	else:
+		var res = message.from_bytes(bytes)
+		if res != RMProto.PB_ERR.NO_ERRORS:
+			Log.warn("[ProtocolAdapter] Decode failed topic=%s err=%d" % [topic_str, res])
+			emit_signal("decode_failed", topic_str, res)
+			return
+		_fill_default_values(message)
 	Log.debug("[ProtocolAdapter] Decoded topic=%s" % topic_str)
 	emit_signal("decoded_message", topic_str, message)
 	_emit_topic_signal(topic_str, message)
+
+func _fill_default_values(message) -> void:
+	var defaults = RMProto.DEFAULT_VALUES_3
+	if RMProto.PROTO_VERSION == 2:
+		defaults = RMProto.DEFAULT_VALUES_2
+	var data = message.data
+	for key in data.keys():
+		var service = data[key]
+		if service == null or service.field == null:
+			continue
+		if service.state != RMProto.PB_SERVICE_STATE.UNFILLED:
+			continue
+		var field = service.field
+		if field.value == null:
+			field.value = _default_value_for(field.type, defaults)
+		elif field.type == RMProto.PB_DATA_TYPE.BYTES \
+		&& field.rule != RMProto.PB_RULE.REPEATED \
+		&& typeof(field.value) != TYPE_PACKED_BYTE_ARRAY:
+			field.value = PackedByteArray(field.value)
+		service.state = RMProto.PB_SERVICE_STATE.FILLED
+
+func _default_value_for(data_type: int, defaults: Dictionary):
+	if data_type == RMProto.PB_DATA_TYPE.BYTES:
+		return PackedByteArray()
+	return defaults.get(data_type, null)
 
 func _emit_topic_signal(topic: String, message) -> void:
 	var signal_name = TOPIC_SIGNAL_MAP.get(topic, "")
 	if signal_name == "":
 		Log.warn("[ProtocolAdapter] topic " + topic + " dosen't have corresponding signal.")
 		return
-	Log.debug("[ProtocolAdapter] topic " + topic + " emit signal " + " signal_name with content " + message)
+	Log.debug("[ProtocolAdapter] topic %s emit signal %s with content %s" % [topic, signal_name, str(message)])
 	emit_signal(signal_name, message)
-
-# func _mark_signals_used() -> void:
-# 	if false:
-# 		keyboard_mouse_control.emit(null)
-# 		custom_control.emit(null)
-# 		game_status.emit(null)
-# 		global_unit_status.emit(null)
-# 		global_logistics_status.emit(null)
-# 		global_special_mechanism.emit(null)
-# 		event_message.emit(null)
-# 		robot_injury_stat.emit(null)
-# 		robot_respawn_status.emit(null)
-# 		robot_static_status.emit(null)
-# 		robot_dynamic_status.emit(null)
-# 		robot_module_status.emit(null)
-# 		robot_position.emit(null)
-# 		buff.emit(null)
-# 		penalty_info.emit(null)
-# 		robot_path_plan_info.emit(null)
-# 		map_click_info_notify.emit(null)
-# 		radar_info_to_client.emit(null)
-# 		custom_byte_block.emit(null)
-# 		assembly_command.emit(null)
-# 		tech_core_motion_state_sync.emit(null)
-# 		robot_performance_selection_command.emit(null)
-# 		robot_performance_selection_sync.emit(null)
-# 		common_command.emit(null)
-# 		hero_deploy_mode_event_command.emit(null)
-# 		deploy_mode_status_sync.emit(null)
-# 		rune_activate_command.emit(null)
-# 		rune_status_sync.emit(null)
-# 		sentry_status_sync.emit(null)
-# 		dart_command.emit(null)
-# 		dart_select_target_status_sync.emit(null)
-# 		sentry_ctrl_command.emit(null)
-# 		sentry_ctrl_result.emit(null)
-# 		air_support_command.emit(null)
-# 		air_support_status_sync.emit(null)

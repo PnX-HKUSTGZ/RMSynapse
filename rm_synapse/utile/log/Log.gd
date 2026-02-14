@@ -10,10 +10,9 @@ enum Level {
 	ERROR = 3
 }
 
-@export var min_level: int = Level.DEBUG
+@export var min_level: Level = Level.DEBUG
 @export var enable_timestamp: bool = true
 @export var use_rich_text: bool = false
-@export var debug_use_verbose: bool = true
 @export var include_stack_on_error: bool = true
 
 # Remote logging hook (stub).
@@ -64,10 +63,7 @@ func _level_name(level: int) -> String:
 func _emit_local(level: int, text: String) -> void:
 	match level:
 		Level.DEBUG:
-			if debug_use_verbose:
-				print_verbose(text)
-			else:
-				_print_text(text)
+			_print_text(text)
 		Level.INFO:
 			_print_text(text)
 		Level.WARN:
