@@ -3,8 +3,6 @@ extends Node
 const MQTT_ROOT_PATH := "/root/Mqtt"
 const ADAPTER_PATH := "/root/Mqtt/Adapter"
 const TRANSPORT_PATH := "/root/Mqtt/Transport"
-const AdapterTypes = preload("res://net/mqtt/adapter/adapter_types.gd")
-
 var _adapter = null
 
 var _send_cunter: int = 0

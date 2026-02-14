@@ -1,3 +1,6 @@
+extends Object
+class_name AdapterTypes
+
 class KeyboardMouseControlData:
 	extends RefCounted
 	var mouse_x: int = 0

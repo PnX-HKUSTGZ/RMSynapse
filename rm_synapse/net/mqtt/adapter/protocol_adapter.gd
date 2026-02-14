@@ -54,7 +54,6 @@ enum Qos {
 @export var subscribe_qos_by_topic: Dictionary = {}
 
 var RMProto: Variant = preload("res://net/mqtt/proto/generated/rm_custom_pb.gd")
-const AdapterTypes = preload("res://net/mqtt/adapter/adapter_types.gd")
 
 const TOPIC_KEYBOARD_MOUSE_CONTROL = "KeyboardMouseControl"
 const TOPIC_CUSTOM_CONTROL = "CustomControl"
