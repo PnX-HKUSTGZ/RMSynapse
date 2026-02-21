@@ -1,5 +1,13 @@
-[gd_scene format=3 uid="uid://wgvs3kvhf711"]
+[gd_scene load_steps=2 format=3 uid="uid://wgvs3kvhf711"]
+
+[ext_resource type="Script" path="res://ui/top_bar.gd" id="1_topbar"]
 
 [node name="TopBar" type="Control"]
 layout_mode = 3
-anchors_preset = 0
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 162.0
+grow_horizontal = 2
+mouse_filter = 2
+script = ExtResource("1_topbar")
+

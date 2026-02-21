@@ -1,5 +1,130 @@
-[gd_scene format=3 uid="uid://dn4k3ambpk2on"]
+[gd_scene load_steps=2 format=3 uid="uid://dn4k3ambpk2on"]
+
+[ext_resource type="Script" path="res://ui/bottom_bar.gd" id="1_1yvty"]
 
 [node name="BottomBar" type="Control"]
 layout_mode = 3
-anchors_preset = 0
+anchors_preset = 3
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = -190.0
+offset_right = -760.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("1_1yvty")
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MainRow" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Avatar" type="ColorRect" parent="Panel/Margin/VBox/MainRow"]
+custom_minimum_size = Vector2(60, 60)
+layout_mode = 2
+color = Color(0.08, 0.1, 0.12, 1)
+
+[node name="Stats" type="VBoxContainer" parent="Panel/Margin/VBox/MainRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="HPLabel" type="Label" parent="Panel/Margin/VBox/MainRow/Stats"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "HP: 0 / 0"
+
+[node name="HPBar" type="ProgressBar" parent="Panel/Margin/VBox/MainRow/Stats"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+max_value = 100.0
+show_percentage = false
+
+[node name="EnergyRow" type="HBoxContainer" parent="Panel/Margin/VBox/MainRow/Stats"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ChassisLabel" type="Label" parent="Panel/Margin/VBox/MainRow/Stats/EnergyRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "底盘:0"
+
+[node name="BufferLabel" type="Label" parent="Panel/Margin/VBox/MainRow/Stats/EnergyRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "缓冲:0"
+
+[node name="StatusLabel" type="Label" parent="Panel/Margin/VBox/MainRow/Stats"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "脱战: 否 | 远程补血: 否 | 远程补弹: 否"
+
+[node name="DebugRight" type="VBoxContainer" parent="Panel/Margin/VBox/MainRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FireRateLabel" type="Label" parent="Panel/Margin/VBox/MainRow/DebugRight"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "射速: 0"
+
+[node name="AmmoLabel" type="Label" parent="Panel/Margin/VBox/MainRow/DebugRight"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "允许发弹量: 0"
+
+[node name="ExpLabel" type="Label" parent="Panel/Margin/VBox/MainRow/DebugRight"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "经验: 0/0"
+
+[node name="PerfLabel" type="Label" parent="Panel/Margin/VBox/MainRow/DebugRight"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "性能: Shooter -- | Chassis --"
+
+[node name="Sep" type="HSeparator" parent="Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="DebugRow" type="HBoxContainer" parent="Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="StaticLabel" type="Label" parent="Panel/Margin/VBox/DebugRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "机器人: ID -- | 类型 -- | 等级 -- | 连接 -- | 上场 --"
+
+[node name="ModuleLabel" type="Label" parent="Panel/Margin/VBox/DebugRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "模块: RFID -- | 17mm -- | 图传 --"
+
+[node name="KeyLabel" type="Label" parent="Panel/Margin/VBox/DebugRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "按键: --"
