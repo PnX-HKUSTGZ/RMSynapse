@@ -20,12 +20,12 @@ func _ready():
 
 func _input(event):
 	if event.is_action_pressed("test_10hz"):
-		update_rate = 0.1 # 10Hz
-		print("Start 10Hz update")
+		update_rate = 0.02 # 50Hz
+		print("Start 50Hz update")
 
 	if event.is_action_pressed("test_20hz"):
-		update_rate = 0.05 # 20Hz
-		print("Start 20Hz update")
+		update_rate = 0.01 # 100Hz
+		print("Start 100Hz update")
 
 	if event.is_action_pressed("test_stop"):
 		update_rate = 0.0
