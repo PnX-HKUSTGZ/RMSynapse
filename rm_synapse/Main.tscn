@@ -1,10 +1,6 @@
-[gd_scene load_steps=6 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=2 format=3 uid="uid://b0wlb2cnkwr4q"]
 
-[ext_resource type="PackedScene" uid="uid://wgvs3kvhf711" path="res://ui/TopBar.tscn" id="1_glv2v"]
-; [ext_resource type="PackedScene" uid="uid://217c2l78aury" path="res://ui/CenterReticle.tscn" id="2_uu6xs"]
-; [ext_resource type="PackedScene" uid="uid://dn4k3ambpk2on" path="res://ui/BottomBar.tscn" id="3_fos0i"]
-; [ext_resource type="PackedScene" uid="uid://1c0ynfhpnost" path="res://ui/MiniMapPanel.tscn" id="4_3dxm6"]
-; [ext_resource type="PackedScene" uid="uid://bbo4rpq85gkog" path="res://ui/PopupManager.tscn" id="5_lgr22"]
+[ext_resource type="PackedScene" uid="uid://ei2omptha3b0" path="res://ui/HUD.tscn" id="1_glv2v"]
 
 [node name="Root" type="Control"]
 layout_mode = 3
@@ -14,40 +10,4 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="TopBar" parent="." instance=ExtResource("1_glv2v")]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-
-; [node name="CenterReticle" parent="." instance=ExtResource("2_uu6xs")]
-; layout_mode = 1
-; anchors_preset = 15
-; anchor_right = 1.0
-; anchor_bottom = 1.0
-; grow_horizontal = 2
-; grow_vertical = 2
-
-; [node name="BottomBar" parent="." instance=ExtResource("3_fos0i")]
-; layout_mode = 1
-; anchors_preset = 15
-; anchor_right = 1.0
-; anchor_bottom = 1.0
-; grow_horizontal = 2
-; grow_vertical = 2
-
-; [node name="MiniMapPanel" parent="." instance=ExtResource("4_3dxm6")]
-; layout_mode = 1
-; anchors_preset = 15
-; anchor_right = 1.0
-; anchor_bottom = 1.0
-; grow_horizontal = 2
-; grow_vertical = 2
-
-; [node name="PopupManager" parent="." instance=ExtResource("5_lgr22")]
-; layout_mode = 1
-; anchors_preset = 15
-; anchor_right = 1.0
-; anchor_bottom = 1.0
-; grow_horizontal = 2
-; grow_vertical = 2
+[node name="HUD" parent="." instance=ExtResource("1_glv2v")]
