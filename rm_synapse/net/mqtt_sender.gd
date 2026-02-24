@@ -52,7 +52,7 @@ func enqueue_latest(topic: String, payload: PackedByteArray, qos: int = 0, retai
 
 func enqueue_event(topic: String, payload: PackedByteArray, qos: int = 1, retain: bool = false) -> void:
 	if _events.size() >= buffer_limit_events:
-		_log_warn("Event buffer full, drop %s" % topic)
+		# _log_warn("Event buffer full, drop %s" % topic)
 		return
 	_events.append({ "topic": topic, "payload": payload, "qos": qos, "retain": retain })
 	_log_debug("enqueue_event %s len=%d qos=%d retain=%s qsize=%d" % [topic, payload.size(), qos, str(retain), _events.size()])
@@ -85,11 +85,11 @@ func _send_batch() -> void:
 
 func _send_one(item: Dictionary) -> void:
 	if mqtt == null:
-		_log_warn("MQTT missing, drop %s" % item.topic)
+		# _log_warn("MQTT missing, drop %s" % item.topic)
 		return
 	if mqtt.brokerconnectmode != mqtt.BCM_CONNECTED:
 		# 严格阻断所有发送（高频/低频/触发）未连接时直接丢弃
-		_log_warn("Not connected, drop %s" % item.topic)
+		# _log_warn("Not connected, drop %s" % item.topic)
 		return
 	var pid = mqtt.publish(item.topic, item.payload, item.retain, item.qos)
 	_log_counter += 1
@@ -116,7 +116,7 @@ func _retry_pid(pid) -> void:
 		return
 	var entry = _pending[pid]
 	if entry.retries_left <= 0:
-		_log_warn("Send failed %s pid=%s" % [entry.topic, str(pid)])
+		# _log_warn("Send failed %s pid=%s" % [entry.topic, str(pid)])
 		_pending.erase(pid)
 		send_failed.emit(entry.topic, "ack_timeout", pid)
 		return
@@ -131,10 +131,10 @@ func _resolve_mqtt() -> Node:
 		return Engine.get_singleton("MQTT")
 	var root_mqtt = get_node_or_null("/root/MQTT")
 	if root_mqtt != null:
-		_log_info("Using AutoLoad MQTT instance")
+		# _log_info("Using AutoLoad MQTT instance")
 		return root_mqtt
 	if mqtt_path != NodePath("") and has_node(mqtt_path):
-		_log_info("Using MQTT instance at %s" % str(mqtt_path))
+		# _log_info("Using MQTT instance at %s" % str(mqtt_path))
 		return get_node(mqtt_path)
 	push_error("MQTT instance not found; set mqtt_path or AutoLoad MQTT.")
 	return null

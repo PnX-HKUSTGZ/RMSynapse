@@ -114,12 +114,12 @@ func _process(_delta: float) -> void:
 func _resolve_mqtt() -> Node:
 	# 优先使用 AutoLoad 单例 “MQTT”
 	if Engine.has_singleton("MQTT"):
-		_log_info("Using MQTT singleton instance")
+		# _log_info("Using MQTT singleton instance")
 		return Engine.get_singleton("MQTT")
 	# 其次尝试 /root/MQTT
 	var root_mqtt = get_node_or_null("/root/MQTT")
 	if root_mqtt != null:
-		_log_info("Using /root/MQTT instance")
+		# _log_info("Using /root/MQTT instance")
 		return root_mqtt
 	# 再尝试导出的路径（场景内节点）
 	if mqtt_path != NodePath("") and has_node(mqtt_path):
@@ -140,29 +140,29 @@ func _connect_mqtt_signals() -> void:
 	mqtt.connect("broker_connected", Callable(self, "_on_connected"))
 	mqtt.connect("broker_connection_failed", Callable(self, "_on_failed"))
 	mqtt.connect("broker_disconnected", Callable(self, "_on_disconnected"))
-	_log_info("Signals connected; client_id=%s" % client_id)
+	# _log_info("Signals connected; client_id=%s" % client_id)
 
 func _start() -> void:
 	if mqtt == null:
 		push_error("MQTT node missing; cannot start connection.")
 		return
-	_log_info("Connecting to %s" % broker_url)
+	# _log_info("Connecting to %s" % broker_url)
 	mqtt.connect_to_broker(broker_url)
 
 func _on_connected() -> void:
-	_log_info("Connected, subscribing %d topics" % subscribe_topics.size())
+	# _log_info("Connected, subscribing %d topics" % subscribe_topics.size())
 	for t in subscribe_topics:
 		mqtt.subscribe(t, 1)
 	_next_delay = reconnect_delay_sec
 	mqtt_connected.emit()
 
 func _on_failed() -> void:
-	_log_warn("Connection failed; scheduling reconnect in %.2fs" % _next_delay)
+	# _log_warn("Connection failed; scheduling reconnect in %.2fs" % _next_delay)
 	mqtt_connection_failed.emit()
 	_schedule_reconnect()
 
 func _on_disconnected() -> void:
-	_log_warn("Disconnected; scheduling reconnect in %.2fs" % _next_delay)
+	# _log_warn("Disconnected; scheduling reconnect in %.2fs" % _next_delay)
 	mqtt_disconnected.emit()
 	_schedule_reconnect()
 
@@ -172,7 +172,7 @@ func _schedule_reconnect() -> void:
 	var delay = _next_delay
 	_next_delay = min(_next_delay * 2.0, reconnect_max_sec)
 	get_tree().create_timer(delay).timeout.connect(func():
-		_log_info("Reconnecting...")
+		# _log_info("Reconnecting...")
 		_start()
 	, CONNECT_DEFERRED)
 
@@ -244,7 +244,7 @@ func _decode(topic: String, payload: PackedByteArray):
 		return msg
 	var err = msg.from_bytes(payload)
 	if err != Proto.PB_ERR.NO_ERRORS and err != 0:
-		_log_warn("Decode failed for %s err=%s hex=%s" % [topic, err, _hex_preview(payload)])
+		# _log_warn("Decode failed for %s err=%s hex=%s" % [topic, err, _hex_preview(payload)])
 		return null
 	return msg
 
@@ -285,8 +285,8 @@ func _drain_inbox_raw() -> void:
 func _handle_incoming(msg) -> void:
 	if typeof(msg) == TYPE_DICTIONARY and msg.has("topic") and msg.has("data"):
 		_apply_topic(msg["topic"], msg["data"])
-	else:
-		_log_warn("Malformed inbox message: %s" % msg)
+	# else:
+		# _log_warn("Malformed inbox message: %s" % msg)
 
 func _apply_topic(topic: String, data) -> void:
 	match topic:
@@ -348,7 +348,7 @@ func _store_and_emit(field_name: String, value, sig: Signal) -> void:
 	state_changed.emit(field_name, value)
 
 func _emit_unknown(payload) -> void:
-	_log_warn("Unknown topic payload: %s" % payload)
+	# _log_warn("Unknown topic payload: %s" % payload)
 	unknown_message_received.emit(payload)
 
 func set_value(key: String, value) -> void:

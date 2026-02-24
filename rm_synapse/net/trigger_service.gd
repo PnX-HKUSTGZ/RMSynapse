@@ -56,15 +56,15 @@ func _fire_topic(topic: String, payload_builder: Callable, qos: int = 1, retain:
 		return
 	if sender == null:
 		if _buffer.size() >= buffer_limit:
-			_log_warn("Buffer full, drop %s" % topic)
+			# _log_warn("Buffer full, drop %s" % topic)
 			fire_failed.emit(topic, "no_sender")
 			return
 		_buffer.append({"topic": topic, "payload": payload, "qos": qos, "retain": retain})
-		_log_info("Buffered %s len=%d (sender missing)" % [topic, payload.size()])
+		# _log_info("Buffered %s len=%d (sender missing)" % [topic, payload.size()])
 		return
 	sender.enqueue_event(topic, payload, qos, retain)
 	_last_sent[key] = now_ms
-	_log_info("Fire %s len=%d qos=%d" % [topic, payload.size(), qos])
+	# _log_info("Fire %s len=%d qos=%d" % [topic, payload.size(), qos])
 
 func flush_buffer():
 	if sender == null:

@@ -10,6 +10,9 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(420);
   const [scores] = useState({ left: 0, right: 0 });
 
+  // Debug: last message timestamp
+  const [lastMsg, setLastMsg] = useState('');
+
   // 队伍状态数据
   const [bases, setBases] = useState({
     left: { hp: 4200, shield: 1500, state: 0 }, 
@@ -47,18 +50,44 @@ export default function App() {
     ]
   });
 
-  // 模拟时间跳动与掉血特效
+  // ================= 与 Godot 通信入口 =================
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-      
-      // 模拟战车随机掉血
-      setRobots(prev => ({
-        left: prev.left.map(r => ({ ...r, hp: Math.max(0, r.hp - (Math.random() > 0.8 ? 10 : 0)) })),
-        right: prev.right.map(r => ({ ...r, hp: Math.max(0, r.hp - (Math.random() > 0.8 ? 15 : 0)) }))
-      }));
-    }, 1000);
-    return () => clearInterval(timer);
+    window.godotPush = (payload) => {
+      const data = typeof payload === "string" ? JSON.parse(payload) : payload;
+      const now = new Date();
+      setLastMsg(now.toLocaleTimeString() + '.' + String(now.getMilliseconds()).padStart(3, '0'));
+      // Debug: verify we are receiving bases updates
+      if (data.bases) console.log('bases update', data.bases);
+
+      if (data.timeLeft != null) {
+        setTimeLeft(data.timeLeft);
+      }
+
+      if (data.bases) {
+        setBases(prev => ({
+          left: { ...prev.left, ...data.bases.left },
+          right: { ...prev.right, ...data.bases.right }
+        }));
+      }
+
+      if (data.outposts) {
+        setOutposts(prev => ({
+          left: { ...prev.left, ...data.outposts.left },
+          right: { ...prev.right, ...data.outposts.right }
+        }));
+      }
+
+      if (data.robots) {
+        setRobots(prev => ({
+          left: data.robots.left ?? prev.left,
+          right: data.robots.right ?? prev.right
+        }));
+      }
+    };
+
+    return () => {
+      delete window.godotPush;
+    };
   }, []);
 
   const time = {
@@ -84,6 +113,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col items-center pt-2 relative overflow-hidden font-sans text-white select-none">
+      <div className="absolute top-1 left-1 z-50 text-[10px] text-white/70 bg-black/30 px-2 py-1 rounded">
+        lastMsg: {lastMsg || '—'}
+      </div>
 
       {/* ================= 自定义 CSS ================= */}
       <style>{`
