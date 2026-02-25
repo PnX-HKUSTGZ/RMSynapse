@@ -9,6 +9,7 @@ build/
 /plugins/rm_video_decoder/godot/*.os
 /godot-cpp/bin/
 /godot-cpp/gen/
+/rm_synapse/addons/godot_cef/*
 /rm_synapse/bin/*
 /rm_synapse/bin/librm_video_decoder.*
 /rm_synapse/bin/rm_video_decoder.gdextension

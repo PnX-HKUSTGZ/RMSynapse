@@ -1,4 +1,0 @@
-<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Player minimap direction arrow">
-  <!-- White arrow for player facing direction on minimap -->
-  <path d="M32 8 L44 40 L32 34 L20 40 Z" fill="#ffffff"/>
-</svg>
