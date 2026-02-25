@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3 uid="uid://tpanw3yfsrx8"]
+
+[ext_resource type="Script" uid="uid://bq0ckkaohm1fr" path="res://net/mqtt/tests/self_test.gd" id="1_q6r10"]
+[ext_resource type="Script" uid="uid://pfyaullam12" path="res://net/mqtt/services/custom_control_sender.gd" id="2_3yl34"]
+[ext_resource type="Script" uid="uid://dyaa1kkrfjubf" path="res://net/mqtt/services/keyboard_mouse_control_sender.gd" id="3_wdpmv"]
+
+[node name="MqttDebug" type="Node"]
+
+[node name="Test" type="Node" parent="."]
+script = ExtResource("1_q6r10")
+
+[node name="custom_control_sender_test" type="Node" parent="."]
+script = ExtResource("2_3yl34")
+
+[node name="keyboard_mouse_control_sender_test" type="Node" parent="."]
+script = ExtResource("3_wdpmv")
