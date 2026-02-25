@@ -236,6 +236,165 @@ function CenterCombatHUD({ centerHud }) {
   );
 }
 
+function TopCoreLayout({
+  roundLabel,
+  labels,
+  baseStateMeta,
+  outpostStateMeta,
+  maxValues,
+  timeLeft,
+  scores,
+  bases,
+  outposts,
+  stats,
+  leftRobots,
+  rightRobots
+}) {
+  const time = {
+    m: Math.floor(timeLeft / 60).toString().padStart(2, '0'),
+    s: (timeLeft % 60).toString().padStart(2, '0')
+  };
+
+  return (
+    <div className="relative z-10 w-full max-w-[1700px] flex flex-col items-center mt-2 pointer-events-auto">
+      <div className="flex items-center justify-center w-full gap-[2px]">
+        <div className="w-[120px] h-9 glass-panel border-t border-b border-red-500/40 skew-x-[-20deg] flex flex-col relative overflow-hidden shadow-lg transition-colors">
+          <div className="absolute inset-0 flex justify-end opacity-50">
+            <div className="bg-red-500 h-full transition-all duration-300" style={{ width: `${toPercent(outposts.left.hp, maxValues.outpostHp)}%` }} />
+          </div>
+          <div className="skew-x-[20deg] absolute inset-0 flex items-center justify-between pl-3 pr-5">
+            <OutpostStateIcon state={outposts.left.state} team="red" states={outpostStateMeta} />
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-white/80 font-bold leading-none mb-0.5 whitespace-nowrap">{labels.outpost}</span>
+              <span className="font-orbitron text-xs font-bold leading-none text-red-200">{outposts.left.hp}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-[24vw] max-w-[400px] h-11 glass-panel skew-x-[-20deg] flex items-center relative overflow-hidden shadow-[0_0_15px_rgba(220,38,38,0.15)] border-t border-b border-red-500/50">
+          <div className="absolute inset-0 scanline-bg opacity-40"></div>
+          <div className="absolute bottom-0 right-0 bg-red-600/80 shadow-[0_0_10px_red] transition-all duration-300 h-full" style={{ width: `${toPercent(bases.left.hp, maxValues.baseHp)}%` }} />
+          <div className="absolute top-0 right-0 bg-green-500 shadow-[0_0_10px_#22c55e] transition-all duration-300 h-[4px]" style={{ width: `${toPercent(bases.left.shield, maxValues.baseShield)}%` }} />
+
+          <div className="skew-x-[20deg] absolute inset-0 w-full z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex-shrink-0">
+              <BaseStateIcon state={bases.left.state} team="red" states={baseStateMeta} />
+            </div>
+            <div className="absolute right-14 top-1/2 -translate-y-1/2 flex flex-col items-end justify-center pt-1">
+              {bases.left.shield > 0 && <span className="text-green-400 text-[10px] font-orbitron font-bold drop-shadow-[0_0_5px_#22c55e] tracking-wide leading-none mb-0.5">{bases.left.shield}</span>}
+              <span className="text-white text-2xl font-orbitron font-bold drop-shadow-[0_0_5px_red] tracking-wide leading-none">{bases.left.hp}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-16 h-11 ultra-glass border-t border-b border-white/20 skew-x-[-20deg] flex items-center justify-center z-10 shadow-lg ml-1">
+          <div className="skew-x-[20deg] text-white font-orbitron text-3xl font-bold">{scores.left}</div>
+        </div>
+
+        <div className="relative mx-1 z-10 w-40 h-12 flex flex-col justify-end">
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-24 h-5 ultra-glass clip-trapezoid-top flex items-center justify-center border-t border-cyan-400/50">
+            <span className="text-[10px] text-cyan-200 font-bold tracking-wider drop-shadow-md">{roundLabel}</span>
+          </div>
+          <div className="w-full h-12 glass-panel border-t-2 border-b-2 border-cyan-400/60 clip-trapezoid flex items-center justify-center shadow-[0_5px_15px_rgba(34,211,238,0.15)] relative">
+            <div className="flex items-center gap-1.5 font-orbitron text-[28px] font-bold text-white tracking-widest mt-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
+              <span>{time.m}</span>
+              <div className="flex flex-col gap-1.5 pb-1">
+                <div className="w-1.5 h-1.5 bg-cyan-400 shadow-[0_0_5px_cyan]"></div>
+                <div className={`w-1.5 h-1.5 bg-cyan-400 shadow-[0_0_5px_cyan] transition-opacity ${timeLeft % 2 === 0 ? 'opacity-100' : 'opacity-40'}`}></div>
+              </div>
+              <span>{time.s}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-16 h-11 ultra-glass border-t border-b border-white/20 skew-x-[20deg] flex items-center justify-center z-10 shadow-lg mr-1">
+          <div className="skew-x-[-20deg] text-white font-orbitron text-3xl font-bold">{scores.right}</div>
+        </div>
+
+        <div className="w-[24vw] max-w-[400px] h-11 glass-panel skew-x-[20deg] flex items-center relative overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.15)] border-t border-b border-blue-500/50">
+          <div className="absolute inset-0 scanline-bg opacity-40"></div>
+          <div className="absolute bottom-0 left-0 bg-blue-600/80 shadow-[0_0_10px_blue] transition-all duration-300 h-full" style={{ width: `${toPercent(bases.right.hp, maxValues.baseHp)}%` }} />
+          <div className="absolute top-0 left-0 bg-green-500 shadow-[0_0_10px_#22c55e] transition-all duration-300 h-[4px]" style={{ width: `${toPercent(bases.right.shield, maxValues.baseShield)}%` }} />
+
+          <div className="skew-x-[-20deg] absolute inset-0 w-full z-10 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <div className="absolute left-14 top-1/2 -translate-y-1/2 flex flex-col items-start justify-center pt-1">
+              {bases.right.shield > 0 && <span className="text-green-400 text-[10px] font-orbitron font-bold drop-shadow-[0_0_5px_#22c55e] tracking-wide leading-none mb-0.5">{bases.right.shield}</span>}
+              <span className="text-white text-2xl font-orbitron font-bold drop-shadow-[0_0_5px_blue] tracking-wide leading-none">{bases.right.hp}</span>
+            </div>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex-shrink-0">
+              <BaseStateIcon state={bases.right.state} team="blue" states={baseStateMeta} />
+            </div>
+          </div>
+        </div>
+
+        <div className="w-[120px] h-9 glass-panel border-t border-b border-blue-500/40 skew-x-[20deg] flex flex-col relative overflow-hidden shadow-lg transition-colors">
+          <div className="absolute inset-0 flex justify-start opacity-50">
+            <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${toPercent(outposts.right.hp, maxValues.outpostHp)}%` }} />
+          </div>
+          <div className="skew-x-[-20deg] absolute inset-0 flex items-center justify-between pl-5 pr-3">
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] text-white/80 font-bold leading-none mb-0.5 whitespace-nowrap">{labels.outpost}</span>
+              <span className="font-orbitron text-xs font-bold leading-none text-blue-200">{outposts.right.hp}</span>
+            </div>
+            <OutpostStateIcon state={outposts.right.state} team="blue" states={outpostStateMeta} />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-start w-full px-[4%] mt-2 relative z-10">
+        <div className="flex flex-1 justify-between mr-2">
+          {leftRobots.map((robot) => {
+            const hpPct = toPercent(robot.hp, robot.max);
+            const isDead = robot.hp === 0;
+            return (
+              <div key={robot.id} className={`flex-1 h-[40px] mx-1 ultra-glass skew-x-[-20deg] border-b-[2px] ${isDead ? 'border-neutral-600' : 'border-red-500/80'} relative overflow-hidden shadow-md group`}>
+                <div className={`absolute bottom-0 left-0 h-full ${isDead ? 'bg-neutral-600/30' : 'bg-red-500/30'} transition-all duration-300`} style={{ width: `${hpPct}%` }} />
+                <div className="skew-x-[20deg] absolute inset-0">
+                  <span className={`absolute top-0.5 left-2 font-orbitron font-black text-[13px] ${isDead ? 'text-neutral-500' : 'text-white'} drop-shadow-md`}>{robot.id}</span>
+                  <span className={`absolute bottom-0 right-2.5 font-orbitron font-bold text-[8px] ${isDead ? 'text-neutral-500' : 'text-red-200'} drop-shadow-sm transition-all`}>{robot.hp}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex justify-center mt-[1px] px-2">
+          <div className="w-[85px] h-[30px] ultra-glass border-l border-r border-blue-400/40 flex items-center justify-center relative shadow-[0_0_10px_rgba(59,130,246,0.1)] hover:bg-blue-900/20 transition-colors">
+            <div className="flex flex-col gap-[2px] w-full px-2">
+              <div className="flex items-center justify-between w-full cursor-pointer hover:opacity-80 transition-opacity">
+                <span className="text-[7px] text-blue-200 font-bold tracking-wider leading-none">{labels.eco}</span>
+                <div className="font-orbitron font-bold flex items-baseline gap-[1px] leading-none">
+                  <span className="text-[10px] text-blue-300 drop-shadow-[0_0_3px_rgba(96,165,250,0.8)]">{stats.right.eco}</span>
+                  <span className="text-[7px] text-white/40">/</span>
+                  <span className="text-[7px] text-blue-200/50">{stats.right.totalEco}</span>
+                </div>
+              </div>
+              <LevelIndicator label={labels.tech} level={stats.right.tech} max={maxValues.techLevel} team="blue" />
+              <LevelIndicator label={labels.radar} level={stats.right.radar} max={maxValues.radarLevel} team="blue" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-1 justify-between ml-2">
+          {rightRobots.map((robot) => {
+            const hpPct = toPercent(robot.hp, robot.max);
+            const isDead = robot.hp === 0;
+            return (
+              <div key={robot.id} className={`flex-1 h-[40px] mx-1 ultra-glass skew-x-[20deg] border-b-[2px] ${isDead ? 'border-neutral-600' : 'border-blue-500/80'} relative overflow-hidden shadow-md group`}>
+                <div className={`absolute bottom-0 right-0 h-full ${isDead ? 'bg-neutral-600/30' : 'bg-blue-500/30'} transition-all duration-300`} style={{ width: `${hpPct}%` }} />
+                <div className="skew-x-[-20deg] absolute inset-0">
+                  <span className={`absolute bottom-0 left-2.5 font-orbitron font-bold text-[8px] ${isDead ? 'text-neutral-500' : 'text-blue-200'} drop-shadow-sm transition-all`}>{robot.hp}</span>
+                  <span className={`absolute top-0.5 right-2 font-orbitron font-black text-[13px] ${isDead ? 'text-neutral-500' : 'text-white'} drop-shadow-md`}>{robot.id}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BaseStateIcon({ state, team, states }) {
   const isRed = team === 'red';
   const color = isRed ? 'text-red-300 border-red-500/30 bg-red-950/40' : 'text-blue-300 border-blue-500/30 bg-blue-950/40';
@@ -287,4 +446,4 @@ function LevelIndicator({ label, level, max, team }) {
   );
 }
 
-export { MechaHUD, CenterCombatHUD, BaseStateIcon, OutpostStateIcon, LevelIndicator };
+export { MechaHUD, CenterCombatHUD, TopCoreLayout, BaseStateIcon, OutpostStateIcon, LevelIndicator };
