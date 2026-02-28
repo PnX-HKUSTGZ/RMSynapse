@@ -4,7 +4,7 @@ class_name KeyboardMouseControlSender
 const SEND_HZ := 75.0
 const SEND_INTERVAL_SEC := 1.0 / SEND_HZ
 
-var adapter_getter: MQTTProtocolAdapterGetter
+@export var adapter_getter: MQTTProtocolAdapterGetter
 @export var auto_start: bool = true
 
 var _data := AdapterTypes.KeyboardMouseControlData.new()
@@ -12,7 +12,6 @@ var _timer: Timer
 var _logged_missing: bool = false
 
 func _ready() -> void:
-	adapter_getter = MQTTProtocolAdapterGetter.new()
 	_timer = Timer.new()
 	_timer.one_shot = false
 	_timer.wait_time = SEND_INTERVAL_SEC

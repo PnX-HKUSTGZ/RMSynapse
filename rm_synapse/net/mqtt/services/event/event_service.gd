@@ -1,6 +1,8 @@
 extends Node
 class_name EventService
 
+signal event_received(event_data: Dictionary)
+
 signal kill_event(killer_id, victim_id)
 signal base_or_outpost_destroyed(target_id)
 signal energy_activation_count_changed(count)
@@ -125,7 +127,7 @@ const DEFAULT_ENERGY_ACTIVATION_COUNT := 0
 const DEFAULT_SNIPER_DAMAGE_TOTAL := 0
 const DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT := 3
 
-var adapter_getter: MQTTProtocolAdapterGetter = MQTTProtocolAdapterGetter.new()
+@export var adapter_getter: MQTTProtocolAdapterGetter
 
 class KillEventInfo:
 	extends RefCounted
@@ -204,6 +206,12 @@ func _on_event_message(message) -> void:
 		return
 	var event_id = int(message.get_event_id())
 	var param = str(message.get_param())
+	
+	event_received.emit({
+		"event_id": event_id,
+		"param": param
+	})
+	
 	_handle_event(event_id, param)
 
 func _handle_event(event_id: int, param: String) -> void:
