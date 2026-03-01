@@ -91,4 +91,3 @@ func _get_node(path: NodePath) -> Node:
 	if root == null:
 		return null
 	return root.get_node_or_null(path)
-

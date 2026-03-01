@@ -1,7 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://cmas2bej0ycbs"]
+[gd_scene load_steps=8 format=3 uid="uid://cmas2bej0ycbs"]
 
-[ext_resource type="Script" uid="uid://7j5atrbqcrhw" path="res://net/mqtt/adapter/protocol_adapter.gd" id="1_qmlgy"]
-[ext_resource type="Script" uid="uid://s6bb1jkpfxsd" path="res://net/mqtt/transport/network_transport.gd" id="2_x7r4m"]
+[ext_resource type="Script" uid="uid://c8lkjnxvqaqqc" path="res://net/mqtt/adapter/protocol_adapter.gd" id="1_qmlgy"]
+[ext_resource type="Script" uid="uid://pgmteb873lvp" path="res://net/mqtt/transport/network_transport.gd" id="2_x7r4m"]
+[ext_resource type="Script" uid="uid://v6xs7yk2asl7" path="res://net/mqtt/services/mqtt_protocol_adapter_getter.gd" id="3_rrfsj"]
+[ext_resource type="Script" uid="uid://b5isbxvogdkhf" path="res://net/mqtt/services/mqtt_client_setter.gd" id="4_87ci3"]
+[ext_resource type="Script" uid="uid://dugw0mwk8hy4j" path="res://net/mqtt/services/global_special_mechanism_service.gd" id="5_jnsev"]
+[ext_resource type="Script" uid="uid://xvh2sa5t18lt" path="res://net/mqtt/services/keyboard_mouse_control_sender.gd" id="6_ev8wh"]
+[ext_resource type="Script" uid="uid://sma32p2xq468" path="res://net/mqtt/services/custom_control_sender.gd" id="7_es5vi"]
 
 [node name="Mqtt" type="Node2D"]
 
@@ -11,3 +16,24 @@ script = ExtResource("1_qmlgy")
 [node name="Transport" type="Node" parent="."]
 script = ExtResource("2_x7r4m")
 broker_url = "127.0.0.1:3333"
+
+[node name="AdapterGetter" type="Node" parent="."]
+script = ExtResource("3_rrfsj")
+adapter_path = NodePath("../Adapter")
+transport_path = NodePath("../Transport")
+
+[node name="ClientSetter" type="Node" parent="."]
+script = ExtResource("4_87ci3")
+adapter_path = NodePath("../Adapter")
+transport_path = NodePath("../Transport")
+
+[node name="MechanismService" type="Node" parent="."]
+script = ExtResource("5_jnsev")
+
+[node name="KeyBoardSender" type="Node" parent="." node_paths=PackedStringArray("adapter_getter")]
+script = ExtResource("6_ev8wh")
+adapter_getter = NodePath("../AdapterGetter")
+
+[node name="CustomSender" type="Node" parent="." node_paths=PackedStringArray("adapter_getter")]
+script = ExtResource("7_es5vi")
+adapter_getter = NodePath("../AdapterGetter")
