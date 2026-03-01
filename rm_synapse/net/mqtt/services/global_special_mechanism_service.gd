@@ -1,6 +1,8 @@
 extends Node
 class_name GlobalSpecialMechanismService
 
+signal effects_updated(effects: Array)
+
 enum EffectId {
 	ALLY_BASE_OCCUPIED = 1,
 	ENEMY_BASE_OCCUPIED = 2
@@ -69,6 +71,8 @@ func _on_global_special_mechanism(message) -> void:
 		state.remaining_sec = sec
 		new_effects.append(state)
 	_effects = new_effects
+	
+	effects_updated.emit(get_active_effects())
 
 func _try_bind_adapter() -> void:
 	if _adapter_bound:
