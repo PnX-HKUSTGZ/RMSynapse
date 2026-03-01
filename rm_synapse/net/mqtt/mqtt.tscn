@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://dugw0mwk8hy4j" path="res://net/mqtt/services/global_special_mechanism_service.gd" id="5_jnsev"]
 [ext_resource type="Script" uid="uid://xvh2sa5t18lt" path="res://net/mqtt/services/keyboard_mouse_control_sender.gd" id="6_ev8wh"]
 [ext_resource type="Script" uid="uid://sma32p2xq468" path="res://net/mqtt/services/custom_control_sender.gd" id="7_es5vi"]
+[ext_resource type="Script" path="res://net/mqtt/services/event/event_service.gd" id="8_event"]
 
 [node name="Mqtt" type="Node2D"]
 
@@ -27,8 +28,13 @@ script = ExtResource("4_87ci3")
 adapter_path = NodePath("../Adapter")
 transport_path = NodePath("../Transport")
 
-[node name="MechanismService" type="Node" parent="."]
+[node name="MechanismService" type="Node" parent="." node_paths=PackedStringArray("adapter_getter")]
 script = ExtResource("5_jnsev")
+adapter_getter = NodePath("../AdapterGetter")
+
+[node name="EventService" type="Node" parent="." node_paths=PackedStringArray("adapter_getter")]
+script = ExtResource("8_event")
+adapter_getter = NodePath("../AdapterGetter")
 
 [node name="KeyBoardSender" type="Node" parent="." node_paths=PackedStringArray("adapter_getter")]
 script = ExtResource("6_ev8wh")
