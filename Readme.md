@@ -1,7 +1,11 @@
+# TODO
+- [ ] MQTT 至 UI 的传输，需求详见 [rm_synapse/ui/Readme.md](rm_synapse/ui/Readme.md)
+
+
 # RMSynapse
 RoboMaster 2026 自定义客户端（Godot 4.5 + MQTT/Protobuf + UDP 视频）。
 
-![UI 主界面](rm_synapse/ui/assets/readme/main.png)
+![UI 主界面](rm_synapse/ui/image.png)
 
 ## 功能亮点
 - Godot 4.5 场景/UI：包含比分、局阶段、全局单位状态、后勤/特殊机制、事件提示、伤害/复活、机器人运行/模块状态、Buff/处罚及远程控制面板，可直接接在 `MqttNet` 输出上。

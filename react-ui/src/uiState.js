@@ -103,8 +103,8 @@ const DEFAULT_UI_STATE = {
     ]
   },
   mecha: {
-    pilotId: 'RBT-79[X]',
-    pilotLevel: 'LV.42',
+    pilotId: 'HERO',
+    pilotLevel: 'LV.6',
     linkState: 'LINKED',
     hpLabel: 'CORE HP',
     powerLabel: 'ENG PWR',
