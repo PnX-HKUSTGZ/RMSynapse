@@ -1,16 +1,6 @@
 # TODO
-- [ ] MQTT至UI的传输，需求详见`rm_synapse/ui/Readme.md`
-## UI方面
-- [x] 上层全局信息绘制
-- [x] 中间瞄准信息绘制
-- [x] 左下及底部机器人信息绘制
-- [ ] 选择交互界面绘制
-- [ ] 事件弹窗绘制
-- [ ] 小地图绘制
-- [ ] 详细buff绘制
-- [ ] 裁判系统等debug界面绘制
-## 后端方面
-- [ ] 待定
+- [ ] MQTT 至 UI 的传输，需求详见 [rm_synapse/ui/Readme.md](rm_synapse/ui/Readme.md)
+
 
 # RMSynapse
 RoboMaster 2026 自定义客户端（Godot 4.5 + MQTT/Protobuf + UDP 视频）。
