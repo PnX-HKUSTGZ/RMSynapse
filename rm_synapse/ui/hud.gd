@@ -6,6 +6,8 @@ var page_ready := false
 var update_rate := 0.0
 var acc := 0.0
 
+var event = EventService.new()
+
 func _ready():
 	randomize()
 	print("HUD ready. Press A for 10Hz, B for 20Hz, C to stop.")
@@ -17,6 +19,11 @@ func _ready():
 			print("CEF load_finished status=", status, " page_ready=", page_ready)
 		)
 
+	add_child(event)
+	event.connect("kill_event", self._on_kill_event)
+
+func _on_kill_event(killer_id, victim_id):
+	print("Kill event: killer_id=", killer_id, " victim_id=", victim_id)
 
 func _input(event):
 	if event.is_action_pressed("test_10hz"):
