@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://tpanw3yfsrx8"]
+
+[ext_resource type="Script" uid="uid://bq0ckkaohm1fr" path="res://net/mqtt/tests/self_test.gd" id="1_q6r10"]
+
+[node name="MqttDebug" type="Node"]
+
+[node name="Test" type="Node" parent="."]
+script = ExtResource("1_q6r10")
+
+[node name="custom_control_sender_test" type="Node" parent="."]
+
+[node name="keyboard_mouse_control_sender_test" type="Node" parent="."]
