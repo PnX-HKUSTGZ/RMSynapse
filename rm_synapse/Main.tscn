@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://b0wlb2cnkwr4q"]
+[gd_scene load_steps=3 format=3 uid="uid://b0wlb2cnkwr4q"]
 
 [ext_resource type="PackedScene" uid="uid://ei2omptha3b0" path="res://ui/HUD.tscn" id="1_glv2v"]
+[ext_resource type="PackedScene" uid="uid://bmwb24hytwtxf" path="res://net/video_udp/transfer_image.tscn" id="2_uu6xs"]
 
 [node name="Root" type="Control"]
 layout_mode = 3
@@ -11,3 +12,6 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="HUD" parent="." instance=ExtResource("1_glv2v")]
+
+[node name="TransferImage" parent="." instance=ExtResource("2_uu6xs")]
+layout_mode = 1

@@ -177,7 +177,7 @@ message RadarInfoToClient {
   uint32 target_robot_id = 1;
   float target_pos_x = 2;
   float target_pos_y = 3;
-  float toward_angle = 4;
+  float torward_angle = 4;
   uint32 is_high_light = 5;
 }
 

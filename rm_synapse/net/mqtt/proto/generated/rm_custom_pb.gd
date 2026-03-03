@@ -1,5 +1,3 @@
-class_name RMCustomProto
-
 #
 # BSD 3-Clause License
 #
@@ -3294,10 +3292,10 @@ class RadarInfoToClient:
 		service.field = __target_pos_y
 		data[__target_pos_y.tag] = service
 		
-		__toward_angle = PBField.new("toward_angle", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		__torward_angle = PBField.new("torward_angle", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
-		service.field = __toward_angle
-		data[__toward_angle.tag] = service
+		service.field = __torward_angle
+		data[__torward_angle.tag] = service
 		
 		__is_high_light = PBField.new("is_high_light", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
@@ -3345,18 +3343,18 @@ class RadarInfoToClient:
 	func set_target_pos_y(value : float) -> void:
 		__target_pos_y.value = value
 	
-	var __toward_angle: PBField
-	func has_toward_angle() -> bool:
-		if __toward_angle.value != null:
+	var __torward_angle: PBField
+	func has_torward_angle() -> bool:
+		if __torward_angle.value != null:
 			return true
 		return false
-	func get_toward_angle() -> float:
-		return __toward_angle.value
-	func clear_toward_angle() -> void:
+	func get_torward_angle() -> float:
+		return __torward_angle.value
+	func clear_torward_angle() -> void:
 		data[4].state = PB_SERVICE_STATE.UNFILLED
-		__toward_angle.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
-	func set_toward_angle(value : float) -> void:
-		__toward_angle.value = value
+		__torward_angle.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
+	func set_torward_angle(value : float) -> void:
+		__torward_angle.value = value
 	
 	var __is_high_light: PBField
 	func has_is_high_light() -> bool:

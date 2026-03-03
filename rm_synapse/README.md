@@ -1,7 +1,7 @@
 # rm_synapse
 
 本仓库现已拆分为“网络/数据后端”与“待重建前端 UI”两部分：
-- 后端（已保留）：`net/` + `protocol/` + `addons/mqtt/`
+- 后端（已保留）：`net/mqtt/` + `addons/mqtt/`
 - 前端（你将重写）：`ui/`
 - 旧 UI 已删除（不再被主场景引用）
 
@@ -23,8 +23,8 @@ AutoLoad 定义见 `project.godot`：
   - 下行 MQTT 订阅 + Protobuf 解码 + 状态分发
 - `MQTTSender`（脚本：`net/mqtt_sender.gd`）
   - 统一发送队列（高频 latest / 触发 event / 直接发送）
-- `RemoteControlSender`（脚本：`net/remote_control_service.gd`）
-  - 高频上行 `RemoteControl`（默认 75Hz）
+- `KeyboardMouseControlSender / CustomControlSender`
+  - 高频上行 `KeyboardMouseControl + CustomControl`（默认 75Hz）
 - `LowRateSender`（脚本：`net/low_rate_sender.gd`）
   - 固定低频上行（定时）
 - `TriggerSender`（脚本：`net/trigger_service.gd`）
@@ -37,7 +37,8 @@ AutoLoad 定义见 `project.godot`：
 ```gdscript
 var net_root := get_node("/root/MqttNet")
 var game_state := net_root.get_node("GameState")
-var rc_sender := net_root.get_node("RemoteControlSender")
+var kb_sender := net_root.get_node("KeyboardMouseControlSender")
+var custom_sender := net_root.get_node("CustomControlSender")
 var low_rate_sender := net_root.get_node("LowRateSender")
 var trigger_sender := net_root.get_node("TriggerSender")
 ```
@@ -63,14 +64,14 @@ var trigger_sender := net_root.get_node("TriggerSender")
 - `Buff` -> `buff_updated`
 - `PenaltyInfo` -> `penalty_info_updated`
 - `RobotPathPlanInfo` -> `robot_path_plan_info_updated`
-- `RaderInfoToClient` -> `rader_info_updated`
+- `RadarInfoToClient` -> `radar_info_updated`
 - `RobotPerformanceSelectionSync` -> `robot_performance_selection_sync_updated`
 - `DeployModeStatusSync` -> `deploy_mode_status_sync_updated`
 - `TechCoreMotionStateSync` -> `tech_core_motion_state_sync_updated`
 - `RuneStatusSync` -> `rune_status_sync_updated`
-- `SentinelStatusSync` -> `sentinel_status_sync_updated`
+- `SentryStatusSync` -> `sentry_status_sync_updated`
 - `DartSelectTargetStatusSync` -> `dart_select_target_status_sync_updated`
-- `GuardCtrlResult` -> `guard_ctrl_result_updated`
+- `SentryCtrlResult` -> `sentry_ctrl_result_updated`
 - `AirSupportStatusSync` -> `air_support_status_sync_updated`
 - `CustomByteBlock` -> `custom_byte_block_received`
 
@@ -101,7 +102,7 @@ var snapshot: Dictionary = gs.snapshot()
 
 ### 3.4 上行控制接口
 
-`RemoteControlSender`（高频）：
+`KeyboardMouseControlSender / CustomControlSender`（高频）：
 - `update_mouse(dx, dy, dz)`
 - `set_buttons(l, r, m)`
 - `set_keyboard_mask(mask)`
@@ -115,7 +116,7 @@ var snapshot: Dictionary = gs.snapshot()
 - `z/x/c -> bit 18/19/20`
 
 `LowRateSender`（低频命令）：
-- `set_guard_ctrl_command(command_id)` -> `GuardCtrlCommand`
+- `set_sentry_ctrl_command(command_id)` -> `SentryCtrlCommand`
 - `set_hero_deploy_mode(mode)` -> `HeroDeployModeEventCommand`
 - `set_rune_activate(activate)` -> `RuneActivateCommand`
 - `set_robot_performance_selection(shooter, chassis)` -> `RobotPerformanceSelectionCommand`
@@ -131,19 +132,19 @@ var snapshot: Dictionary = gs.snapshot()
 1. 在 `ui/` 下创建你的新场景与脚本。
 2. 先做一个最小状态面板：监听 `mqtt_connected/mqtt_disconnected`。
 3. 再接 `robot_static_status_updated` + `robot_dynamic_status_updated`，验证基础数据链路。
-4. 再接入输入上行（`RemoteControlSender`）。
+4. 再接入输入上行（`KeyboardMouseControlSender / CustomControlSender`）。
 5. 最后按业务分模块接入低频命令与触发命令。
 
 ## 5. 协议定义位置
 
-- Protobuf 源文件：`protocol/rm_custom.proto`
-- Godot 生成文件：`protocol/generated/rm_proto.gd`
+- Protobuf 源文件：`net/mqtt/proto/rm_custom.proto`
+- Godot 生成文件：`net/mqtt/proto/generated/rm_custom_pb.gd`
 
-UI 侧收到的 `msg` 对象来自 `rm_proto.gd`，字段访问使用对应 `get_*` 方法。
+UI 侧收到的 `msg` 对象来自 `rm_custom_pb.gd`，字段访问使用对应 `get_*` 方法。
 
 ## 6. 常见排查
 
 - 没有下行数据：检查 `net/mqtt_net.tscn` 里 `GameState.broker_url`。
 - 有连接但无信号：确认你连接的是 `/root/MqttNet/GameState`，不是旧 UI 节点路径。
-- 上行无效：确认发送调用的是 `/root/MqttNet/RemoteControlSender` / `LowRateSender` / `TriggerSender`。
+- 上行无效：确认发送调用的是 `/root/Mqtt/Adapter`（或你封装的 `KeyboardMouseControlSender / CustomControlSender` 服务）。
 - Protobuf 解码异常：检查 topic 与消息类型是否匹配（`net/mqtt_game_state.gd::_decode`）。

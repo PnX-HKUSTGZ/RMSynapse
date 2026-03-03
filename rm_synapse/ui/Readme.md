@@ -30,9 +30,9 @@
 - RobotInjuryStat（1Hz）：同步机器人单次存活周期内的累计受伤统计。
 - RobotRespawnStatus（1Hz）：同步机器人复活状态。
 - RobotStaticStatus（1Hz）：同步机器人静态属性。
-- RobotDynamicStatus（5Hz）：同步机器人实时动态状态。
-- RobotModuleStatus（5Hz）：同步机器人各模块运行状态。
-- RobotPosition（5Hz）：同步机器人位置与朝向。
+- RobotDynamicStatus（10Hz）：同步机器人实时动态状态。
+- RobotModuleStatus（1Hz）：同步机器人各模块运行状态。
+- RobotPosition（1Hz）：同步机器人位置与朝向。
 - Buff（1Hz）：同步增益信息，如回血、冷却、防御、负防御、攻击、剩余能量反馈等。
 - RobotPathPlanInfo（1Hz）：同步路径规划结果。
 - RadarInfoToClient（1Hz）：同步雷达发给客户端的目标位置信息。
@@ -47,7 +47,7 @@
 
 ## event 类
 
-- Event（1Hz）：全局事件通知消息。
+- Event（触发式发送）：全局事件通知消息。
 - PenaltyInfo（触发发送，其余时间 1Hz）：判罚信息同步，用于提示黄牌、红牌、判负等裁判处罚。
 - SentryCtrlResult（1Hz）：哨兵控制指令的结果反馈，包含对应指令编号和执行结果码。
 

@@ -43,35 +43,18 @@ enum EventId {
 
 enum Side {
 	UNKNOWN = 0,
-	RED = 1,
-	BLUE = 2,
+	ALLY = 1,
+	ENEMY = 2,
 	BOTH = 3
 }
 
 enum DartHitTarget {
 	UNKNOWN = 0,
-	RED_HERO = 1,
-	RED_ENGINEER = 2,
-	RED_INFANTRY_3 = 3,
-	RED_INFANTRY_4 = 4,
-	RED_INFANTRY_5 = 5,
-	RED_AERIAL = 6,
-	RED_SENTRY = 7,
-	RED_DART = 8,
-	RED_RADAR = 9,
-	RED_OUTPOST = 10,
-	RED_BASE = 11,
-	BLUE_HERO = 101,
-	BLUE_ENGINEER = 102,
-	BLUE_INFANTRY_3 = 103,
-	BLUE_INFANTRY_4 = 104,
-	BLUE_INFANTRY_5 = 105,
-	BLUE_AERIAL = 106,
-	BLUE_SENTRY = 107,
-	BLUE_DART = 108,
-	BLUE_RADAR = 109,
-	BLUE_OUTPOST = 110,
-	BLUE_BASE = 111
+	OUTPOST = 1,
+	BASE_FIXED_TARGET = 2,
+	BASE_RANDOM_FIXED_TARGET = 3,
+	BASE_RANDOM_MOVING_TARGET = 4,
+	BASE_TERMINAL_MOVING_TARGET = 5
 }
 
 const EVENT_NAMES := [
@@ -97,33 +80,18 @@ const EVENT_NAMES := [
 ]
 
 const DART_TARGET_IDS := [
-	DartHitTarget.RED_HERO,
-	DartHitTarget.RED_ENGINEER,
-	DartHitTarget.RED_INFANTRY_3,
-	DartHitTarget.RED_INFANTRY_4,
-	DartHitTarget.RED_INFANTRY_5,
-	DartHitTarget.RED_AERIAL,
-	DartHitTarget.RED_SENTRY,
-	DartHitTarget.RED_DART,
-	DartHitTarget.RED_RADAR,
-	DartHitTarget.RED_OUTPOST,
-	DartHitTarget.RED_BASE,
-	DartHitTarget.BLUE_HERO,
-	DartHitTarget.BLUE_ENGINEER,
-	DartHitTarget.BLUE_INFANTRY_3,
-	DartHitTarget.BLUE_INFANTRY_4,
-	DartHitTarget.BLUE_INFANTRY_5,
-	DartHitTarget.BLUE_AERIAL,
-	DartHitTarget.BLUE_SENTRY,
-	DartHitTarget.BLUE_DART,
-	DartHitTarget.BLUE_RADAR,
-	DartHitTarget.BLUE_OUTPOST,
-	DartHitTarget.BLUE_BASE
+	DartHitTarget.OUTPOST,
+	DartHitTarget.BASE_FIXED_TARGET,
+	DartHitTarget.BASE_RANDOM_FIXED_TARGET,
+	DartHitTarget.BASE_RANDOM_MOVING_TARGET,
+	DartHitTarget.BASE_TERMINAL_MOVING_TARGET
 ]
 
 const DEFAULT_ENERGY_ACTIVATION_COUNT := 0
 const DEFAULT_SNIPER_DAMAGE_TOTAL := 0
 const DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT := 3
+
+@export var bind_retry_interval_sec: float = 1.0
 
 var adapter_getter: MQTTProtocolAdapterGetter = MQTTProtocolAdapterGetter.new()
 
@@ -151,11 +119,25 @@ var _ally_air_support_interrupts_left: int = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 var _enemy_air_support_interrupts_left: int = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 
 var _adapter_bound: bool = false
+var _bound_adapter = null
 var _logged_missing: bool = false
 var _int_regex: RegEx = null
+var _bind_retry_elapsed: float = 0.0
 
 func _ready() -> void:
 	_try_bind_adapter()
+	set_process(true)
+
+func _process(delta: float) -> void:
+	var interval = maxf(bind_retry_interval_sec, 0.1)
+	_bind_retry_elapsed += delta
+	if _bind_retry_elapsed < interval:
+		return
+	_bind_retry_elapsed = 0.0
+	_try_bind_adapter()
+
+func _exit_tree() -> void:
+	_disconnect_bound_adapter()
 
 func ingest_event(event_id: int, param: String = "") -> void:
 	_handle_event(event_id, param)
@@ -307,18 +289,9 @@ func _parse_side(param: String) -> int:
 	if ids.size() > 0:
 		var v = int(ids[0])
 		if v == 1:
-			return Side.RED
+			return Side.ALLY
 		if v == 2:
-			return Side.BLUE
-		if v == 3:
-			return Side.BOTH
-	var text = _normalize_text(param)
-	if text.find("red") != -1:
-		return Side.RED
-	if text.find("blue") != -1:
-		return Side.BLUE
-	if text.find("both") != -1 or text.find("all") != -1:
-		return Side.BOTH
+			return Side.ENEMY
 	return Side.UNKNOWN
 
 func _first_int(param: String, default_val: int) -> int:
@@ -341,11 +314,6 @@ func _extract_ints(param: String) -> Array:
 		result.append(int(m.get_string()))
 	return result
 
-func _normalize_text(param: String) -> String:
-	if param == null:
-		return ""
-	return str(param).to_lower()
-
 func _ensure_regex() -> void:
 	if _int_regex != null:
 		return
@@ -353,19 +321,58 @@ func _ensure_regex() -> void:
 	_int_regex.compile("-?\\d+")
 
 func _try_bind_adapter() -> void:
-	if _adapter_bound:
-		return
 	if adapter_getter == null:
+		_disconnect_bound_adapter()
+		_adapter_bound = false
 		if not _logged_missing:
-			Log.error("[EventService] adapter_getter is not set.")
+			_log_error("[EventService] adapter_getter is not set.")
 			_logged_missing = true
 		return
-	var adapter = adapter_getter.get_adapter()
+	var adapter = null
+	if adapter_getter.has_method("get_adapter_silent"):
+		adapter = adapter_getter.get_adapter_silent()
+	else:
+		adapter = adapter_getter.get_adapter()
 	if adapter == null:
+		_disconnect_bound_adapter()
+		_adapter_bound = false
 		if not _logged_missing:
-			Log.error("[EventService] ProtocolAdapter not available.")
+			_log_error("[EventService] ProtocolAdapter not available.")
 			_logged_missing = true
 		return
-	adapter.event_message.connect(_on_event_message)
+	if not (adapter is Object):
+		_disconnect_bound_adapter()
+		_adapter_bound = false
+		if not _logged_missing:
+			_log_error("[EventService] Adapter getter returned non-object value.")
+			_logged_missing = true
+		return
+	if not adapter.has_signal("event_message"):
+		_disconnect_bound_adapter()
+		_adapter_bound = false
+		if not _logged_missing:
+			_log_error("[EventService] Adapter is missing signal: event_message.")
+			_logged_missing = true
+		return
+	if _bound_adapter != adapter:
+		_disconnect_bound_adapter()
+		_bound_adapter = adapter
+	if not adapter.event_message.is_connected(_on_event_message):
+		adapter.event_message.connect(_on_event_message)
 	_adapter_bound = true
 	_logged_missing = false
+
+func _disconnect_bound_adapter() -> void:
+	if _bound_adapter == null:
+		return
+	if is_instance_valid(_bound_adapter):
+		if _bound_adapter.has_signal("event_message") and _bound_adapter.event_message.is_connected(_on_event_message):
+			_bound_adapter.event_message.disconnect(_on_event_message)
+	_bound_adapter = null
+
+func _log_error(message: String) -> void:
+	var logger = get_node_or_null("/root/Log")
+	if logger != null and logger.has_method("error"):
+		logger.error(message)
+		return
+	push_error(message)

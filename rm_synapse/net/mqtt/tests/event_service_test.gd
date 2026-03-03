@@ -1,5 +1,10 @@
 extends SceneTree
 
+const DART_TARGET_BASE_RANDOM_MOVING := 4
+const RELATIVE_SIDE_ALLY := 1
+const RELATIVE_SIDE_ENEMY := 2
+const RELATIVE_SIDE_UNKNOWN := 0
+
 func _init() -> void:
 	var ok = true
 	var errors: Array[String] = []
@@ -34,11 +39,38 @@ func _init() -> void:
 		ok = false
 		errors.append("ally_air_support_interrupts_left")
 
-	svc.ingest_event(EventService.EventId.DART_HIT, "101")
+	svc.ingest_event(EventService.EventId.DART_HIT, "4")
 	var hits = svc.get_dart_hit_events()
-	if hits.size() != 1 or hits[0].target != EventService.DartHitTarget.BLUE_HERO:
+	if hits.size() != 1 or int(hits[0].target) != DART_TARGET_BASE_RANDOM_MOVING:
 		ok = false
 		errors.append("dart_hit")
+
+	var gate_side := [0]
+	svc.dart_gate_opened.connect(func(side):
+		gate_side[0] = int(side)
+	)
+	svc.ingest_event(EventService.EventId.BOTH_DART_GATE_OPENED, "1")
+	if gate_side[0] != RELATIVE_SIDE_ALLY:
+		ok = false
+		errors.append("dart_gate_opened side")
+
+	var outpost_side := [0]
+	svc.outpost_stopped.connect(func(side):
+		outpost_side[0] = int(side)
+	)
+	svc.ingest_event(EventService.EventId.BOTH_OUTPOST_STOPPED, "2")
+	if outpost_side[0] != RELATIVE_SIDE_ENEMY:
+		ok = false
+		errors.append("outpost_stopped side")
+
+	var base_armor_side := [RELATIVE_SIDE_ALLY]
+	svc.base_armor_deployed.connect(func(side):
+		base_armor_side[0] = int(side)
+	)
+	svc.ingest_event(EventService.EventId.BOTH_BASE_ARMOR_DEPLOYED, "3")
+	if base_armor_side[0] != RELATIVE_SIDE_UNKNOWN:
+		ok = false
+		errors.append("base_armor_deployed side strict")
 
 	svc.clear_cache()
 	if svc.get_kill_events().size() != 0:

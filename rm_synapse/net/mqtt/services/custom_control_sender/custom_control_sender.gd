@@ -1,18 +1,21 @@
 extends Node
-class_name KeyboardMouseControlSender
+class_name CustomControlSender
 
 const SEND_HZ := 75.0
 const SEND_INTERVAL_SEC := 1.0 / SEND_HZ
 
 var adapter_getter: MQTTProtocolAdapterGetter
+
 @export var auto_start: bool = true
 
-var _data := AdapterTypes.KeyboardMouseControlData.new()
+var _data := AdapterTypes.CustomControlData.new()
 var _timer: Timer
 var _logged_missing: bool = false
 
 func _ready() -> void:
-	adapter_getter = MQTTProtocolAdapterGetter.new()
+	if adapter_getter == null:
+		adapter_getter = MQTTProtocolAdapterGetter.new()
+	
 	_timer = Timer.new()
 	_timer.one_shot = false
 	_timer.wait_time = SEND_INTERVAL_SEC
@@ -21,16 +24,13 @@ func _ready() -> void:
 	if auto_start:
 		start_sending()
 
-func update_data(data: AdapterTypes.KeyboardMouseControlData) -> void:
+func update_data(data: AdapterTypes.CustomControlData) -> void:
 	if data == null:
 		return
-	_data.mouse_x = data.mouse_x
-	_data.mouse_y = data.mouse_y
-	_data.mouse_z = data.mouse_z
-	_data.left_button_down = data.left_button_down
-	_data.right_button_down = data.right_button_down
-	_data.keyboard_value = data.keyboard_value
-	_data.mid_button_down = data.mid_button_down
+	if data.data is PackedByteArray:
+		_data.data = data.data.duplicate()
+	else:
+		_data.data = PackedByteArray()
 
 func start_sending() -> void:
 	if _timer == null:
@@ -49,18 +49,22 @@ func _on_tick() -> void:
 	var adapter = _get_adapter()
 	if adapter == null:
 		return
-	adapter.send_keyboard_mouse_control(_data)
+	adapter.send_custom_control(_data)
 
 func _get_adapter() -> ProtocolAdapter:
 	if adapter_getter == null:
 		if not _logged_missing:
-			Log.error("[KeyboardMouseControlSender] adapter_getter is not set.")
+			Log.error("[CustomControlSender] adapter_getter is not set.")
 			_logged_missing = true
 		return null
-	var adapter = adapter_getter.get_adapter()
+	var adapter = null
+	if adapter_getter.has_method("get_adapter_silent"):
+		adapter = adapter_getter.get_adapter_silent()
+	else:
+		adapter = adapter_getter.get_adapter()
 	if adapter == null:
 		if not _logged_missing:
-			Log.error("[KeyboardMouseControlSender] ProtocolAdapter not available.")
+			Log.error("[CustomControlSender] ProtocolAdapter not available.")
 			_logged_missing = true
 		return null
 	_logged_missing = false

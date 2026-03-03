@@ -6,19 +6,36 @@ extends CanvasLayer
 # 3. 监听游戏事件（例如 kill_event）
 
 # CEF 纹理节点引用（通过 eval 执行前端 JS）
+# HUD 层职责：
+# 1. 连接嵌入式 CEF Web UI
+# 2. 定时向前端推送游戏状态数据（如血量、基地信息等）
+# 3. 监听游戏事件（例如 kill_event）
+
+# CEF 纹理节点引用（通过 eval 执行前端 JS）
 @onready var web = $CefTexture
+
+# 页面是否成功加载（HTTP 状态码 2xx 视为成功）
 
 # 页面是否成功加载（HTTP 状态码 2xx 视为成功）
 var page_ready := false
 
 # 数据推送间隔（秒），例如 0.02 表示 50Hz
+# 数据推送间隔（秒），例如 0.02 表示 50Hz
 var update_rate := 0.0
+
+# 时间累加器，用于控制固定频率推送
 
 # 时间累加器，用于控制固定频率推送
 var acc := 0.0
 
 # 本地事件服务实例（用于接收游戏内事件）
+# 本地事件服务实例（用于接收游戏内事件）
 var event = EventService.new()
+
+# GameStatusService
+var game_status_service = GameStatusService.new()
+
+var robot_static_status_service = RobotStaticStatusService.new()
 
 # 当 HUD 节点进入场景树时调用
 # 负责初始化 CEF 连接、事件绑定和输入处理
@@ -34,6 +51,17 @@ func _ready():
 			page_ready = (status >= 200 and status < 300)
 			print("CEF load_finished status=", status, " page_ready=", page_ready)
 		)
+
+	if game_status_service.get_parent() == null:
+		add_child(game_status_service)
+	if not game_status_service.game_status_updated.is_connected(_on_game_status_updated):
+		game_status_service.game_status_updated.connect(_on_game_status_updated)
+
+	add_child(robot_static_status_service)
+	robot_static_status_service.connect("robot_static_status_updated", self._on_robot_static_status_updated)
+
+func _on_robot_static_status_updated(new_status):
+	print("Robot static status updated: ", new_status)
 
 # 调试用输入处理：
 # - test_20hz：开启 100Hz 推送
@@ -51,6 +79,8 @@ func _input(event):
 		update_rate = 0.0
 		print("Stop update")
 
+func _on_game_status_updated(new_status):
+	print("Game status changed: ", new_status)
 
 # 每帧调用
 # 使用累加器模式按固定频率推送数据
@@ -62,6 +92,7 @@ func _process(delta):
 	if acc >= update_rate:
 		acc = 0.0
 		push_random_hp()
+
 
 # 生成模拟的机器人与基地血量数据并推送到前端
 # 用于模拟真实对局中的状态同步
