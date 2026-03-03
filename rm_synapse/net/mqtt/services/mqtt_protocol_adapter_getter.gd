@@ -7,13 +7,36 @@ class_name MQTTProtocolAdapterGetter
 @export var transport_path: NodePath = NodePath("/root/Mqtt/Transport")
 
 func get_adapter() -> ProtocolAdapter:
-	var adapter = Engine.get_main_loop().root.get_node(adapter_path) as ProtocolAdapter
+	var root = _get_tree_root()
+	if root == null:
+		_log_warn("[MQTTProtocolAdapterGetter] SceneTree root is not available.")
+		return null
+	var adapter = root.get_node_or_null(adapter_path) as ProtocolAdapter
 	if adapter == null:
-		Log.warn("[MQTTProtocolAdapterGetter] Adapter not found at %s" % str(adapter_path))
+		_log_warn("[MQTTProtocolAdapterGetter] Adapter not found at %s" % str(adapter_path))
 	return adapter
 
 func get_transport() -> NetworkTransport:
-	var transport = Engine.get_main_loop().root.get_node(transport_path) as NetworkTransport
+	var root = _get_tree_root()
+	if root == null:
+		_log_warn("[MQTTProtocolAdapterGetter] SceneTree root is not available.")
+		return null
+	var transport = root.get_node_or_null(transport_path) as NetworkTransport
 	if transport == null:
-		Log.warn("[MQTTProtocolAdapterGetter] Transport not found at %s" % str(transport_path))
+		_log_warn("[MQTTProtocolAdapterGetter] Transport not found at %s" % str(transport_path))
 	return transport
+
+func _log_warn(message: String) -> void:
+	var root = _get_tree_root()
+	if root != null:
+		var logger = root.get_node_or_null("Log")
+		if logger != null and logger.has_method("warn"):
+			logger.warn(message)
+			return
+	push_warning(message)
+
+func _get_tree_root() -> Window:
+	var main_loop = Engine.get_main_loop()
+	if main_loop == null:
+		return null
+	return main_loop.root

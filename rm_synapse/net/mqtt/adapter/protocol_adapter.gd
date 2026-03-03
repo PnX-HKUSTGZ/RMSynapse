@@ -156,8 +156,27 @@ const SUBSCRIBE_TOPICS: PackedStringArray = [
 	TOPIC_AIR_SUPPORT_STATUS_SYNC,
 ]
 
+const CUSTOM_CONTROL_MAX_BYTES := 30
+const MAP_CLICK_ROBOT_ID_BYTES := 7
+const MAP_CLICK_MIN_INTERVAL_MSEC := 500
+const COMMON_COMMAND_MIN_INTERVAL_MSEC := 100
+const LOW_RATE_COMMAND_MIN_INTERVAL_MSEC := 1000
+
+const SEND_RATE_LIMIT_MSEC_BY_TOPIC := {
+	TOPIC_MAP_CLICK_INFO_NOTIFY: MAP_CLICK_MIN_INTERVAL_MSEC,
+	TOPIC_COMMON_COMMAND: COMMON_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_ASSEMBLY_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_RUNE_ACTIVATE_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_DART_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_SENTRY_CTRL_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_AIR_SUPPORT_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+}
+
 var _transport: Node
 var _topic_to_class: Dictionary = {}
+var _last_sent_msec_by_topic: Dictionary = {}
 
 func _ready() -> void:
 	_ensure_qos_maps()
@@ -168,9 +187,19 @@ func _ready() -> void:
 			bind_transport(node)
 
 func bind_transport(node: Node) -> void:
+	if node == null:
+		Log.error("[ProtocolAdapter] Cannot bind null transport.")
+		return
+	if _transport != null and _transport != node:
+		if _transport.raw_message.is_connected(_on_transport_message):
+			_transport.raw_message.disconnect(_on_transport_message)
+		if _transport.connected.is_connected(_on_transport_connected):
+			_transport.connected.disconnect(_on_transport_connected)
 	_transport = node
-	_transport.raw_message.connect(_on_transport_message)
-	_transport.connected.connect(_on_transport_connected)
+	if not _transport.raw_message.is_connected(_on_transport_message):
+		_transport.raw_message.connect(_on_transport_message)
+	if not _transport.connected.is_connected(_on_transport_connected):
+		_transport.connected.connect(_on_transport_connected)
 	Log.info("[ProtocolAdapter] Bound transport: %s" % str(node))
 	if auto_subscribe:
 		subscribe_all()
@@ -194,10 +223,16 @@ func send_message(topic: String, message) -> int:
 	if _transport == null:
 		Log.error("[ProtocolAdapter] Cannot send message because transport is not bound.")
 		return -1
+	var min_interval_msec = _get_send_rate_limit_msec(topic)
+	if _is_rate_limited(topic, min_interval_msec):
+		return -1
 	var payload = message.to_bytes()
 	var qos = _get_publish_qos(topic)
 	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d qos=%d" % [topic, payload.size(), qos])
-	return _transport.publish_bytes(topic, payload, false, qos)
+	var publish_result = _transport.publish_bytes(topic, payload, false, qos)
+	if publish_result >= 0:
+		_last_sent_msec_by_topic[topic] = Time.get_ticks_msec()
+	return publish_result
 
 func send_keyboard_mouse_control(data: AdapterTypes.KeyboardMouseControlData) -> int:
 	var message = RMProto.KeyboardMouseControl.new()
@@ -211,14 +246,26 @@ func send_keyboard_mouse_control(data: AdapterTypes.KeyboardMouseControlData) ->
 	return send_message(TOPIC_KEYBOARD_MOUSE_CONTROL, message)
 
 func send_custom_control(data: AdapterTypes.CustomControlData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_custom_control got null data.")
+		return -1
+	var raw_data = data.data
+	if raw_data == null:
+		raw_data = PackedByteArray()
+	if raw_data.size() > CUSTOM_CONTROL_MAX_BYTES:
+		Log.warn("[ProtocolAdapter] CustomControl size=%d exceeds max=%d, drop message." % [raw_data.size(), CUSTOM_CONTROL_MAX_BYTES])
+		return -1
 	var message = RMProto.CustomControl.new()
-	message.set_data(data.data)
+	message.set_data(raw_data)
 	return send_message(TOPIC_CUSTOM_CONTROL, message)
 
 func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_map_click_info_notify got null data.")
+		return -1
 	var message = RMProto.MapClickInfoNotify.new()
 	message.set_is_send_all(data.is_send_all)
-	message.set_robot_id(data.robot_id)
+	message.set_robot_id(_normalize_map_click_robot_id(data.robot_id))
 	message.set_mode(data.mode)
 	message.set_enemy_id(data.enemy_id)
 	message.set_ascii(data.ascii)
@@ -230,12 +277,18 @@ func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> in
 	return send_message(TOPIC_MAP_CLICK_INFO_NOTIFY, message)
 
 func send_assembly_command(data: AdapterTypes.AssemblyCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_assembly_command got null data.")
+		return -1
 	var message = RMProto.AssemblyCommand.new()
 	message.set_operation(data.operation)
 	message.set_difficulty(data.difficulty)
 	return send_message(TOPIC_ASSEMBLY_COMMAND, message)
 
 func send_robot_performance_selection_command(data: AdapterTypes.RobotPerformanceSelectionCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_robot_performance_selection_command got null data.")
+		return -1
 	var message = RMProto.RobotPerformanceSelectionCommand.new()
 	message.set_shooter(data.shooter)
 	message.set_chassis(data.chassis)
@@ -243,22 +296,34 @@ func send_robot_performance_selection_command(data: AdapterTypes.RobotPerformanc
 	return send_message(TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND, message)
 
 func send_common_command(data: AdapterTypes.CommonCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_common_command got null data.")
+		return -1
 	var message = RMProto.CommonCommand.new()
 	message.set_cmd_type(data.cmd_type)
 	message.set_param(data.param)
 	return send_message(TOPIC_COMMON_COMMAND, message)
 
 func send_hero_deploy_mode_event_command(data: AdapterTypes.HeroDeployModeEventCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_hero_deploy_mode_event_command got null data.")
+		return -1
 	var message = RMProto.HeroDeployModeEventCommand.new()
 	message.set_mode(data.mode)
 	return send_message(TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND, message)
 
 func send_rune_activate_command(data: AdapterTypes.RuneActivateCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_rune_activate_command got null data.")
+		return -1
 	var message = RMProto.RuneActivateCommand.new()
 	message.set_activate(data.activate)
 	return send_message(TOPIC_RUNE_ACTIVATE_COMMAND, message)
 
 func send_dart_command(data: AdapterTypes.DartCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_dart_command got null data.")
+		return -1
 	var message = RMProto.DartCommand.new()
 	message.set_target_id(data.target_id)
 	message.set_open(data.open)
@@ -266,11 +331,17 @@ func send_dart_command(data: AdapterTypes.DartCommandData) -> int:
 	return send_message(TOPIC_DART_COMMAND, message)
 
 func send_sentry_ctrl_command(data: AdapterTypes.SentryCtrlCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_sentry_ctrl_command got null data.")
+		return -1
 	var message = RMProto.SentryCtrlCommand.new()
 	message.set_command_id(data.command_id)
 	return send_message(TOPIC_SENTRY_CTRL_COMMAND, message)
 
 func send_air_support_command(data: AdapterTypes.AirSupportCommandData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_air_support_command got null data.")
+		return -1
 	var message = RMProto.AirSupportCommand.new()
 	message.set_command_id(data.command_id)
 	return send_message(TOPIC_AIR_SUPPORT_COMMAND, message)
@@ -295,6 +366,40 @@ func _normalize_qos(qos: int) -> int:
 		Log.warn("[ProtocolAdapter] QoS %d is greater than 2, normalized to 2" % qos)
 		return 2
 	return qos
+
+func _normalize_map_click_robot_id(robot_id: PackedByteArray) -> PackedByteArray:
+	var source = PackedByteArray()
+	if robot_id != null:
+		source = robot_id
+	if source.size() == MAP_CLICK_ROBOT_ID_BYTES:
+		return source
+	var normalized = PackedByteArray()
+	normalized.resize(MAP_CLICK_ROBOT_ID_BYTES)
+	var copy_count = mini(source.size(), MAP_CLICK_ROBOT_ID_BYTES)
+	for i in range(copy_count):
+		normalized[i] = source[i]
+	if source.size() < MAP_CLICK_ROBOT_ID_BYTES:
+		Log.warn("[ProtocolAdapter] MapClickInfoNotify robot_id size=%d, pad to %d bytes." % [source.size(), MAP_CLICK_ROBOT_ID_BYTES])
+	elif source.size() > MAP_CLICK_ROBOT_ID_BYTES:
+		Log.warn("[ProtocolAdapter] MapClickInfoNotify robot_id size=%d, truncate to %d bytes." % [source.size(), MAP_CLICK_ROBOT_ID_BYTES])
+	return normalized
+
+func _get_send_rate_limit_msec(topic: String) -> int:
+	return int(SEND_RATE_LIMIT_MSEC_BY_TOPIC.get(topic, 0))
+
+func _is_rate_limited(topic: String, min_interval_msec: int) -> bool:
+	if min_interval_msec <= 0:
+		return false
+	var now = Time.get_ticks_msec()
+	var last_sent = int(_last_sent_msec_by_topic.get(topic, -1))
+	if last_sent < 0:
+		return false
+	var elapsed = now - last_sent
+	if elapsed >= min_interval_msec:
+		return false
+	var remaining = min_interval_msec - elapsed
+	Log.warn("[ProtocolAdapter] Skip topic=%s, send interval too short (remaining=%dms)." % [topic, remaining])
+	return true
 
 func _ensure_qos_maps() -> void:
 	for topic in TOPIC_SIGNAL_MAP.keys():
@@ -341,9 +446,7 @@ func _register_default_mappings() -> void:
 	register_mapping(TOPIC_AIR_SUPPORT_STATUS_SYNC, RMProto.AirSupportStatusSync)
 
 func _on_transport_connected() -> void:
-	Log.info("[ProtocolAdapter] mqtt broker connected! try to subscribe topic.")
-	if auto_subscribe:
-		subscribe_all()
+	Log.info("[ProtocolAdapter] mqtt broker connected.")
 
 func _on_transport_message(topic, payload) -> void:
 	var topic_str := String(topic)

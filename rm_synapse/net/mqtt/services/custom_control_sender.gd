@@ -10,7 +10,7 @@ var adapter_getter: MQTTProtocolAdapterGetter
 
 var _data := AdapterTypes.CustomControlData.new()
 var _timer: Timer
-var _logged_missing: bool = true
+var _logged_missing: bool = false
 
 func _ready() -> void:
 	adapter_getter = MQTTProtocolAdapterGetter.new()

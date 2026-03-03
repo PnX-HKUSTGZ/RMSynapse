@@ -13,10 +13,12 @@ class KeyboardMouseControlData:
 
 class CustomControlData:
 	extends RefCounted
+	const MAX_DATA_BYTES := 30
 	var data: PackedByteArray = PackedByteArray()
 
 class MapClickInfoNotifyData:
 	extends RefCounted
+	const ROBOT_ID_BYTES := 7
 	var is_send_all: int = 0
 	var robot_id: PackedByteArray = PackedByteArray()
 	var mode: int = 0

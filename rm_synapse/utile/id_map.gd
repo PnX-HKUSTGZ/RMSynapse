@@ -55,7 +55,7 @@ var ROBOT_META := {
 }
 
 var MOVEABLE_ROBOT_IDS := [
-	1,2,4,5,6,7,101,102,104,105,106,107
+	1,2,3,4,5,6,7,101,102,103,104,105,106,107
 ]
 
 const ROBOT_TYPE_NAME = {
@@ -82,9 +82,9 @@ var CLIENT_META := {
 	0x0106: client_state.new(TEAM_RED, 6, "红方空中机器人选手端"),
 	0x0165: client_state.new(TEAM_BLUE, 101, "蓝方英雄机器人选手端"),
 	0x0166: client_state.new(TEAM_BLUE, 102, "蓝方工程机器人选手端"),
-	0x0167: client_state.new(TEAM_BLUE, 103, "蓝方步兵机器人一号选手端"),
-	0x0168: client_state.new(TEAM_BLUE, 104, "蓝方步兵机器人二号选手端"),
-	0x0169: client_state.new(TEAM_BLUE, 105, "蓝方步兵机器人三号选手端"),
+	0x0167: client_state.new(TEAM_BLUE, 103, "蓝方步兵机器人三号选手端"),
+	0x0168: client_state.new(TEAM_BLUE, 104, "蓝方步兵机器人四号选手端"),
+	0x0169: client_state.new(TEAM_BLUE, 105, "蓝方步兵机器人五号选手端"),
 	0x016A: client_state.new(TEAM_BLUE, 106, "蓝方空中机器人选手端"),
 	0x8080: client_state.new(TEAM_REF, -1, "裁判系统服务器")
 }

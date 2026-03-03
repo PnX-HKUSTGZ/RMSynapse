@@ -46,11 +46,11 @@
 - `enemy_air_support_called()`
 - `ally_air_support_interrupted(remaining)`
 - `enemy_air_support_interrupted(remaining)`
-- `dart_hit(target)` 目标为 `DartHitTarget` enum
-- `dart_gate_opened(side)` side 为 `Side` enum
+- `dart_hit(target)` 目标为 `DartHitTarget` enum（1~5：前哨站/基地固定目标/基地随机固定目标/基地随机移动目标/基地末端移动目标）
+- `dart_gate_opened(side)` side 为 `Side` enum（1=己方，2=对方）
 - `ally_base_under_attack()`
-- `outpost_stopped(side)` side 为 `Side` enum
-- `base_armor_deployed(side)` side 为 `Side` enum
+- `outpost_stopped(side)` side 为 `Side` enum（1=己方，2=对方）
+- `base_armor_deployed(side)` side 为 `Side` enum（1=己方，2=对方）
 
 ## 事件 ID 枚举
 `EventId` 枚举名称使用事件英文翻译大写，值等于 `event_id`。
