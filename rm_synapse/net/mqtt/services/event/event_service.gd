@@ -119,24 +119,25 @@ var _ally_air_support_interrupts_left: int = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 var _enemy_air_support_interrupts_left: int = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 
 var _adapter_bound: bool = false
+var _bound_adapter = null
 var _logged_missing: bool = false
 var _int_regex: RegEx = null
 var _bind_retry_elapsed: float = 0.0
 
 func _ready() -> void:
 	_try_bind_adapter()
-	set_process(not _adapter_bound)
+	set_process(true)
 
 func _process(delta: float) -> void:
-	if _adapter_bound:
-		set_process(false)
-		return
 	var interval = maxf(bind_retry_interval_sec, 0.1)
 	_bind_retry_elapsed += delta
 	if _bind_retry_elapsed < interval:
 		return
 	_bind_retry_elapsed = 0.0
 	_try_bind_adapter()
+
+func _exit_tree() -> void:
+	_disconnect_bound_adapter()
 
 func ingest_event(event_id: int, param: String = "") -> void:
 	_handle_event(event_id, param)
@@ -320,23 +321,54 @@ func _ensure_regex() -> void:
 	_int_regex.compile("-?\\d+")
 
 func _try_bind_adapter() -> void:
-	if _adapter_bound:
-		return
 	if adapter_getter == null:
+		_disconnect_bound_adapter()
+		_adapter_bound = false
 		if not _logged_missing:
 			_log_error("[EventService] adapter_getter is not set.")
 			_logged_missing = true
 		return
-	var adapter = adapter_getter.get_adapter()
+	var adapter = null
+	if adapter_getter.has_method("get_adapter_silent"):
+		adapter = adapter_getter.get_adapter_silent()
+	else:
+		adapter = adapter_getter.get_adapter()
 	if adapter == null:
+		_disconnect_bound_adapter()
+		_adapter_bound = false
 		if not _logged_missing:
 			_log_error("[EventService] ProtocolAdapter not available.")
 			_logged_missing = true
 		return
-	adapter.event_message.connect(_on_event_message)
+	if not (adapter is Object):
+		_disconnect_bound_adapter()
+		_adapter_bound = false
+		if not _logged_missing:
+			_log_error("[EventService] Adapter getter returned non-object value.")
+			_logged_missing = true
+		return
+	if not adapter.has_signal("event_message"):
+		_disconnect_bound_adapter()
+		_adapter_bound = false
+		if not _logged_missing:
+			_log_error("[EventService] Adapter is missing signal: event_message.")
+			_logged_missing = true
+		return
+	if _bound_adapter != adapter:
+		_disconnect_bound_adapter()
+		_bound_adapter = adapter
+	if not adapter.event_message.is_connected(_on_event_message):
+		adapter.event_message.connect(_on_event_message)
 	_adapter_bound = true
 	_logged_missing = false
-	set_process(false)
+
+func _disconnect_bound_adapter() -> void:
+	if _bound_adapter == null:
+		return
+	if is_instance_valid(_bound_adapter):
+		if _bound_adapter.has_signal("event_message") and _bound_adapter.event_message.is_connected(_on_event_message):
+			_bound_adapter.event_message.disconnect(_on_event_message)
+	_bound_adapter = null
 
 func _log_error(message: String) -> void:
 	var logger = get_node_or_null("/root/Log")

@@ -23,6 +23,8 @@ var event = EventService.new()
 # GameStatusService
 var game_status_service = GameStatusService.new()
 
+var robot_static_status_service = RobotStaticStatusService.new()
+
 # 当 HUD 节点进入场景树时调用
 # 负责初始化 CEF 连接、事件绑定和输入处理
 func _ready():
@@ -42,6 +44,12 @@ func _ready():
 		add_child(game_status_service)
 	if not game_status_service.game_status_updated.is_connected(_on_game_status_updated):
 		game_status_service.game_status_updated.connect(_on_game_status_updated)
+
+	add_child(robot_static_status_service)
+	robot_static_status_service.connect("robot_static_status_updated", self._on_robot_static_status_updated)
+
+func _on_robot_static_status_updated(new_status):
+	print("Robot static status updated: ", new_status)
 
 # 调试用输入处理：
 # - test_20hz：开启 100Hz 推送
@@ -72,6 +80,7 @@ func _process(delta):
 	if acc >= update_rate:
 		acc = 0.0
 		push_random_hp()
+
 
 # 生成模拟的机器人与基地血量数据并推送到前端
 # 用于模拟真实对局中的状态同步

@@ -204,6 +204,11 @@ func bind_transport(node: Node) -> void:
 	if auto_subscribe:
 		subscribe_all()
 
+func is_transport_bound(node: Node) -> bool:
+	if node == null:
+		return false
+	return _transport == node
+
 func register_mapping(topic: String, message_class) -> void:
 	_topic_to_class[topic] = message_class
 	Log.debug("[ProtocolAdapter] Register mapping: %s" % topic)

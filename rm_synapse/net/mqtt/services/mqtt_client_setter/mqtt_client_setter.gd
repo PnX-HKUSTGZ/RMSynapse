@@ -77,11 +77,9 @@ func _apply_adapter_settings(adapter: ProtocolAdapter, transport: NetworkTranspo
 			_bind_adapter_transport(adapter, transport)
 
 func _bind_adapter_transport(adapter: ProtocolAdapter, transport: NetworkTransport) -> void:
-	if not force_rebind:
-		if adapter._transport == transport:
-			return
-		if transport.raw_message.is_connected(Callable(adapter, "_on_transport_message")):
-			return
+	# Keep force_rebind meaningful without depending on private adapter fields.
+	if not force_rebind and adapter.has_method("is_transport_bound") and adapter.is_transport_bound(transport):
+		return
 	adapter.bind_transport(transport)
 
 func _get_node(path: NodePath) -> Node:
@@ -91,4 +89,3 @@ func _get_node(path: NodePath) -> Node:
 	if root == null:
 		return null
 	return root.get_node_or_null(path)
-

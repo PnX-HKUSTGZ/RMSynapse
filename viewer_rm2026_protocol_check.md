@@ -268,3 +268,258 @@
     - `rm_synapse/net/mqtt/tests/game_status_service_scene_test.gd`
 - 复验：`/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/game_status_service_scene_test.tscn`
   - 输出 `GAME_STATUS_SERVICE_SCENE_TEST_OK`，无该项干扰性错误日志。
+
+### 7.11 viewer 实现记录（Round 5，2026-03-03）
+- 按以下文档实现 getter 服务：
+  - `rm_synapse/net/mqtt/services/global_logistics_status/README.md`
+  - `rm_synapse/net/mqtt/services/global_unit_status/README.md`
+  - `rm_synapse/net/mqtt/services/GETTER_REQUIREMENTS.md`
+
+- 新增 `GlobalLogisticsStatusService`：
+  - 文件：`rm_synapse/net/mqtt/services/global_logistics_status/global_logistics_status_service.gd`
+  - 关键实现：
+    - 强类型状态类 `GlobalLogisticsStatusState`（含 `clone()/to_dict()`）
+    - 信号：`global_logistics_status_updated/economy_changed/tech_level_changed/encryption_level_changed`
+    - getter：`get_state/get_remaining_economy/get_total_economy_obtained/get_tech_level/get_encryption_level`
+    - 生命周期：`_ready/_process/_exit_tree` + `clear_cache`
+    - adapter 延迟绑定 + 运行时替换重绑 + 解绑清理
+    - `null` 消息与缺依赖日志节流、负值一次性告警并 clamp 到 0
+
+- 新增 `GlobalUnitStatusService`：
+  - 文件：`rm_synapse/net/mqtt/services/global_unit_status/global_unit_status_service.gd`
+  - 关键实现：
+    - 强类型状态模型：`BaseState/OutpostState/GlobalUnitStatusState`（深拷贝 `clone()`）
+    - 信号：`global_unit_status_updated/base_state_changed/outpost_state_changed/robot_status_changed/total_damage_changed`
+    - getter：基地/前哨/机器人数组/总伤害 + 状态名映射 `get_base_status_name/get_outpost_status_name`
+    - 生命周期：`_ready/_process/_exit_tree` + `clear_cache`
+    - adapter 延迟绑定 + 运行时替换重绑 + 解绑清理
+
+- 新增场景化测试（覆盖默认值/ingest/信号/clear_cache/延迟绑定/替换重绑）：
+  - `rm_synapse/net/mqtt/tests/global_logistics_status_service_scene_test.gd`
+  - `rm_synapse/net/mqtt/tests/global_logistics_status_service_scene_test.tscn`
+  - `rm_synapse/net/mqtt/tests/global_unit_status_service_scene_test.gd`
+  - `rm_synapse/net/mqtt/tests/global_unit_status_service_scene_test.tscn`
+
+- 本轮验证：
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/global_logistics_status_service_scene_test.tscn`
+    - 输出：`GLOBAL_LOGISTICS_STATUS_SERVICE_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/global_unit_status_service_scene_test.tscn`
+    - 输出：`GLOBAL_UNIT_STATUS_SERVICE_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+    - 未出现 `SCRIPT ERROR / Compile Error / Parse Error`（保留既有 UID warning）。
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何文件。
+
+### 7.12 viewer 实现记录（Round 6，2026-03-03）
+- 按要求完成“每一个 service 一个文件夹，并且补齐 README”：
+  - 已将 `global_special_mechanism_service.gd` 从 `services/` 根目录迁移到：
+    - `rm_synapse/net/mqtt/services/global_special_mechanism/global_special_mechanism_service.gd`
+  - 并补充 `rm_synapse/net/mqtt/services/global_special_mechanism/README.md`。
+
+- 新增并规范化以下 service 目录（每个目录含 `*_service.gd + README.md`）：
+  - `robot_injury_stat/`
+  - `robot_respawn_status/`
+  - `robot_static_status/`
+  - `robot_dynamic_status/`
+  - `robot_module_status/`
+  - `robot_position/`
+  - `buff/`
+  - `robot_path_plan_info/`
+  - `radar_info_to_client/`
+  - `tech_core_motion_state_sync/`
+  - `robot_performance_selection_sync/`
+  - `deploy_mode_status_sync/`
+  - `rune_status_sync/`
+  - `sentry_status_sync/`
+  - `dart_select_target_status_sync/`
+  - `air_support_status_sync/`
+
+- 新增 service 均按 getter 统一规范实现：
+  - 强类型状态类 + `clone()/to_dict()`
+  - `get_state()` 返回拷贝
+  - `_ready/_process` 重试绑定
+  - `_exit_tree` 解绑
+  - `clear_cache()` 重置并发出 updated 信号
+  - adapter 延迟可用与替换重绑处理
+  - 空消息/依赖缺失日志节流
+
+- 本轮验证：
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+  - 结果：新增 17 个 service 类成功注册，未出现 `SCRIPT ERROR / Compile Error / Parse Error`（仅保留既有 UID warning）。
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何生成文件。
+
+### 7.13 viewer 实现记录（Round 7，2026-03-03）
+- 按“每一个 service 一个文件夹，并且把 README 写好”的要求，继续完成 `services/` 根目录遗留脚本整理：
+  - `rm_synapse/net/mqtt/services/custom_control_sender.gd`
+    - 迁移到：`rm_synapse/net/mqtt/services/custom_control_sender/custom_control_sender.gd`
+  - `rm_synapse/net/mqtt/services/keyboard_mouse_control_sender.gd`
+    - 迁移到：`rm_synapse/net/mqtt/services/keyboard_mouse_control_sender/keyboard_mouse_control_sender.gd`
+  - `rm_synapse/net/mqtt/services/mqtt_client_setter.gd`
+    - 迁移到：`rm_synapse/net/mqtt/services/mqtt_client_setter/mqtt_client_setter.gd`
+  - `rm_synapse/net/mqtt/services/mqtt_protocol_adapter_getter.gd`
+    - 迁移到：`rm_synapse/net/mqtt/services/mqtt_protocol_adapter_getter/mqtt_protocol_adapter_getter.gd`
+  - 对应 `.gd.uid` 文件均已同步迁移。
+
+- 为以上 4 个 service 目录新增 README：
+  - `rm_synapse/net/mqtt/services/custom_control_sender/README.md`
+  - `rm_synapse/net/mqtt/services/keyboard_mouse_control_sender/README.md`
+  - `rm_synapse/net/mqtt/services/mqtt_client_setter/README.md`
+  - `rm_synapse/net/mqtt/services/mqtt_protocol_adapter_getter/README.md`
+
+- 结果：`rm_synapse/net/mqtt/services/` 根目录已无遗留 service 脚本（仅保留规范文档 `GETTER_REQUIREMENTS.md`）。
+
+- 本轮验证：
+  - 命令：`/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+  - 结果：
+    - 全局类注册通过（`CustomControlSender / KeyboardMouseControlSender / MQTTClientSetter / MQTTProtocolAdapterGetter`）
+    - 未出现 `SCRIPT ERROR / Compile Error / Parse Error`
+    - 仅保留既有 UID warning（`log.tscn`、`mqtt_debug.tscn`）
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何生成文件。
+
+### 7.14 viewer 修复记录（Round 8，2026-03-03）
+- 按 `rm_synapse/net/mqtt/services/REVIEW_ROUND8.md` 完成修复与补测。
+
+- [中] `EventService` 运行期 adapter 替换自动恢复：
+  - 文件：`rm_synapse/net/mqtt/services/event/event_service.gd`
+  - 变更：
+    - 新增 `_bound_adapter` 跟踪当前绑定实例。
+    - `_process()` 改为持续周期探测（不再首次成功后 `set_process(false)` 停止）。
+    - `_try_bind_adapter()` 支持 `get_adapter_silent()`，并在 adapter 变更时先断开旧连接再连接新 adapter。
+    - 新增 `_exit_tree()` / `_disconnect_bound_adapter()`，退出时清理连接。
+    - 对 getter 返回 `null`、非对象、缺失 `event_message` 信号场景做失败回退并节流日志。
+
+- [中] 两个 Sender 保留外部注入 getter，避免 `_ready()` 覆盖：
+  - 文件：
+    - `rm_synapse/net/mqtt/services/custom_control_sender/custom_control_sender.gd`
+    - `rm_synapse/net/mqtt/services/keyboard_mouse_control_sender/keyboard_mouse_control_sender.gd`
+  - 变更：
+    - `_ready()` 仅在 `adapter_getter == null` 时创建默认 getter。
+
+- [中] 缺失 adapter 高频告警刷屏路径收敛：
+  - 文件：
+    - `rm_synapse/net/mqtt/services/custom_control_sender/custom_control_sender.gd`
+    - `rm_synapse/net/mqtt/services/keyboard_mouse_control_sender/keyboard_mouse_control_sender.gd`
+  - 变更：
+    - 轮询路径 `_get_adapter()` 优先走 `get_adapter_silent()`，避免 75Hz 下 getter 层重复 warn。
+
+- [低] `MQTTClientSetter` 去除对 `ProtocolAdapter` 私有实现耦合：
+  - 文件：`rm_synapse/net/mqtt/services/mqtt_client_setter/mqtt_client_setter.gd`
+  - 变更：
+    - `_bind_adapter_transport()` 不再访问 `adapter._transport` 和私有方法 `_on_transport_message`。
+    - 改为仅使用公开字段/接口：`adapter.transport_path` + `bind_transport(transport)`。
+
+- 补齐 Round8 自动化测试：
+  - 新增 `EventService` 场景测试（含延迟绑定 + 替换重绑）：
+    - `rm_synapse/net/mqtt/tests/event_service_scene_test.gd`
+    - `rm_synapse/net/mqtt/tests/event_service_scene_test.tscn`
+  - 新增 Sender 场景测试（外部注入不覆盖 + silent getter 调用路径）：
+    - `rm_synapse/net/mqtt/tests/control_sender_scene_test.gd`
+    - `rm_synapse/net/mqtt/tests/control_sender_scene_test.tscn`
+  - 新增 17 个 getter 批量场景最小回归（默认值/ingest/clear_cache/延迟绑定/替换重绑）：
+    - `rm_synapse/net/mqtt/tests/getter_services_round8_scene_test.gd`
+    - `rm_synapse/net/mqtt/tests/getter_services_round8_scene_test.tscn`
+
+- 本轮测试过程中额外发现并修复 2 个真实运行期问题（非 review 原文，但会导致脚本错误）：
+  - `GlobalSpecialMechanismState.clone()` 对 `Array[MechanismState]` 赋值时使用了未类型化 `[]`。
+    - 修复文件：`rm_synapse/net/mqtt/services/global_special_mechanism/global_special_mechanism_service.gd`
+  - `RobotPathPlanInfoState.clone()` 对 `Array[PathPointOffset]` 赋值时使用了未类型化 `[]`。
+    - 修复文件：`rm_synapse/net/mqtt/services/robot_path_plan_info/robot_path_plan_info_service.gd`
+  - 修复方式：改为先构造类型化数组，再整体赋值，避免 `Invalid assignment ... Array[...]` 运行时错误。
+
+- 本轮验证：
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/event_service_scene_test.tscn`
+    - 输出：`EVENT_SERVICE_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/control_sender_scene_test.tscn`
+    - 输出：`CONTROL_SENDER_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/getter_services_round8_scene_test.tscn`
+    - 输出：`GETTER_SERVICES_ROUND8_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+    - 未出现 `SCRIPT ERROR / Compile Error / Parse Error`（保留既有 UID warning）。
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何生成文件。
+
+### 7.15 viewer 修复记录（Round 9 补充，2026-03-03）
+- 根据 `rm_synapse/net/mqtt/services/REVIEW_ROUND8.md` Round9 “仍需处理”继续修复。
+
+- [中] `MQTTClientSetter` 误判“已绑定”导致可能跳过真实绑定：
+  - 修复文件：`rm_synapse/net/mqtt/services/mqtt_client_setter/mqtt_client_setter.gd`
+  - 修复点：
+    - `_bind_adapter_transport()` 去掉 `adapter.transport_path == transport.get_path()` 的提前返回。
+    - 统一走公开 API：`adapter.bind_transport(transport)`。
+  - 目的：避免“路径一致但未真实绑定/实例替换同路径”时漏绑。
+
+- [低] Round8 汇总测试补充关键信号断言：
+  - 修复文件：`rm_synapse/net/mqtt/tests/getter_services_round8_scene_test.gd`
+  - 新增断言覆盖：
+    - `RobotDynamicStatusService`
+      - `health_changed`
+      - `energy_changed`
+      - `combat_state_changed`
+      - `robot_dynamic_status_updated`
+    - `RobotRespawnStatusService`
+      - `respawn_pending_changed`
+      - `respawn_progress_changed`
+      - `robot_respawn_status_updated`
+    - `BuffService`
+      - `buff_target_changed`
+      - `buff_timer_changed`
+      - `buff_updated`
+
+- 补充 `MQTTClientSetter` 独立场景测试：
+  - 新增文件：
+    - `rm_synapse/net/mqtt/tests/mqtt_client_setter_scene_test.gd`
+    - `rm_synapse/net/mqtt/tests/mqtt_client_setter_scene_test.tscn`
+  - 断言点：
+    - 即使 `adapter.transport_path` 与 `transport.get_path()` 已一致，也会调用 `bind_transport`。
+
+- 文档同步：
+  - 更新 `rm_synapse/net/mqtt/services/mqtt_client_setter/README.md`，明确绑定路径走公开 `bind_transport`。
+
+- 本轮验证：
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/mqtt_client_setter_scene_test.tscn`
+    - 输出：`MQTT_CLIENT_SETTER_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/getter_services_round8_scene_test.tscn`
+    - 输出：`GETTER_SERVICES_ROUND8_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+    - 未出现 `SCRIPT ERROR / Compile Error / Parse Error`（保留既有 UID warning）。
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何生成文件。
+
+### 7.16 viewer 修复记录（Round 11，2026-03-03）
+- 根据 `rm_synapse/net/mqtt/services/REVIEW_ROUND8.md` Round 11 新发现继续修复：
+
+- [低] `force_rebind` 配置项恢复有效语义：
+  - 修复文件：`rm_synapse/net/mqtt/adapter/protocol_adapter.gd`
+    - 新增公开方法：`is_transport_bound(node: Node) -> bool`（不暴露私有字段，仅提供绑定状态查询）。
+  - 修复文件：`rm_synapse/net/mqtt/services/mqtt_client_setter/mqtt_client_setter.gd`
+    - `_bind_adapter_transport()` 逻辑更新：
+      - 当 `force_rebind == false` 且 `adapter.is_transport_bound(transport)` 为真时跳过重绑。
+      - 否则调用公开 API `adapter.bind_transport(transport)`。
+    - 结果：`force_rebind` 在 Inspector 中重新影响行为，不再是“导出但无效”。
+
+- 文档同步：
+  - 更新 `rm_synapse/net/mqtt/services/mqtt_client_setter/README.md`：补充 `force_rebind` 的行为定义。
+
+- 测试更新：
+  - 更新 `rm_synapse/net/mqtt/tests/mqtt_client_setter_scene_test.gd`：
+    - 验证 `force_rebind=false` 时已绑定目标 transport 会跳过。
+    - 验证目标 transport 实例变化时仍会绑定。
+    - 验证 `force_rebind=true` 时会强制触发绑定。
+
+- 本轮验证：
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/mqtt_client_setter_scene_test.tscn`
+    - 输出：`MQTT_CLIENT_SETTER_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/getter_services_round8_scene_test.tscn`
+    - 输出：`GETTER_SERVICES_ROUND8_SCENE_TEST_OK`
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+    - 未出现 `SCRIPT ERROR / Compile Error / Parse Error`（保留既有 UID warning）。
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何生成文件。

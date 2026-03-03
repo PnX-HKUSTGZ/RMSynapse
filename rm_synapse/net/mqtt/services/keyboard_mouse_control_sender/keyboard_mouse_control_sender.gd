@@ -12,7 +12,8 @@ var _timer: Timer
 var _logged_missing: bool = false
 
 func _ready() -> void:
-	adapter_getter = MQTTProtocolAdapterGetter.new()
+	if adapter_getter == null:
+		adapter_getter = MQTTProtocolAdapterGetter.new()
 	_timer = Timer.new()
 	_timer.one_shot = false
 	_timer.wait_time = SEND_INTERVAL_SEC
@@ -57,7 +58,11 @@ func _get_adapter() -> ProtocolAdapter:
 			Log.error("[KeyboardMouseControlSender] adapter_getter is not set.")
 			_logged_missing = true
 		return null
-	var adapter = adapter_getter.get_adapter()
+	var adapter = null
+	if adapter_getter.has_method("get_adapter_silent"):
+		adapter = adapter_getter.get_adapter_silent()
+	else:
+		adapter = adapter_getter.get_adapter()
 	if adapter == null:
 		if not _logged_missing:
 			Log.error("[KeyboardMouseControlSender] ProtocolAdapter not available.")
