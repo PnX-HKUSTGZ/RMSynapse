@@ -20,6 +20,9 @@ var acc := 0.0
 # 本地事件服务实例（用于接收游戏内事件）
 var event = EventService.new()
 
+# GameStatusService
+var game_status_service = GameStatusService.new()
+
 # 当 HUD 节点进入场景树时调用
 # 负责初始化 CEF 连接、事件绑定和输入处理
 func _ready():
@@ -34,6 +37,11 @@ func _ready():
 			page_ready = (status >= 200 and status < 300)
 			print("CEF load_finished status=", status, " page_ready=", page_ready)
 		)
+
+	if game_status_service.get_parent() == null:
+		add_child(game_status_service)
+	if not game_status_service.game_status_updated.is_connected(_on_game_status_updated):
+		game_status_service.game_status_updated.connect(_on_game_status_updated)
 
 # 调试用输入处理：
 # - test_20hz：开启 100Hz 推送
@@ -51,6 +59,8 @@ func _input(event):
 		update_rate = 0.0
 		print("Stop update")
 
+func _on_game_status_updated(new_status):
+	print("Game status changed: ", new_status)
 
 # 每帧调用
 # 使用累加器模式按固定频率推送数据

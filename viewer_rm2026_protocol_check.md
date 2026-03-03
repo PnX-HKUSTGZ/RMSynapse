@@ -201,3 +201,70 @@
   - 代码位置：`rm_synapse/net/mqtt/services/event/event_service.gd:44-49,286-295`
   - 现象：枚举保留 `BOTH=3`，但 `_parse_side()` 仅返回 `ALLY/ENEMY/UNKNOWN`；测试也将 `param=3` 断言为 `UNKNOWN`。
   - 风险：对外接口语义不自洽，调用方可能误以为会收到 `BOTH`。
+
+### 7.7 继续 Review 记录（补充，2026-03-03）
+- [中] `GlobalSpecialMechanismService` 缺少自动重试绑定，存在“启动时机依赖”
+  - 代码位置：`rm_synapse/net/mqtt/services/global_special_mechanism_service.gd:33-35,73-89`
+  - 现象：仅在 `_ready()` 与 `get_active_effects()` 调用时尝试绑定 adapter；若节点启动早于 `/root/Mqtt/Adapter` 且上层不主动轮询 `get_active_effects()`，将长期未绑定。
+  - 风险：服务可能静默失效（无法接收 `GlobalSpecialMechanism` 更新），问题依赖时序，现场复现不稳定。
+
+- [低] `IdMap` 的机器人类型文案与协议语义不完全一致
+  - 代码位置：`rm_synapse/utile/id_map.gd:61-73`
+  - 现象：`ROBOT_TYPE_NAME[9] = "雷达/前哨"`，但协议附录二中 `9` 为雷达、`10` 为前哨站。
+  - 风险：UI 文案和日志解释可能产生歧义（尤其在按 `type_id` 显示时）。
+
+- [低] 场景资源 UID 出现漂移告警（运行可回退到 path，但会污染日志）
+  - 复现命令：`/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+  - 告警涉及：`rm_synapse/net/mqtt/mqtt.tscn`、`rm_synapse/utile/log/log.tscn`、`rm_synapse/net/mqtt/tests/mqtt_debug.tscn`
+  - 现象：`ext_resource, invalid UID ... using text path instead`
+  - 风险：短期不影响加载，但会增加噪声并降低资源引用一致性（跨分支/跨机器合并更易出现误差）。
+
+### 7.8 viewer 修复记录（Round 3，2026-03-03）
+- 已修复 `rm_synapse/ui/hud.gd` 的 GameStatus 接入问题：
+  - 将错误信号连接 `game_status_changed` 改为真实存在的 `game_status_updated`。
+  - 回调函数统一为 `_on_game_status_updated(new_status)`。
+  - 在 `_ready()` 中补充 `add_child(game_status_service)`（仅当尚未入树），确保 `GameStatusService` 的 `_ready/_process` 自动绑定逻辑会执行。
+
+- 本轮验证：
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --quit --scene Main.tscn`
+    - 未再出现 `Attempt to connect nonexistent signal 'game_status_changed'`。
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+    - 未出现 `SCRIPT ERROR / Compile Error / Parse Error`（保留既有资源 UID 警告）。
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何生成文件。
+
+### 7.9 viewer 修复记录（Round 4，2026-03-03）
+- 已修复 `GameStatusService` 的运行期 adapter 替换风险：
+  - 文件：`rm_synapse/net/mqtt/services/game_status/game_status_service.gd`
+  - 变更点：
+    - 增加 `_bound_adapter` 跟踪当前连接对象。
+    - `_process()` 按 `bind_retry_interval_sec` 持续执行绑定探测，不再在首次成功后停止。
+    - 检测到 adapter 变化时，自动断开旧 adapter 的 `game_status` 连接并重连新 adapter。
+    - getter 返回 `null`/非对象/缺失 `game_status` 信号时，服务会回退未绑定状态并保留节流日志。
+    - `GameStatusService` 退出树时新增解绑，避免悬挂连接。
+
+- 已补齐“运行时绑定路径”自动化覆盖：
+  - 更新：`rm_synapse/net/mqtt/tests/game_status_service_test.gd`
+    - 新增 FakeAdapter/FakeAdapterGetter 路径，覆盖“延迟绑定 + adapter 替换重绑”。
+  - 新增稳定测试入口（场景模式）：
+    - `rm_synapse/net/mqtt/tests/game_status_service_scene_test.gd`
+    - `rm_synapse/net/mqtt/tests/game_status_service_scene_test.tscn`
+    - 目的：规避 `-s` 脚本模式下已知的 `Log` 编译噪声假阳性。
+
+- 本轮验证：
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/game_status_service_scene_test.tscn`
+    - 输出：`GAME_STATUS_SERVICE_SCENE_TEST_OK`。
+  - `/home/pnx/godot/bin/godot --headless --path rm_synapse --import --quit`
+    - 未出现 `SCRIPT ERROR / Compile Error / Parse Error`（保留既有 UID 警告）。
+
+- 约束确认：
+  - 未直接修改 `rm_synapse/net/mqtt/proto/generated/` 下任何生成文件。
+
+### 7.10 viewer 修复记录（Round 4 补充，2026-03-03）
+- 测试噪声优化：
+  - 在以下测试中预置 `delayed_service._logged_missing = true`，避免“故意延迟注入 adapter”时打印一次预期内错误日志：
+    - `rm_synapse/net/mqtt/tests/game_status_service_test.gd`
+    - `rm_synapse/net/mqtt/tests/game_status_service_scene_test.gd`
+- 复验：`/home/pnx/godot/bin/godot --headless --path rm_synapse --scene net/mqtt/tests/game_status_service_scene_test.tscn`
+  - 输出 `GAME_STATUS_SERVICE_SCENE_TEST_OK`，无该项干扰性错误日志。

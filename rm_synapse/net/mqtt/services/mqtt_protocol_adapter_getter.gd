@@ -7,11 +7,7 @@ class_name MQTTProtocolAdapterGetter
 @export var transport_path: NodePath = NodePath("/root/Mqtt/Transport")
 
 func get_adapter() -> ProtocolAdapter:
-	var root = _get_tree_root()
-	if root == null:
-		_log_warn("[MQTTProtocolAdapterGetter] SceneTree root is not available.")
-		return null
-	var adapter = root.get_node_or_null(adapter_path) as ProtocolAdapter
+	var adapter = get_adapter_silent()
 	if adapter == null:
 		_log_warn("[MQTTProtocolAdapterGetter] Adapter not found at %s" % str(adapter_path))
 	return adapter
@@ -25,6 +21,12 @@ func get_transport() -> NetworkTransport:
 	if transport == null:
 		_log_warn("[MQTTProtocolAdapterGetter] Transport not found at %s" % str(transport_path))
 	return transport
+
+func get_adapter_silent() -> ProtocolAdapter:
+	var root = _get_tree_root()
+	if root == null:
+		return null
+	return root.get_node_or_null(adapter_path) as ProtocolAdapter
 
 func _log_warn(message: String) -> void:
 	var root = _get_tree_root()
