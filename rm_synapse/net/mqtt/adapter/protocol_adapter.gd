@@ -1,4 +1,4 @@
-﻿extends Node
+extends Node
 class_name ProtocolAdapter
 
 signal decoded_message(topic, message)

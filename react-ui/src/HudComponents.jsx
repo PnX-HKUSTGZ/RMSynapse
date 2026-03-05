@@ -14,8 +14,10 @@ import {
 } from 'lucide-react';
 import { DEFAULT_UI_STATE, deepMerge, toPercent } from './uiState';
 
-function MechaHUD({ mecha, maxValues }) {
+function MechaHUD({ mecha, maxValues, uiSizing }) {
   const mergedMecha = deepMerge(DEFAULT_UI_STATE.mecha, mecha ?? {});
+  const mergedSizing = { ...DEFAULT_UI_STATE.uiSizing, ...(uiSizing ?? {}) };
+  const mechaHudScale = mergedSizing.mechaHudScale > 0 ? mergedSizing.mechaHudScale : 1;
   const maxHp = maxValues?.mechaHp ?? DEFAULT_UI_STATE.maxValues.mechaHp;
   const maxBoost = maxValues?.mechaBoost ?? DEFAULT_UI_STATE.maxValues.mechaBoost;
   const maxPower = maxValues?.mechaPower ?? DEFAULT_UI_STATE.maxValues.mechaPower;
@@ -38,7 +40,10 @@ function MechaHUD({ mecha, maxValues }) {
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden font-mono select-none z-0">
-      <div className="absolute bottom-12 left-8 flex flex-col gap-2 w-[420px] z-10 drop-shadow-lg">
+      <div
+        className="absolute bottom-12 left-8 flex flex-col gap-2 w-[420px] z-10 drop-shadow-lg"
+        style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom left' }}
+      >
         <div className="flex items-end justify-between px-2 text-emerald-400 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold tracking-wider drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]">
@@ -120,8 +125,12 @@ function MechaHUD({ mecha, maxValues }) {
         </div>
       </div>
 
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center w-[400px] z-10 drop-shadow-lg">
-        <div className="w-full relative">
+      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 drop-shadow-lg">
+        <div
+          className="flex flex-col items-center w-[400px]"
+          style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom center' }}
+        >
+          <div className="w-full relative">
           <div className="absolute -top-5 w-full flex justify-between px-2 text-xs font-bold text-cyan-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
             <span className="flex items-center gap-1 drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">
               <ChevronsRight size={14}/> {mergedMecha.boostLabel}
@@ -131,12 +140,13 @@ function MechaHUD({ mecha, maxValues }) {
             </span>
           </div>
 
-          <div className="w-full h-4 filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
-            <div className="w-full h-full bg-slate-900/60 border border-cyan-500/60 p-0.5 skew-x-[-15deg] backdrop-blur-md">
-              <div
-                className={`h-full ${boostColor} transition-all duration-100 ease-out`}
-                style={{ width: `${toPercent(boost, maxBoost)}%` }}
-              />
+            <div className="w-full h-4 filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+              <div className="w-full h-full bg-slate-900/60 border border-cyan-500/60 p-0.5 skew-x-[-15deg] backdrop-blur-md">
+                <div
+                  className={`h-full ${boostColor} transition-all duration-100 ease-out`}
+                  style={{ width: `${toPercent(boost, maxBoost)}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -145,8 +155,10 @@ function MechaHUD({ mecha, maxValues }) {
   );
 }
 
-function CenterCombatHUD({ centerHud }) {
+function CenterCombatHUD({ centerHud, uiSizing }) {
   const hud = deepMerge(DEFAULT_UI_STATE.centerHud, centerHud ?? {});
+  const mergedSizing = { ...DEFAULT_UI_STATE.uiSizing, ...(uiSizing ?? {}) };
+  const centerHudScale = mergedSizing.centerHudScale > 0 ? mergedSizing.centerHudScale : 1;
 
   const ammo = hud.ammo ?? 0;
   const maxAmmo = hud.maxAmmo > 0 ? hud.maxAmmo : 1;
@@ -171,7 +183,7 @@ function CenterCombatHUD({ centerHud }) {
 
   return (
     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none">
-      <div className="relative w-[400px] h-[300px] flex items-center justify-center">
+      <div className="relative w-[400px] h-[300px] flex items-center justify-center" style={{ transform: `scale(${centerHudScale})`, transformOrigin: 'center center' }}>
         <div className="absolute z-10 flex items-center justify-center">
           <div className="absolute flex items-center justify-center pointer-events-none">
             <svg width="80" height="80" className="transform -rotate-90 transition-all duration-75" style={{ opacity: isShooting ? 0.6 : 1 }}>
@@ -248,15 +260,21 @@ function TopCoreLayout({
   outposts,
   stats,
   leftRobots,
-  rightRobots
+  rightRobots,
+  uiSizing
 }) {
+  const mergedSizing = { ...DEFAULT_UI_STATE.uiSizing, ...(uiSizing ?? {}) };
+  const topCoreScale = mergedSizing.topCoreScale > 0 ? mergedSizing.topCoreScale : 1;
   const time = {
     m: Math.floor(timeLeft / 60).toString().padStart(2, '0'),
     s: (timeLeft % 60).toString().padStart(2, '0')
   };
 
   return (
-    <div className="relative z-10 w-full max-w-[1700px] flex flex-col items-center mt-2 pointer-events-auto">
+    <div
+      className="relative z-10 w-full max-w-[1700px] flex flex-col items-center mt-2 pointer-events-auto"
+      style={{ transform: `scale(${topCoreScale})`, transformOrigin: 'top center' }}
+    >
       <div className="flex items-center justify-center w-full gap-[2px]">
         <div className="w-[120px] h-9 glass-panel border-t border-b border-red-500/40 skew-x-[-20deg] flex flex-col relative overflow-hidden shadow-lg transition-colors">
           <div className="absolute inset-0 flex justify-end opacity-50">
