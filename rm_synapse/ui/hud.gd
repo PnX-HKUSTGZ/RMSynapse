@@ -13,6 +13,7 @@ extends CanvasLayer
 
 # CEF 纹理节点引用（通过 eval 执行前端 JS）
 @onready var web = $CefTexture
+@onready var map_web = $CefMap
 
 # 页面是否成功加载（HTTP 状态码 2xx 视为成功）
 
@@ -78,6 +79,13 @@ func _input(event):
 	if event.is_action_pressed("test_stop"):
 		update_rate = 0.0
 		print("Stop update")
+
+	if event.is_action_pressed("map"):
+		if map_web:
+			map_web.visible = !map_web.visible
+			if map_web.visible:
+				map_web.move_to_front()
+			print("Toggle map UI:", map_web.visible)
 
 func _on_game_status_updated(new_status):
 	print("Game status changed: ", new_status)

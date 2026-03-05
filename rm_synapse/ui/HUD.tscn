@@ -1,12 +1,19 @@
 [gd_scene load_steps=2 format=3 uid="uid://ei2omptha3b0"]
 
-[ext_resource type="Script" path="res://ui/hud.gd" id="1_1x8ju"]
+[ext_resource type="Script" uid="uid://ds7usuwpkh34x" path="res://ui/hud.gd" id="1_1x8ju"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_1x8ju")
 
 [node name="CefTexture" type="CefTexture" parent="."]
 url = "res://ui/web/index.html"
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="CefMap" type="CefTexture" parent="."]
+url = "res://ui/web/map.html"
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
