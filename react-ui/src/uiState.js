@@ -161,6 +161,15 @@ const DEFAULT_UI_STATE = {
     isShooting: false,
     overheatLabel: 'OVERHEAT'
   },
+  boostBuffs: [
+    { id: 1, type: 'attack', name: '攻击', time: 15, icon: 'sword', color: 'rose' },
+    { id: 2, type: 'defense', name: '防御', time: 8, icon: 'shield', color: 'blue' },
+    { id: 3, type: 'cooling', name: '冷却', time: 22, icon: 'snowflake', color: 'cyan' },
+    { id: 4, type: 'power', name: '功率', time: 5, icon: 'zap', color: 'amber' },
+    { id: 5, type: 'regen', name: '回血', time: 12, icon: 'heartPlus', color: 'emerald' },
+    { id: 6, type: 'ammo', name: '弹量', time: 30, icon: 'crosshair', color: 'violet' },
+    { id: 7, type: 'terrain', name: '跨越', time: 0, icon: 'mountain', color: 'stone' }
+  ],
   miniMap: {
     title: '小地图',
     imageSrc: './map.png',

@@ -10,13 +10,38 @@ import {
   CheckCircle2,
   ChevronsRight,
   Sword,
-  Shield
+  Shield,
+  Snowflake,
+  HeartPlus,
+  Mountain
 } from 'lucide-react';
 import { DEFAULT_UI_STATE, deepMerge, toPercent } from './uiState';
 
-function MechaHUD({ mecha, maxValues, uiSizing }) {
+const BUFF_ICON_MAP = {
+  sword: Sword,
+  shield: Shield,
+  snowflake: Snowflake,
+  zap: Zap,
+  heartPlus: HeartPlus,
+  crosshair: Crosshair,
+  mountain: Mountain
+};
+
+const BUFF_COLOR_MAP = {
+  rose: { border: 'border-rose-500/60', text: 'text-rose-400', glow: 'drop-shadow-[0_0_3px_rgba(244,63,94,0.8)]' },
+  blue: { border: 'border-blue-500/60', text: 'text-blue-400', glow: 'drop-shadow-[0_0_3px_rgba(59,130,246,0.8)]' },
+  cyan: { border: 'border-cyan-500/60', text: 'text-cyan-400', glow: 'drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]' },
+  amber: { border: 'border-amber-500/60', text: 'text-amber-400', glow: 'drop-shadow-[0_0_3px_rgba(251,191,36,0.8)]' },
+  emerald: { border: 'border-emerald-500/60', text: 'text-emerald-400', glow: 'drop-shadow-[0_0_3px_rgba(16,185,129,0.8)]' },
+  violet: { border: 'border-violet-500/60', text: 'text-violet-400', glow: 'drop-shadow-[0_0_3px_rgba(139,92,246,0.8)]' },
+  stone: { border: 'border-stone-500/60', text: 'text-stone-400', glow: 'drop-shadow-[0_0_3px_rgba(168,162,158,0.8)]' }
+};
+
+function MechaHUD({ mecha, maxValues, uiSizing, boostBuffs }) {
   const mergedMecha = deepMerge(DEFAULT_UI_STATE.mecha, mecha ?? {});
   const mergedSizing = { ...DEFAULT_UI_STATE.uiSizing, ...(uiSizing ?? {}) };
+  const mergedBoostBuffs = Array.isArray(boostBuffs) ? boostBuffs : DEFAULT_UI_STATE.boostBuffs;
+  const activeBoostBuffs = mergedBoostBuffs.filter((buff) => (Number(buff?.time) || 0) > 0);
   const mechaHudScale = mergedSizing.mechaHudScale > 0 ? mergedSizing.mechaHudScale : 1;
   const maxHp = maxValues?.mechaHp ?? DEFAULT_UI_STATE.maxValues.mechaHp;
   const maxBoost = maxValues?.mechaBoost ?? DEFAULT_UI_STATE.maxValues.mechaBoost;
@@ -131,14 +156,36 @@ function MechaHUD({ mecha, maxValues, uiSizing }) {
           style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom center' }}
         >
           <div className="w-full relative">
-          <div className="absolute -top-5 w-full flex justify-between px-2 text-xs font-bold text-cyan-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-            <span className="flex items-center gap-1 drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">
-              <ChevronsRight size={14}/> {mergedMecha.boostLabel}
-            </span>
-            <span className="text-white drop-shadow-[0_0_2px_#fff]">
-              {Math.round(boost)} <span className="text-cyan-500/90">/ {maxBoost}</span>
-            </span>
-          </div>
+            <div className="absolute bottom-full mb-5 w-full flex justify-center flex-wrap gap-1.5 px-2">
+              {activeBoostBuffs.map((buff) => {
+                const IconComponent = BUFF_ICON_MAP[buff.icon] ?? Snowflake;
+                const colors = BUFF_COLOR_MAP[buff.color] ?? BUFF_COLOR_MAP.cyan;
+                const timeLeft = Math.max(0, Math.ceil(Number(buff.time) || 0));
+
+                return (
+                  <div
+                    key={buff.id}
+                    className={`h-[22px] px-1.5 flex items-center justify-center bg-slate-900/80 border ${colors.border} skew-x-[-15deg] backdrop-blur-md shadow-sm ${colors.glow} transition-all duration-300`}
+                  >
+                    <div className="flex items-center gap-1 skew-x-[15deg]">
+                      <IconComponent size={12} className={colors.text} />
+                      <span className={`text-[10px] font-bold ${colors.text} leading-none pt-[1px] ${colors.glow} drop-shadow-[0_1px_1px_rgba(0,0,0,1)]`}>
+                        {timeLeft}s
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="absolute -top-5 w-full flex justify-between px-2 text-xs font-bold text-cyan-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+              <span className="flex items-center gap-1 drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">
+                <ChevronsRight size={14}/> {mergedMecha.boostLabel}
+              </span>
+              <span className="text-white drop-shadow-[0_0_2px_#fff]">
+                {Math.round(boost)} <span className="text-cyan-500/90">/ {maxBoost}</span>
+              </span>
+            </div>
 
             <div className="w-full h-4 filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
               <div className="w-full h-full bg-slate-900/60 border border-cyan-500/60 p-0.5 skew-x-[-15deg] backdrop-blur-md">

@@ -46,6 +46,7 @@ export default function App() {
     robots,
     mecha,
     centerHud,
+    boostBuffs,
     miniMap
   } = uiState;
 
@@ -149,7 +150,7 @@ export default function App() {
       />
 
       <CenterCombatHUD centerHud={centerHud} uiSizing={uiSizing} />
-      <MechaHUD mecha={mecha} maxValues={maxValues} uiSizing={uiSizing} />
+      <MechaHUD mecha={mecha} maxValues={maxValues} uiSizing={uiSizing} boostBuffs={boostBuffs} />
 
       <MiniMapHUD
         miniMap={{ ...mergedMiniMap, players: miniMapPlayers }}
