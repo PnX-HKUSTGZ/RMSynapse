@@ -6,17 +6,29 @@ extends CanvasLayer
 # 3. 监听游戏事件（例如 kill_event）
 
 # CEF 纹理节点引用（通过 eval 执行前端 JS）
+# HUD 层职责：
+# 1. 连接嵌入式 CEF Web UI
+# 2. 定时向前端推送游戏状态数据（如血量、基地信息等）
+# 3. 监听游戏事件（例如 kill_event）
+
+# CEF 纹理节点引用（通过 eval 执行前端 JS）
 @onready var web = $CefTexture
+
+# 页面是否成功加载（HTTP 状态码 2xx 视为成功）
 
 # 页面是否成功加载（HTTP 状态码 2xx 视为成功）
 var page_ready := false
 
 # 数据推送间隔（秒），例如 0.02 表示 50Hz
+# 数据推送间隔（秒），例如 0.02 表示 50Hz
 var update_rate := 0.0
+
+# 时间累加器，用于控制固定频率推送
 
 # 时间累加器，用于控制固定频率推送
 var acc := 0.0
 
+# 本地事件服务实例（用于接收游戏内事件）
 # 本地事件服务实例（用于接收游戏内事件）
 var event = EventService.new()
 

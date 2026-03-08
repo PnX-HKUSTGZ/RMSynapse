@@ -36,9 +36,35 @@ function normalizeIncomingData(data) {
   return normalized;
 }
 
+const DEFAULT_MINI_MAP_PLAYERS = [
+  { id: 'red-1', team: 'red', number: 1, x: 12, y: 15, rotation: 90 },
+  { id: 'red-2', team: 'red', number: 2, x: 12, y: 29, rotation: 90 },
+  { id: 'red-3', team: 'red', number: 3, x: 12, y: 43, rotation: 90 },
+  { id: 'red-4', team: 'red', number: 4, x: 12, y: 57, rotation: 90 },
+  { id: 'red-6', team: 'red', number: 6, x: 12, y: 71, rotation: 90 },
+  { id: 'red-7', team: 'red', number: 7, x: 12, y: 85, rotation: 90 },
+  { id: 'blue-1', team: 'blue', number: 1, x: 88, y: 15, rotation: 270 },
+  { id: 'blue-2', team: 'blue', number: 2, x: 88, y: 29, rotation: 270 },
+  { id: 'blue-3', team: 'blue', number: 3, x: 88, y: 43, rotation: 270 },
+  { id: 'blue-4', team: 'blue', number: 4, x: 88, y: 57, rotation: 270 },
+  { id: 'blue-6', team: 'blue', number: 6, x: 88, y: 71, rotation: 270 },
+  { id: 'blue-7', team: 'blue', number: 7, x: 88, y: 85, rotation: 270 }
+];
+
 // 默认 UI 数据（当 Godot 还没推送任何数据时使用）
 const DEFAULT_UI_STATE = {
   forceBlackBg: false,
+  uiSizing: {
+    topCoreScale: 1,
+    centerHudScale: 1,
+    mechaHudScale: 1,
+    miniMapScale: 0.75,
+    miniMapWidth: 420,
+    miniMapHeight: 236,
+    miniMapMarkerSize: 24,
+    miniMapBottom: 16,
+    miniMapRight: 16
+  },
   roundLabel: 'Round 2/5',
   labels: {
     outpost: '前哨站',
@@ -134,7 +160,15 @@ const DEFAULT_UI_STATE = {
     defenseBuffTime: 10,
     isShooting: false,
     overheatLabel: 'OVERHEAT'
+  },
+  miniMap: {
+    title: '小地图',
+    imageSrc: './map.png',
+    imageAlt: 'RoboMaster Map',
+    interactive: true,
+    currentPlayerId: 'red-1',
+    players: DEFAULT_MINI_MAP_PLAYERS
   }
 };
 
-export { DEFAULT_UI_STATE, deepMerge, normalizeIncomingData, toPercent };
+export { DEFAULT_MINI_MAP_PLAYERS, DEFAULT_UI_STATE, deepMerge, normalizeIncomingData, toPercent };
