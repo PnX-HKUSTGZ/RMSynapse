@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 Mqtt="*res://net/mqtt/mqtt.tscn"
+CustomControllerBridge="*res://net/custom_controller/custom_controller_bridge.tscn"
 Log="*res://utile/log/log.tscn"
 
 [display]
@@ -26,6 +27,10 @@ window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/resizable=false
 window/size/borderless=true
+
+[dotnet]
+
+project/assembly_name="rm_synapse"
 
 [input]
 

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://net/custom_controller/tests/custom_controller_bridge_scene_test.gd" id="1"]
+
+[node name="CustomControllerBridgeSceneTest" type="Node"]
+script = ExtResource("1")
