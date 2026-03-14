@@ -1,6 +1,65 @@
 extends Node
 class_name HudDataBridge
 
+# Bridge 输出说明（signal 与 getter 对应）：
+# - game_status_updated / get_game_status_state -> GameStatusState
+#   fields: current_round,total_rounds,red_score,blue_score,current_stage,current_stage_name,
+#           stage_countdown_sec,stage_elapsed_sec,is_paused,last_update_msec
+# - global_unit_status_updated / get_global_unit_status_state -> GlobalUnitStatusState
+#   fields: ally_base{health,status,shield},enemy_base{health,status,shield},
+#           ally_outpost{health,status},enemy_outpost{health,status},
+#           robot_health(Array[int]),robot_bullets(Array[int]),total_damage_ally,total_damage_enemy,last_update_msec
+# - global_logistics_status_updated / get_global_logistics_status_state -> GlobalLogisticsStatusState
+#   fields: remaining_economy,total_economy_obtained,tech_level,encryption_level,last_update_msec
+# - global_special_mechanism_updated / get_global_special_mechanism_state -> GlobalSpecialMechanismState
+#   fields: effects(Array[MechanismState{id,remaining_sec}]),last_update_msec
+# - event_received / get_last_event_message -> Event(proto message)
+#   proto fields: event_id(int32), param(String)
+# - robot_injury_stat_updated / get_robot_injury_stat_state -> RobotInjuryStatState
+#   fields: total_damage,collision_damage,small_projectile_damage,large_projectile_damage,
+#           dart_splash_damage,module_offline_damage,offline_damage,penalty_damage,server_kill_damage,killer_id,last_update_msec
+# - robot_respawn_status_updated / get_robot_respawn_status_state -> RobotRespawnStatusState
+#   fields: is_pending_respawn,total_respawn_progress,current_respawn_progress,
+#           can_free_respawn,gold_cost_for_respawn,can_pay_for_respawn,last_update_msec
+# - robot_static_status_updated / get_robot_static_status_state -> RobotStaticStatusState
+#   fields: connection_state,field_state,alive_state,robot_id,robot_type,performance_system_shooter,performance_system_chassis,
+#           level,max_health,max_heat,heat_cooldown_rate,max_power,max_buffer_energy,max_chassis_energy,last_update_msec
+# - robot_dynamic_status_updated / get_robot_dynamic_status_state -> RobotDynamicStatusState
+#   fields: current_health,current_heat,last_projectile_fire_rate,current_chassis_energy,current_buffer_energy,current_experience,
+#           experience_for_upgrade,total_projectiles_fired,remaining_ammo,is_out_of_combat,out_of_combat_countdown,
+#           can_remote_heal,can_remote_ammo,last_update_msec
+# - robot_module_status_updated / get_robot_module_status_state -> RobotModuleStatusState
+#   fields: power_manager,rfid,light_strip,small_shooter,big_shooter,uwb,armor,video_transmission,capacitor,
+#           main_controller,laser_detection_module,last_update_msec
+# - robot_position_updated / get_robot_position_state -> RobotPositionState
+#   fields: x,y,z,yaw,last_update_msec
+# - buff_updated / get_buff_state -> BuffState
+#   fields: robot_id,buff_type,buff_level,buff_max_time,buff_left_time,last_update_msec
+# - penalty_info_updated / get_penalty_info_state -> PenaltyInfoState
+#   fields: penalty_type,penalty_effect_sec,total_penalty_num,last_update_msec
+# - robot_path_plan_info_updated / get_robot_path_plan_info_state -> RobotPathPlanInfoState
+#   fields: intention,start_pos_x,start_pos_y,offsets(Array[PathPointOffset{dx,dy}]),sender_id,last_update_msec
+# - radar_info_updated / get_radar_info_state -> RadarInfoToClientState
+#   fields: target_robot_id,target_pos_x,target_pos_y,torward_angle,is_high_light,last_update_msec
+# - robot_performance_selection_sync_updated / get_robot_performance_selection_sync_state -> RobotPerformanceSelectionSyncState
+#   fields: shooter,chassis,sentry_control,last_update_msec
+# - deploy_mode_status_sync_updated / get_deploy_mode_status_sync_state -> DeployModeStatusSyncState
+#   fields: status,last_update_msec
+# - tech_core_motion_state_sync_updated / get_tech_core_motion_state_sync_state -> TechCoreMotionStateSyncState
+#   fields: maximum_difficulty_level,status,enemy_core_status,remain_time_all,remain_time_step,last_update_msec
+# - rune_status_sync_updated / get_rune_status_sync_state -> RuneStatusSyncState
+#   fields: rune_status,activated_arms,average_rings,last_update_msec
+# - sentry_status_sync_updated / get_sentry_status_sync_state -> SentryStatusSyncState
+#   fields: posture_id,is_weakened,last_update_msec
+# - dart_select_target_status_sync_updated / get_dart_select_target_status_sync_state -> DartSelectTargetStatusSyncState
+#   fields: target_id,open,last_update_msec
+# - sentry_ctrl_result_updated / get_sentry_ctrl_result_state -> SentryCtrlResultState
+#   fields: command_id,result_code,last_update_msec
+# - air_support_status_sync_updated / get_air_support_status_sync_state -> AirSupportStatusSyncState
+#   fields: airsupport_status,left_time,cost_coins,is_being_targeted,shooter_status,last_update_msec
+# - custom_byte_block_received / get_last_custom_byte_block_message -> CustomByteBlock(proto message)
+#   proto fields: data(PackedByteArray)
+
 # signal game_status_updated(state)
 # signal global_unit_status_updated(state)
 # signal global_logistics_status_updated(state)
