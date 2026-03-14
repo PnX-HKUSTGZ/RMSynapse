@@ -21,8 +21,8 @@ var update_rate := 0.0
 var acc := 0.0
 
 var event = EventService.new()
-var hud_data_bridge = HudDataBridge.new()
-
+var game_status_service = GameStatusService.new()
+var robot_static_status_service = RobotStaticStatusService.new()
 
 func _ready():
 	randomize()
@@ -38,12 +38,15 @@ func _ready():
 				_flush_pending_messages()
 		)
 
-	if hud_data_bridge.get_parent() == null:
-		add_child(hud_data_bridge)
-	if not hud_data_bridge.game_status_updated.is_connected(_on_game_status_updated):
-		hud_data_bridge.game_status_updated.connect(_on_game_status_updated)
-	if not hud_data_bridge.robot_static_status_updated.is_connected(_on_robot_static_status_updated):
-		hud_data_bridge.robot_static_status_updated.connect(_on_robot_static_status_updated)
+	if game_status_service.get_parent() == null:
+		add_child(game_status_service)
+	if not game_status_service.game_status_updated.is_connected(_on_game_status_updated):
+		game_status_service.game_status_updated.connect(_on_game_status_updated)
+
+	if robot_static_status_service.get_parent() == null:
+		add_child(robot_static_status_service)
+	if not robot_static_status_service.robot_static_status_updated.is_connected(_on_robot_static_status_updated):
+		robot_static_status_service.robot_static_status_updated.connect(_on_robot_static_status_updated)
 
 func _on_robot_static_status_updated(new_status):
 	print("Robot static status updated: ", new_status)
