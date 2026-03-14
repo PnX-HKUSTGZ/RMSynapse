@@ -194,7 +194,7 @@ func _bind_service_signals() -> void:
 func _connect_state_service_signal(service: Object, service_signal: StringName, bridge_signal: StringName) -> void:
 	if service == null or not service.has_signal(service_signal):
 		return
-	var relay := Callable(self, "_relay_state_signal").bind(String(bridge_signal))
+	var relay := Callable(self , "_relay_state_signal").bind(String(bridge_signal))
 	if not service.is_connected(service_signal, relay):
 		service.connect(service_signal, relay)
 
@@ -223,14 +223,14 @@ func _disconnect_adapter_signals() -> void:
 func _connect_adapter_signal(adapter_signal: StringName, bridge_signal: StringName) -> void:
 	if _bound_adapter == null or not _bound_adapter.has_signal(adapter_signal):
 		return
-	var relay := Callable(self, "_relay_adapter_signal").bind(String(bridge_signal))
+	var relay := Callable(self , "_relay_adapter_signal").bind(String(bridge_signal))
 	if not _bound_adapter.is_connected(adapter_signal, relay):
 		_bound_adapter.connect(adapter_signal, relay)
 
 func _disconnect_adapter_signal(adapter_signal: StringName, bridge_signal: StringName) -> void:
 	if _bound_adapter == null or not _bound_adapter.has_signal(adapter_signal):
 		return
-	var relay := Callable(self, "_relay_adapter_signal").bind(String(bridge_signal))
+	var relay := Callable(self , "_relay_adapter_signal").bind(String(bridge_signal))
 	if _bound_adapter.is_connected(adapter_signal, relay):
 		_bound_adapter.disconnect(adapter_signal, relay)
 

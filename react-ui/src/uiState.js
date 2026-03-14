@@ -26,14 +26,164 @@ function toPercent(value, max) {
   return Math.max(0, Math.min(100, (value / max) * 100));
 }
 
+const HANDLED_PROTO_KEYS = [
+  'GameStatus',
+  'GlobalUnitStatus',
+  'GlobalLogisticsStatus',
+  'Event',
+  'RobotRespawnStatus',
+  'RobotStaticStatus',
+  'RobotDynamicStatus'
+];
+
+function toFiniteNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toNonNegativeInt(value, fallback = 0) {
+  return Math.max(0, Math.trunc(toFiniteNumber(value, fallback)));
+}
+
+function buildEventMessageText(eventId, param) {
+  return `Event #${eventId}${param ? ` (${param})` : ''}`;
+}
+
+function buildProtoPatch(data) {
+  const patch = {};
+
+  if (isPlainObject(data.GameStatus)) {
+    const s = data.GameStatus;
+    const currentRound = toNonNegativeInt(s.current_round);
+    const totalRounds = toNonNegativeInt(s.total_rounds);
+    patch.timeLeft = toNonNegativeInt(s.stage_countdown_sec);
+    patch.scores = {
+      left: toNonNegativeInt(s.red_score),
+      right: toNonNegativeInt(s.blue_score)
+    };
+    if (totalRounds > 0) {
+      patch.roundLabel = `Round ${currentRound}/${totalRounds}`;
+    }
+  }
+
+  if (isPlainObject(data.GlobalUnitStatus)) {
+    const s = data.GlobalUnitStatus;
+    patch.bases = {
+      left: {
+        hp: toNonNegativeInt(s.ally_base?.health),
+        shield: toNonNegativeInt(s.ally_base?.shield),
+        state: toNonNegativeInt(s.ally_base?.status)
+      },
+      right: {
+        hp: toNonNegativeInt(s.enemy_base?.health),
+        shield: toNonNegativeInt(s.enemy_base?.shield),
+        state: toNonNegativeInt(s.enemy_base?.status)
+      }
+    };
+    patch.outposts = {
+      left: {
+        hp: toNonNegativeInt(s.ally_outpost?.health),
+        state: toNonNegativeInt(s.ally_outpost?.status)
+      },
+      right: {
+        hp: toNonNegativeInt(s.enemy_outpost?.health),
+        state: toNonNegativeInt(s.enemy_outpost?.status)
+      }
+    };
+  }
+
+  if (isPlainObject(data.GlobalLogisticsStatus)) {
+    const s = data.GlobalLogisticsStatus;
+    patch.stats = {
+      eco: toNonNegativeInt(s.remaining_economy),
+      totalEco: toNonNegativeInt(s.total_economy_obtained),
+      tech: toNonNegativeInt(s.tech_level),
+      radar: toNonNegativeInt(s.encryption_level)
+    };
+  }
+
+  if (isPlainObject(data.RobotStaticStatus)) {
+    const s = data.RobotStaticStatus;
+    patch.maxValues = {
+      mechaHp: toNonNegativeInt(s.max_health),
+      mechaBoost: toNonNegativeInt(s.max_buffer_energy),
+      mechaPower: toNonNegativeInt(s.max_power)
+    };
+    patch.mecha = {
+      pilotId: String(s.robot_id ?? 'HERO'),
+      pilotLevel: `LV.${toNonNegativeInt(s.level)}`
+    };
+    patch.centerHud = {
+      maxHeat: toNonNegativeInt(s.max_heat)
+    };
+  }
+
+  if (isPlainObject(data.RobotDynamicStatus)) {
+    const s = data.RobotDynamicStatus;
+    patch.mecha = {
+      hp: toNonNegativeInt(s.current_health),
+      boost: toNonNegativeInt(s.current_buffer_energy),
+      energy: toNonNegativeInt(s.current_chassis_energy),
+      ammo: toNonNegativeInt(s.remaining_ammo),
+      inCombat: !Boolean(s.is_out_of_combat),
+      combatTimer: toFiniteNumber(s.out_of_combat_countdown),
+      remoteHealReady: Boolean(s.can_remote_heal),
+      remoteAmmoReady: Boolean(s.can_remote_ammo)
+    };
+    patch.centerHud = {
+      ammo: toNonNegativeInt(s.remaining_ammo),
+      heat: toFiniteNumber(s.current_heat)
+    };
+  }
+
+  if (isPlainObject(data.RobotRespawnStatus)) {
+    const s = data.RobotRespawnStatus;
+    const total = toNonNegativeInt(s.total_respawn_progress);
+    const current = toNonNegativeInt(s.current_respawn_progress);
+    patch.respawn = {
+      isDead: Boolean(s.is_pending_respawn),
+      countdown: Math.max(total - current, 0),
+      reviveCost: toNonNegativeInt(s.gold_cost_for_respawn)
+    };
+  }
+
+  if (isPlainObject(data.Event)) {
+    const s = data.Event;
+    const eventId = toFiniteNumber(s.event_id, -1);
+    const param = String(s.param ?? '').trim();
+    const timestamp = Date.now();
+    patch.messageCenter = {
+      items: [
+        {
+          id: `event-${timestamp}-${eventId}`,
+          tag: `event-${eventId}`,
+          level: eventId === 16 ? 'critical' : 'important',
+          text: buildEventMessageText(eventId, param),
+          duration: 3500,
+          timestamp
+        }
+      ]
+    };
+  }
+
+  return patch;
+}
+
 function normalizeIncomingData(data) {
   if (!isPlainObject(data)) return {};
-  const normalized = { ...data };
-  if (normalized.blackBg != null && normalized.forceBlackBg == null) {
-    normalized.forceBlackBg = normalized.blackBg;
+  const incoming = { ...data };
+  if (incoming.blackBg != null && incoming.forceBlackBg == null) {
+    incoming.forceBlackBg = incoming.blackBg;
   }
-  delete normalized.blackBg;
-  return normalized;
+  delete incoming.blackBg;
+
+  const protoPatch = buildProtoPatch(incoming);
+  const normalized = { ...incoming };
+  HANDLED_PROTO_KEYS.forEach((key) => {
+    delete normalized[key];
+  });
+
+  return deepMerge(normalized, protoPatch);
 }
 
 const DEFAULT_MINI_MAP_PLAYERS = [
@@ -107,7 +257,7 @@ const DEFAULT_UI_STATE = {
     right: { hp: 0, state: 3 }
   },
   stats: {
-    eco: 0,
+    eco: 100,
     totalEco: 450,
     tech: 4,
     radar: 5
@@ -249,7 +399,7 @@ const DEFAULT_UI_STATE = {
     remoteAmmoReady: false
   },
   respawn: {
-    isDead: true,
+    isDead: false,
     countdown: 10,
     reviveCost: 500,
     scale: 0.8,
