@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CenterCombatHUD, MechaHUD, TopCoreLayout } from './HudComponents';
 import MiniMapHUD from './MiniMapHUD';
+import ReviveOverlay from './ReviveOverlay';
 import { DEFAULT_UI_STATE, deepMerge, normalizeIncomingData } from './uiState';
 
 export default function App() {
   const [uiState, setUiState] = useState(DEFAULT_UI_STATE);
-  const [lastMsg, setLastMsg] = useState('');
 
   useEffect(() => {
     window.godotPush = (payload) => {
@@ -20,8 +20,6 @@ export default function App() {
       }
 
       const normalizedData = normalizeIncomingData(data);
-      const now = new Date();
-      setLastMsg(now.toLocaleTimeString() + '.' + String(now.getMilliseconds()).padStart(3, '0'));
       setUiState((prev) => deepMerge(prev, normalizedData));
     };
 
@@ -47,7 +45,8 @@ export default function App() {
     mecha,
     centerHud,
     boostBuffs,
-    miniMap
+    miniMap,
+    respawn
   } = uiState;
 
   const leftRobots = Array.isArray(robots?.left) ? robots.left : DEFAULT_UI_STATE.robots.left;
@@ -72,6 +71,13 @@ export default function App() {
     });
     return hpMap;
   }, [leftRobots, rightRobots]);
+
+  const mergedRespawn = useMemo(
+    () => ({ ...DEFAULT_UI_STATE.respawn, ...(respawn ?? {}) }),
+    [respawn],
+  );
+
+  const currentEco = Number(stats?.eco) || 0;
 
   const handleMiniMapPlayerSelect = useCallback((playerId) => {
     setUiState((prev) => deepMerge(prev, { miniMap: { currentPlayerId: playerId } }));
@@ -105,12 +111,24 @@ export default function App() {
     });
   }, []);
 
+  const handleNormalRevive = useCallback(() => {
+    if (typeof window.godotOperate === 'function') {
+      window.godotOperate({ type: 'normalRevive' });
+      return;
+    }
+    console.log('[revive] normalRevive');
+  }, []);
+
+  const handleBuyRevive = useCallback(({ cost }) => {
+    if (typeof window.godotOperate === 'function') {
+      window.godotOperate({ type: 'buyRevive', cost });
+      return;
+    }
+    console.log('[revive] buyRevive', cost);
+  }, []);
+
   return (
     <div className={`min-h-screen ${forceBlackBg ? 'bg-black' : 'bg-transparent'} flex flex-col items-center pt-2 relative overflow-hidden font-sans text-white select-none`}>
-      <div className="absolute top-1 left-1 z-50 text-[10px] text-white/70 bg-black/30 px-2 py-1 rounded">
-        lastMsg: {lastMsg || '—'}
-      </div>
-
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap');
         .font-orbitron { font-family: 'Orbitron', sans-serif; }
@@ -158,6 +176,17 @@ export default function App() {
         robotHpById={robotHpById}
         onSelectPlayer={handleMiniMapPlayerSelect}
         onMoveCurrentPlayer={handleMiniMapMoveCurrentPlayer}
+      />
+
+      <ReviveOverlay
+        key={mergedRespawn.isDead ? 'respawn-dead' : 'respawn-alive'}
+        isDead={!!mergedRespawn.isDead}
+        countdown={mergedRespawn.countdown}
+        eco={currentEco}
+        reviveCost={mergedRespawn.reviveCost}
+        scale={mergedRespawn.scale}
+        onNormalRevive={handleNormalRevive}
+        onBuyRevive={handleBuyRevive}
       />
     </div>
   );

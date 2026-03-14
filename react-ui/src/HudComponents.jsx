@@ -429,13 +429,13 @@ function TopCoreLayout({
               <div className="flex items-center justify-between w-full cursor-pointer hover:opacity-80 transition-opacity">
                 <span className="text-[7px] text-blue-200 font-bold tracking-wider leading-none">{labels.eco}</span>
                 <div className="font-orbitron font-bold flex items-baseline gap-[1px] leading-none">
-                  <span className="text-[10px] text-blue-300 drop-shadow-[0_0_3px_rgba(96,165,250,0.8)]">{stats.right.eco}</span>
+                  <span className="text-[10px] text-blue-300 drop-shadow-[0_0_3px_rgba(96,165,250,0.8)]">{stats.eco}</span>
                   <span className="text-[7px] text-white/40">/</span>
-                  <span className="text-[7px] text-blue-200/50">{stats.right.totalEco}</span>
+                  <span className="text-[7px] text-blue-200/50">{stats.totalEco}</span>
                 </div>
               </div>
-              <LevelIndicator label={labels.tech} level={stats.right.tech} max={maxValues.techLevel} team="blue" />
-              <LevelIndicator label={labels.radar} level={stats.right.radar} max={maxValues.radarLevel} team="blue" />
+              <LevelIndicator label={labels.tech} level={stats.tech} max={maxValues.techLevel} team="blue" />
+              <LevelIndicator label={labels.radar} level={stats.radar} max={maxValues.radarLevel} team="blue" />
             </div>
           </div>
         </div>

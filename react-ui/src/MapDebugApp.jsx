@@ -1,6 +1,170 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import MiniMapHUD from './MiniMapHUD';
-import { DEFAULT_UI_STATE, deepMerge, normalizeIncomingData } from './uiState';
+import MapTopControls from './MapTopControls';
+import { DEFAULT_UI_STATE, normalizeIncomingData } from './uiState';
+
+function isPlainObject(value) {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeControlsState(base, incoming) {
+  const defaults = DEFAULT_UI_STATE.controls ?? {};
+  const prev = isPlainObject(base) ? base : defaults;
+  const patch = isPlainObject(incoming) ? incoming : {};
+  const next = { ...prev, ...patch };
+
+  next.infantrySettings = {
+    ...(prev.infantrySettings ?? defaults.infantrySettings ?? {}),
+    ...(patch.infantrySettings ?? {}),
+  };
+  next.heroSettings = {
+    ...(prev.heroSettings ?? defaults.heroSettings ?? {}),
+    ...(patch.heroSettings ?? {}),
+  };
+  next.sentrySettings = {
+    ...(prev.sentrySettings ?? defaults.sentrySettings ?? {}),
+    ...(patch.sentrySettings ?? {}),
+  };
+  next.costs = {
+    ...(prev.costs ?? defaults.costs ?? {}),
+    ...(patch.costs ?? {}),
+  };
+  next.ammoStore = {
+    infantry: {
+      normal: {
+        ...(prev.ammoStore?.infantry?.normal ?? defaults.ammoStore?.infantry?.normal ?? {}),
+        ...(patch.ammoStore?.infantry?.normal ?? {}),
+      },
+      airdrop: {
+        ...(prev.ammoStore?.infantry?.airdrop ?? defaults.ammoStore?.infantry?.airdrop ?? {}),
+        ...(patch.ammoStore?.infantry?.airdrop ?? {}),
+      },
+    },
+    hero: {
+      normal: {
+        ...(prev.ammoStore?.hero?.normal ?? defaults.ammoStore?.hero?.normal ?? {}),
+        ...(patch.ammoStore?.hero?.normal ?? {}),
+      },
+      airdrop: {
+        ...(prev.ammoStore?.hero?.airdrop ?? defaults.ammoStore?.hero?.airdrop ?? {}),
+        ...(patch.ammoStore?.hero?.airdrop ?? {}),
+      },
+    },
+  };
+
+  return next;
+}
+
+function pickMapPatch(data) {
+  if (!isPlainObject(data)) return null;
+
+  const patch = {};
+  if (isPlainObject(data.uiSizing)) {
+    patch.uiSizing = data.uiSizing;
+  }
+  if (isPlainObject(data.miniMap)) {
+    patch.miniMap = { ...data.miniMap, interactive: false };
+  }
+  if (isPlainObject(data.robots)) {
+    patch.robots = data.robots;
+  }
+  if (isPlainObject(data.stats)) {
+    patch.stats = data.stats;
+  }
+  if (isPlainObject(data.controls)) {
+    patch.controls = data.controls;
+  }
+
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
+function mergePendingPatch(base, incoming) {
+  if (!base) return incoming;
+  const next = { ...base };
+
+  if (isPlainObject(incoming.uiSizing)) {
+    next.uiSizing = isPlainObject(base.uiSizing)
+      ? { ...base.uiSizing, ...incoming.uiSizing }
+      : { ...incoming.uiSizing };
+  }
+
+  if (isPlainObject(incoming.miniMap)) {
+    const mergedMiniMap = isPlainObject(base.miniMap)
+      ? { ...base.miniMap, ...incoming.miniMap }
+      : { ...incoming.miniMap };
+    mergedMiniMap.interactive = false;
+    if (Array.isArray(incoming.miniMap.players)) {
+      mergedMiniMap.players = incoming.miniMap.players;
+    }
+    next.miniMap = mergedMiniMap;
+  }
+
+  if (isPlainObject(incoming.robots)) {
+    const mergedRobots = isPlainObject(base.robots)
+      ? { ...base.robots, ...incoming.robots }
+      : { ...incoming.robots };
+    if (Array.isArray(incoming.robots.left)) {
+      mergedRobots.left = incoming.robots.left;
+    }
+    if (Array.isArray(incoming.robots.right)) {
+      mergedRobots.right = incoming.robots.right;
+    }
+    next.robots = mergedRobots;
+  }
+
+  if (isPlainObject(incoming.stats)) {
+    next.stats = isPlainObject(base.stats) ? { ...base.stats, ...incoming.stats } : { ...incoming.stats };
+  }
+  if (isPlainObject(incoming.controls)) {
+    next.controls = mergeControlsState(base.controls, incoming.controls);
+  }
+
+  return next;
+}
+
+function applyMapPatch(prev, patch) {
+  if (!patch) return prev;
+
+  let next = prev;
+
+  if (isPlainObject(patch.uiSizing)) {
+    next = next === prev ? { ...prev } : next;
+    next.uiSizing = { ...prev.uiSizing, ...patch.uiSizing };
+  }
+
+  if (isPlainObject(patch.miniMap)) {
+    next = next === prev ? { ...prev } : next;
+    const mergedMiniMap = { ...prev.miniMap, ...patch.miniMap };
+    mergedMiniMap.interactive = false;
+    if (Array.isArray(patch.miniMap.players)) {
+      mergedMiniMap.players = patch.miniMap.players;
+    }
+    next.miniMap = mergedMiniMap;
+  }
+
+  if (isPlainObject(patch.robots)) {
+    next = next === prev ? { ...prev } : next;
+    const mergedRobots = { ...prev.robots, ...patch.robots };
+    if (Array.isArray(patch.robots.left)) {
+      mergedRobots.left = patch.robots.left;
+    }
+    if (Array.isArray(patch.robots.right)) {
+      mergedRobots.right = patch.robots.right;
+    }
+    next.robots = mergedRobots;
+  }
+
+  if (isPlainObject(patch.stats)) {
+    next = next === prev ? { ...prev } : next;
+    next.stats = { ...prev.stats, ...patch.stats };
+  }
+  if (isPlainObject(patch.controls)) {
+    next = next === prev ? { ...prev } : next;
+    next.controls = mergeControlsState(prev.controls, patch.controls);
+  }
+
+  return next;
+}
 
 function clonePlayers(players) {
   return players.map((player) => ({ ...player }));
@@ -14,35 +178,50 @@ function cloneRobots(robots) {
 }
 
 function createDefaultMapDebugState() {
+  const mapDebug = DEFAULT_UI_STATE.mapDebug ?? {};
+  const mapDebugSizing = mapDebug.uiSizing ?? {};
+
   return {
-    forceBlackBg: true,
     uiSizing: {
       ...DEFAULT_UI_STATE.uiSizing,
-      miniMapScale: 1,
-      miniMapWidth: 560,
-      miniMapHeight: 315,
-      miniMapMarkerSize: 28,
-      miniMapBottom: 20,
-      miniMapRight: 20
+      ...mapDebugSizing
     },
     miniMap: {
       ...DEFAULT_UI_STATE.miniMap,
-      title: '地图调试',
+      title: mapDebug.miniMapTitle ?? '地图',
+      interactive: false,
       players: clonePlayers(DEFAULT_UI_STATE.miniMap.players)
     },
     robots: cloneRobots(DEFAULT_UI_STATE.robots),
-    debug: {
-      title: 'Debug Console',
-      subtitle: 'Robot Info + Map'
-    }
+    stats: { ...DEFAULT_UI_STATE.stats },
+    controls: { ...DEFAULT_UI_STATE.controls }
   };
 }
 
 export default function MapDebugApp() {
   const [state, setState] = useState(() => createDefaultMapDebugState());
-  const [lastMsg, setLastMsg] = useState('');
+  const pendingPatchRef = useRef(null);
+  const rafIdRef = useRef(null);
+  const lastFlushAtRef = useRef(0);
+  const mapUpdateIntervalMs = Number(DEFAULT_UI_STATE.mapDebug?.updateIntervalMs) > 0
+    ? Number(DEFAULT_UI_STATE.mapDebug.updateIntervalMs)
+    : 33;
 
   useEffect(() => {
+    const flushStateUpdate = (timestamp) => {
+      if (timestamp - lastFlushAtRef.current < mapUpdateIntervalMs) {
+        rafIdRef.current = window.requestAnimationFrame(flushStateUpdate);
+        return;
+      }
+
+      lastFlushAtRef.current = timestamp;
+      const patch = pendingPatchRef.current;
+      pendingPatchRef.current = null;
+      rafIdRef.current = null;
+      if (!patch) return;
+      setState((prev) => applyMapPatch(prev, patch));
+    };
+
     const handler = (payload) => {
       let data = payload;
       if (typeof payload === 'string') {
@@ -55,9 +234,13 @@ export default function MapDebugApp() {
       }
 
       const normalized = normalizeIncomingData(data);
-      const now = new Date();
-      setLastMsg(now.toLocaleTimeString() + '.' + String(now.getMilliseconds()).padStart(3, '0'));
-      setState((prev) => deepMerge(prev, normalized));
+      const patch = pickMapPatch(normalized);
+      if (!patch) return;
+      pendingPatchRef.current = mergePendingPatch(pendingPatchRef.current, patch);
+
+      if (rafIdRef.current == null) {
+        rafIdRef.current = window.requestAnimationFrame(flushStateUpdate);
+      }
     };
 
     window.godotMapPush = handler;
@@ -67,17 +250,31 @@ export default function MapDebugApp() {
     return () => {
       delete window.godotMapPush;
       delete window.godotPush;
+      if (rafIdRef.current != null) {
+        window.cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      pendingPatchRef.current = null;
     };
-  }, []);
+  }, [mapUpdateIntervalMs]);
 
   const mergedMiniMap = useMemo(
     () => ({ ...DEFAULT_UI_STATE.miniMap, ...(state.miniMap ?? {}) }),
     [state.miniMap],
   );
+  const mergedStats = useMemo(
+    () => ({ ...DEFAULT_UI_STATE.stats, ...(state.stats ?? {}) }),
+    [state.stats],
+  );
+  const mergedControls = useMemo(
+    () => ({ ...DEFAULT_UI_STATE.controls, ...(state.controls ?? {}) }),
+    [state.controls],
+  );
 
   const miniMapPlayers = Array.isArray(mergedMiniMap.players)
     ? mergedMiniMap.players
     : DEFAULT_UI_STATE.miniMap.players;
+  const currentEco = Number(mergedStats.eco) || 0;
 
   const leftRobots = Array.isArray(state.robots?.left) ? state.robots.left : DEFAULT_UI_STATE.robots.left;
   const rightRobots = Array.isArray(state.robots?.right) ? state.robots.right : DEFAULT_UI_STATE.robots.right;
@@ -93,94 +290,14 @@ export default function MapDebugApp() {
     return hpMap;
   }, [leftRobots, rightRobots]);
 
-  const currentPlayerId = mergedMiniMap.currentPlayerId ?? miniMapPlayers[0]?.id;
-  const selected = miniMapPlayers.find((player) => player.id === currentPlayerId);
-
-  const playerRows = useMemo(
-    () => miniMapPlayers.map((player) => {
-      const hp = robotHpById[player.id];
-      return {
-        ...player,
-        hp: typeof hp === 'number' ? hp : '-',
-      };
-    }),
-    [miniMapPlayers, robotHpById],
-  );
-
-  const handleMiniMapPlayerSelect = useCallback((playerId) => {
-    setState((prev) => deepMerge(prev, { miniMap: { currentPlayerId: playerId } }));
-  }, []);
-
-  const handleMiniMapMoveCurrentPlayer = useCallback(({ x, y }) => {
-    setState((prev) => {
-      const prevMiniMap = { ...DEFAULT_UI_STATE.miniMap, ...(prev.miniMap ?? {}) };
-      const players = Array.isArray(prevMiniMap.players)
-        ? prevMiniMap.players
-        : DEFAULT_UI_STATE.miniMap.players;
-
-      const selectedId = prevMiniMap.currentPlayerId ?? players[0]?.id;
-      if (!selectedId) return prev;
-
-      const selectedPlayer = players.find((player) => player.id === selectedId);
-      if (!selectedPlayer) return prev;
-
-      const nextX = Math.max(0, Math.min(100, x));
-      const nextY = Math.max(0, Math.min(100, y));
-
-      const nextPlayers = players.map((player) => {
-        if (player.id !== selectedId) return player;
-        const dx = nextX - player.x;
-        const dy = nextY - player.y;
-        const nextRotation = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-        return { ...player, x: nextX, y: nextY, rotation: nextRotation };
-      });
-
-      return deepMerge(prev, { miniMap: { players: nextPlayers } });
-    });
-  }, []);
-
   return (
-    <div className={`min-h-screen ${state.forceBlackBg ? 'bg-black' : 'bg-slate-950'} relative overflow-hidden text-white font-mono`}>
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(56,189,248,0.08),transparent_45%),radial-gradient(circle_at_70%_80%,rgba(99,102,241,0.08),transparent_45%)] pointer-events-none" />
-
-      <div className="absolute top-3 left-3 z-30 text-[11px] text-cyan-200/90 bg-slate-900/75 px-3 py-2 rounded border border-cyan-400/30 backdrop-blur-sm">
-        <div className="font-bold tracking-wide">{state.debug?.title ?? 'Debug Console'}</div>
-        <div className="text-cyan-300/80">{state.debug?.subtitle ?? 'Robot Info + Map'}</div>
-        <div className="mt-1 text-white/70">lastMsg: {lastMsg || '—'}</div>
-      </div>
-
-      <div className="absolute top-24 left-3 z-30 w-[380px] max-h-[70vh] overflow-auto rounded border border-slate-700 bg-slate-900/80 backdrop-blur px-3 py-3">
-        <div className="text-sm font-bold text-cyan-300 mb-2">Selected Robot</div>
-        <div className="text-xs text-slate-300 mb-3">
-          {selected ? `${selected.id} | x:${selected.x.toFixed(1)} y:${selected.y.toFixed(1)} | rot:${selected.rotation.toFixed(1)} | hp:${robotHpById[selected.id] ?? '-'}` : 'None'}
-        </div>
-
-        <div className="text-sm font-bold text-cyan-300 mb-2">All Robots</div>
-        <div className="grid grid-cols-[82px_42px_70px_70px_60px] gap-y-1 text-[11px]">
-          <div className="text-slate-400">ID</div>
-          <div className="text-slate-400">Team</div>
-          <div className="text-slate-400">Pos</div>
-          <div className="text-slate-400">Rot</div>
-          <div className="text-slate-400">HP</div>
-          {playerRows.map((row) => (
-            <div key={row.id} className="contents">
-              <div className={row.id === currentPlayerId ? 'text-yellow-300' : 'text-slate-200'}>{row.id}</div>
-              <div className={row.team === 'red' ? 'text-red-300' : 'text-blue-300'}>{row.team}</div>
-              <div className="text-slate-200">{row.x.toFixed(1)}, {row.y.toFixed(1)}</div>
-              <div className="text-slate-200">{row.rotation.toFixed(0)}</div>
-              <div className="text-slate-100">{row.hp}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="min-h-screen bg-transparent relative overflow-hidden text-white font-mono">
+      <MapTopControls eco={currentEco} controls={mergedControls} />
 
       <MiniMapHUD
-        miniMap={{ ...mergedMiniMap, players: miniMapPlayers }}
+        miniMap={{ ...mergedMiniMap, interactive: false, players: miniMapPlayers }}
         uiSizing={state.uiSizing}
         robotHpById={robotHpById}
-        onSelectPlayer={handleMiniMapPlayerSelect}
-        onMoveCurrentPlayer={handleMiniMapMoveCurrentPlayer}
       />
     </div>
   );

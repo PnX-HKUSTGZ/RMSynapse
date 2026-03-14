@@ -107,8 +107,33 @@ const DEFAULT_UI_STATE = {
     right: { hp: 0, state: 3 }
   },
   stats: {
-    left: { eco: 50, totalEco: 300, tech: 2, radar: 3 },
-    right: { eco: 120, totalEco: 450, tech: 4, radar: 5 }
+    eco: 0,
+    totalEco: 450,
+    tech: 4,
+    radar: 5
+  },
+  controls: {
+    activeRole: 'infantry',
+    isLocked: false,
+    infantrySettings: { chassis: 'hp', firing: 'burst' },
+    heroSettings: { chassis: 'hp', firing: 'melee' },
+    sentrySettings: { mode: 'auto' },
+    dartTarget: '1',
+    gateOpen: false,
+    toastDurationMs: 2500,
+    costs: {
+      remoteHeal: 200
+    },
+    ammoStore: {
+      infantry: {
+        normal: { title: '步兵弹药', unitPrice: 1, step: 10, desc: '10金币/10发' },
+        airdrop: { title: '步兵弹药(空投)', unitPrice: 1.5, step: 10, desc: '15金币/10发' }
+      },
+      hero: {
+        normal: { title: '英雄弹药', unitPrice: 10, step: 1, desc: '10金币/1发' },
+        airdrop: { title: '英雄弹药(空投)', unitPrice: 15, step: 1, desc: '15金币/1发' }
+      }
+    }
   },
   robots: {
     left: [
@@ -150,6 +175,12 @@ const DEFAULT_UI_STATE = {
     remoteHealReady: true,
     remoteAmmoReady: false
   },
+  respawn: {
+    isDead: true,
+    countdown: 10,
+    reviveCost: 500,
+    scale: 0.8
+  },
   centerHud: {
     ammo: 300,
     maxAmmo: 300,
@@ -177,6 +208,18 @@ const DEFAULT_UI_STATE = {
     interactive: true,
     currentPlayerId: 'red-1',
     players: DEFAULT_MINI_MAP_PLAYERS
+  },
+  mapDebug: {
+    updateIntervalMs: 33,
+    miniMapTitle: '地图',
+    uiSizing: {
+      miniMapScale: 1,
+      miniMapWidth: 560,
+      miniMapHeight: 315,
+      miniMapMarkerSize: 28,
+      miniMapBottom: 20,
+      miniMapRight: 20
+    }
   }
 };
 
