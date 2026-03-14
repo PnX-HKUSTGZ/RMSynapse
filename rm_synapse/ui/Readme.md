@@ -103,3 +103,52 @@
 # 推送逻辑
 - 可参考`rm_synapse/ui/hud.gd`中的`push_payload`函数
 - 主要是调用了cef插件中的`web.eval`函数
+
+## 消息发送（MessageCenter）
+
+消息通过 `window.godotPush(...)` 推送到前端，挂在 `messageCenter.items` 下。
+
+示例（JS 对象）：
+
+```js
+window.godotPush({
+  messageCenter: {
+    items: [
+      {
+        id: 'event-20260314-001',
+        tag: 'base-shield-broken',
+        level: 'critical',
+        text: '基地护盾崩溃，进入高危状态',
+        duration: 8000,
+        timestamp: 1741939200000
+      }
+    ]
+  }
+});
+```
+
+字段要求：
+
+- `text`：必填，非空字符串。
+- `level`：可选，支持 `critical | important | normal`，缺省按 `normal`。
+- `duration`：可选，毫秒，`>0` 时生效，否则使用 `defaultDurationMs`。
+- `id`：建议必填，事件唯一标识。
+- `timestamp`：建议必填（毫秒时间戳），用于排序与去重。
+- `tag`：可选；当同一 `tag` 的消息已经在显示中时，不会新弹窗，而是重置该条消息时长并更新内容。
+
+续时规则说明：
+
+- 想触发同 `tag` 续时时，请发送“新事件”（建议更新 `id` 或 `timestamp`）。
+- 若 `id + timestamp` 与已处理事件相同，会被视为重复事件并忽略。
+- `items` 推荐只携带“本次新增事件”，不要每帧全量重发历史列表。
+
+## UI 数据统一入口
+
+当前 UI 的默认数据统一维护在：
+
+- `react-ui/src/uiState.js` 的 `DEFAULT_UI_STATE`
+
+约定：
+
+- 新增 UI 字段时，先补充到 `DEFAULT_UI_STATE`，再由后端按需 `godotPush` 局部覆盖。
+- 目前消息中心（`messageCenter`）、复活面板（`respawn`）等动态数据都已纳入 `uiState` 统一管理。

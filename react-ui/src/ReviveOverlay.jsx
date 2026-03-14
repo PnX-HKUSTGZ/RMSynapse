@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DEFAULT_UI_STATE } from './uiState';
 
 function normalizeCountdown(value) {
   const seconds = Number(value);
@@ -6,29 +7,39 @@ function normalizeCountdown(value) {
   return Math.max(0, Math.floor(seconds));
 }
 
-function normalizeScale(value) {
+function normalizeScale(value, min, max) {
   const scale = Number(value);
   if (!Number.isFinite(scale)) return 1;
-  return Math.min(3, Math.max(0.4, scale));
+  return Math.min(max, Math.max(min, scale));
 }
 
 export default function ReviveOverlay({
   isDead,
   countdown,
   eco,
-  reviveCost = 500,
+  reviveCost,
   scale = 1,
+  minScale,
+  maxScale,
+  texts,
   onNormalRevive,
   onBuyRevive,
 }) {
+  const respawnDefaults = DEFAULT_UI_STATE.respawn ?? {};
+  const defaultTexts = respawnDefaults.texts ?? {};
+  const mergedTexts = { ...defaultTexts, ...(texts ?? {}) };
+
   const [isConfirmingBuy, setIsConfirmingBuy] = useState(false);
 
   const safeCountdown = normalizeCountdown(countdown);
   const safeEco = Number.isFinite(Number(eco)) ? Number(eco) : 0;
+  const safeDefaultReviveCost = Number(respawnDefaults.reviveCost) > 0 ? Number(respawnDefaults.reviveCost) : 500;
   const safeReviveCost = Number.isFinite(Number(reviveCost)) && Number(reviveCost) > 0
     ? Number(reviveCost)
-    : 500;
-  const safeScale = normalizeScale(scale);
+    : safeDefaultReviveCost;
+  const safeMinScale = Number(minScale) > 0 ? Number(minScale) : (Number(respawnDefaults.minScale) > 0 ? Number(respawnDefaults.minScale) : 0.4);
+  const safeMaxScale = Number(maxScale) > safeMinScale ? Number(maxScale) : (Number(respawnDefaults.maxScale) > safeMinScale ? Number(respawnDefaults.maxScale) : 3);
+  const safeScale = normalizeScale(scale, safeMinScale, safeMaxScale);
   const canNormalRevive = safeCountdown === 0;
   const canBuyRevive = safeEco >= safeReviveCost;
 
@@ -58,15 +69,15 @@ export default function ReviveOverlay({
     >
       <div className="mb-6 flex flex-col items-center">
         <span className="mb-1 text-base font-bold tracking-widest text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-          SYSTEM REBOOT IN
+          {mergedTexts.rebootTitle}
         </span>
         <span className="text-4xl font-black tracking-tighter text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-          {canNormalRevive ? 'READY' : `00:${safeCountdown.toString().padStart(2, '0')}`}
+          {canNormalRevive ? mergedTexts.ready : `00:${safeCountdown.toString().padStart(2, '0')}`}
         </span>
       </div>
 
       <div className="mb-3 flex items-center rounded border border-yellow-500/40 bg-yellow-900/20 px-3 py-1 text-xs font-bold text-yellow-300">
-        当前金币(ECO): {safeEco}
+        {mergedTexts.ecoLabel}: {safeEco}
       </div>
 
       <div className="flex space-x-6">
@@ -79,9 +90,9 @@ export default function ReviveOverlay({
               : 'cursor-not-allowed border-gray-600 bg-gray-800 text-gray-500 opacity-80'
           }`}
         >
-          <span className="mb-1 text-xl font-bold">普通复活</span>
+          <span className="mb-1 text-xl font-bold">{mergedTexts.normalReviveTitle}</span>
           <span className="text-sm font-medium">
-            {canNormalRevive ? '点击左键复活' : `冷却中 (${safeCountdown}s)`}
+            {canNormalRevive ? mergedTexts.normalReviveReadyHint : `${mergedTexts.normalReviveCoolingPrefix} (${safeCountdown}s)`}
           </span>
         </button>
 
@@ -99,7 +110,7 @@ export default function ReviveOverlay({
           {!isConfirmingBuy ? (
             <>
               <span className={`mb-1 text-xl font-bold ${!canBuyRevive ? 'text-red-400' : ''}`}>
-                {!canBuyRevive ? '金币不足' : '立刻复活'}
+                {!canBuyRevive ? mergedTexts.noEcoTitle : mergedTexts.buyReviveTitle}
               </span>
               <div className="mt-1 flex items-center space-x-2 text-sm">
                 <span className={`rounded border px-2 py-0.5 font-bold ${
@@ -114,16 +125,16 @@ export default function ReviveOverlay({
                   !canBuyRevive ? 'border-red-800/50 text-red-300/50' : 'border-amber-700/50 text-amber-100/70'
                 }`}
                 >
-                  右键触发
+                  {mergedTexts.buyTriggerHint}
                 </span>
               </div>
             </>
           ) : (
             <>
-              <span className="mb-1 text-xl font-bold text-green-400">确认购买？</span>
+              <span className="mb-1 text-xl font-bold text-green-400">{mergedTexts.confirmBuyTitle}</span>
               <div className="mt-1 flex items-center space-x-2 text-xs font-bold">
-                <span className="rounded border border-green-700/50 bg-green-950/80 px-2 py-1 text-green-200">左键 确认</span>
-                <span className="rounded border border-red-800/50 bg-red-950/80 px-2 py-1 text-red-300">右键 取消</span>
+                <span className="rounded border border-green-700/50 bg-green-950/80 px-2 py-1 text-green-200">{mergedTexts.confirmHint}</span>
+                <span className="rounded border border-red-800/50 bg-red-950/80 px-2 py-1 text-red-300">{mergedTexts.cancelHint}</span>
               </div>
             </>
           )}

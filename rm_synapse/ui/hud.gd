@@ -14,7 +14,6 @@ extends CanvasLayer
 # CEF 纹理节点引用（通过 eval 执行前端 JS）
 @onready var web = $CefTexture
 @onready var map_web = $CefMap
-@onready var message_container = $MessageContainer
 
 enum MessagePriority {
 	LOW = 0,
@@ -23,44 +22,11 @@ enum MessagePriority {
 	CRITICAL = 3
 }
 
-const PRIORITY_STYLES := {
-	MessagePriority.LOW: {
-		"bg": Color(0.07, 0.10, 0.14, 0.92),
-		"border": Color(0.43, 0.51, 0.62, 0.95),
-		"font": Color(0.86, 0.90, 0.95, 1.0),
-		"time": Color(0.78, 0.83, 0.90, 1.0)
-	},
-	MessagePriority.MEDIUM: {
-		"bg": Color(0.08, 0.11, 0.14, 0.94),
-		"border": Color(0.15, 0.78, 1.0, 0.95),
-		"font": Color(0.81, 0.95, 1.0, 1.0),
-		"time": Color(0.57, 0.88, 1.0, 1.0)
-	},
-	MessagePriority.HIGH: {
-		"bg": Color(0.15, 0.09, 0.05, 0.95),
-		"border": Color(1.0, 0.60, 0.15, 1.0),
-		"font": Color(1.0, 0.92, 0.70, 1.0),
-		"time": Color(1.0, 0.72, 0.34, 1.0)
-	},
-	MessagePriority.CRITICAL: {
-		"bg": Color(0.22, 0.05, 0.06, 0.96),
-		"border": Color(1.0, 0.28, 0.31, 1.0),
-		"font": Color(1.0, 0.82, 0.84, 1.0),
-		"time": Color(1.0, 0.42, 0.45, 1.0)
-	}
-}
-
 @export var message_default_duration := 3.5
 @export var message_max_count := 6
-@export var message_font_size := 22
-@export var message_item_min_height := 36.0
-@export var message_panel_width := 460.0
-@export var message_panel_height := 260.0
-@export var message_left_offset := 30.0
-@export var message_center_y_offset := -36.0
-@export var message_ui_scale := 1.0
 
-var _active_messages: Array[Dictionary] = []
+var _pending_message_items: Array[Dictionary] = []
+var _message_seq := 0
 
 # 页面是否成功加载（HTTP 状态码 2xx 视为成功）
 
@@ -92,13 +58,14 @@ func _ready():
 	print("HUD ready. Press A to send DEFAULT_UI_STATE, B for 100Hz test, C to stop.")
 	set_process(true)
 	set_process_input(true)
-	_configure_message_container()
 	if web and web.has_signal("load_finished"):
 		# 监听 CEF 页面加载完成信号
 		# 仅当 HTTP 状态码为 2xx 时才允许开始推送数据
 		web.load_finished.connect(func(_url: String, status: int) -> void:
 			page_ready = (status >= 200 and status < 300)
 			print("CEF load_finished status=", status, " page_ready=", page_ready)
+			if page_ready:
+				_flush_pending_messages()
 		)
 
 	if game_status_service.get_parent() == null:
@@ -136,159 +103,79 @@ func _input(input_event):
 			print("Toggle map UI:", map_web.visible)
 
 	if input_event is InputEventKey and input_event.keycode == KEY_Q and input_event.pressed and not input_event.echo:
-			if message_container:
-				# 切换容器的显示状态
-				message_container.visible = !message_container.visible
-				print("Toggle message feed:", message_container.visible)
-				
-				# 如果开启，则自动生成一条测试消息
-				if message_container.visible:
-					_spawn_mock_message()
+		_spawn_mock_message()
 
-func _configure_message_container() -> void:
-	if not message_container:
-		return
-	message_container.anchor_top = 0.5
-	message_container.anchor_bottom = 0.5
-	message_container.offset_left = message_left_offset
-	message_container.offset_top = -message_panel_height * 0.5 + message_center_y_offset
-	message_container.offset_right = message_left_offset + message_panel_width
-	message_container.offset_bottom = message_panel_height * 0.5 + message_center_y_offset
-	message_container.scale = Vector2.ONE * max(message_ui_scale, 0.1)
-	message_container.alignment = BoxContainer.ALIGNMENT_END
-	message_container.add_theme_constant_override("separation", 10)
+func _priority_to_level(priority: int) -> String:
+	match priority:
+		MessagePriority.CRITICAL:
+			return "critical"
+		MessagePriority.HIGH:
+			return "important"
+		_:
+			return "normal"
 
-func _priority_style(priority: int) -> Dictionary:
-	return PRIORITY_STYLES.get(priority, PRIORITY_STYLES[MessagePriority.MEDIUM])
-
-func add_message(text: String, duration := -1.0, priority := MessagePriority.MEDIUM) -> void:
-	if not message_container:
-		return
+func _build_message_item(text: String, duration: float, priority: int, tag: String = "") -> Dictionary:
 	var ttl := duration if duration > 0.0 else message_default_duration
 	ttl = max(ttl, 0.2)
-	var style_cfg := _priority_style(priority)
+	_message_seq += 1
+	var now_ms := Time.get_ticks_msec()
+	var item := {
+		"id": "gd-msg-%s-%s" % [str(now_ms), str(_message_seq)],
+		"level": _priority_to_level(priority),
+		"text": text,
+		"duration": int(round(ttl * 1000.0)),
+		"timestamp": now_ms
+	}
+	if not tag.strip_edges().is_empty():
+		item["tag"] = tag.strip_edges()
+	return item
 
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(0.0, message_item_min_height)
+func _push_message_items(items: Array[Dictionary]) -> void:
+	if items.is_empty():
+		return
 
-	var style := StyleBoxFlat.new()
-	style.bg_color = style_cfg["bg"]
-	style.border_color = style_cfg["border"]
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_right = 6
-	style.corner_radius_bottom_left = 6
-	panel.add_theme_stylebox_override("panel", style)
+	if not page_ready:
+		for item in items:
+			_pending_message_items.append(item)
+		while _pending_message_items.size() > max(message_max_count, 1):
+			_pending_message_items.remove_at(0)
+		return
 
-	var row := HBoxContainer.new()
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 8)
-	panel.add_child(row)
-
-	var text_label := Label.new()
-	text_label.text = text
-	text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	text_label.add_theme_font_size_override("font_size", message_font_size)
-	text_label.add_theme_color_override("font_color", style_cfg["font"])
-	text_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
-	row.add_child(text_label)
-
-	var timer_label := Label.new()
-	timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	timer_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	timer_label.add_theme_font_size_override("font_size", max(14, int(message_font_size * 0.68)))
-	timer_label.add_theme_color_override("font_color", style_cfg["time"])
-	row.add_child(timer_label)
-
-	message_container.add_child(panel)
-
-	_active_messages.append({
-		"id": Time.get_ticks_usec(),
-		"priority": priority,
-		"duration": ttl,
-		"remaining": ttl,
-		"panel": panel,
-		"text_label": text_label,
-		"timer_label": timer_label
+	push_payload({
+		"messageCenter": {
+			"items": items
+		}
 	})
-	_refresh_message_item(_active_messages[_active_messages.size() - 1])
 
-	_sort_messages()
-	_trim_messages()
+func _flush_pending_messages() -> void:
+	if not page_ready or _pending_message_items.is_empty():
+		return
+	var pending: Array[Dictionary] = _pending_message_items.duplicate(true)
+	_pending_message_items.clear()
+	push_payload({
+		"messageCenter": {
+			"items": pending
+		}
+	})
+
+func add_message(text: String, duration := -1.0, priority := MessagePriority.MEDIUM, tag := "") -> void:
+	var trimmed_text := text.strip_edges()
+	if trimmed_text.is_empty():
+		return
+	var item := _build_message_item(trimmed_text, duration, priority, tag)
+	var items: Array[Dictionary] = [item]
+	_push_message_items(items)
 
 # 生成测试消息
 func _spawn_mock_message():
 	var msgs := [
-		{ "text": "🔥 英雄 [狂战士] 击杀了 [突击手]", "duration": 4.0, "priority": MessagePriority.HIGH },
-		{ "text": "⚠️ 全局播报：左侧基地正在遭受攻击！", "duration": 6.0, "priority": MessagePriority.CRITICAL },
-		{ "text": "🛡️ 团队护甲升级完毕", "duration": 3.5, "priority": MessagePriority.MEDIUM },
-		{ "text": "💠 队友占领了前哨站", "duration": 3.0, "priority": MessagePriority.LOW }
+		{ "text": "🔥 英雄 [狂战士] 击杀了 [突击手]", "duration": 4.0, "priority": MessagePriority.HIGH, "tag": "mock-kill" },
+		{ "text": "⚠️ 全局播报：左侧基地正在遭受攻击！", "duration": 6.0, "priority": MessagePriority.CRITICAL, "tag": "mock-base-under-attack" },
+		{ "text": "🛡️ 团队护甲升级完毕", "duration": 3.5, "priority": MessagePriority.MEDIUM, "tag": "mock-armor-upgrade" },
+		{ "text": "💠 队友占领了前哨站", "duration": 3.0, "priority": MessagePriority.LOW, "tag": "mock-outpost" }
 	]
 	var sample: Dictionary = msgs[randi() % msgs.size()]
-	add_message(sample["text"], sample["duration"], sample["priority"])
-
-func _trim_messages() -> void:
-	while _active_messages.size() > max(message_max_count, 1):
-		var last: Dictionary = _active_messages[_active_messages.size() - 1]
-		if is_instance_valid(last.get("panel")):
-			last["panel"].queue_free()
-		_active_messages.pop_back()
-
-func _sort_messages() -> void:
-	_active_messages.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		if int(a["priority"]) == int(b["priority"]):
-			return float(a["remaining"]) > float(b["remaining"])
-		return int(a["priority"]) > int(b["priority"])
-	)
-	for i in range(_active_messages.size()):
-		var panel: PanelContainer = _active_messages[i]["panel"]
-		if is_instance_valid(panel) and panel.get_parent() == message_container:
-			message_container.move_child(panel, i)
-
-func _refresh_message_item(entry: Dictionary) -> void:
-	var timer_label: Label = entry.get("timer_label")
-	if is_instance_valid(timer_label):
-		timer_label.text = "[%.1fs]" % max(float(entry["remaining"]), 0.0)
-		var blink_window: float = minf(1.5, float(entry["duration"]) * 0.35)
-		if float(entry["remaining"]) <= blink_window:
-			var blink_phase: int = int(Time.get_ticks_msec() / 150.0) % 2
-			timer_label.visible = blink_phase == 0
-		else:
-			timer_label.visible = true
-
-	var panel: PanelContainer = entry.get("panel")
-	if is_instance_valid(panel):
-		if int(entry["priority"]) >= MessagePriority.HIGH:
-			var pulse := 0.82 + 0.18 * (sin(float(Time.get_ticks_msec()) / 120.0) * 0.5 + 0.5)
-			panel.modulate.a = pulse
-		else:
-			panel.modulate.a = 1.0
-
-func _update_message_feed(delta: float) -> void:
-	var removed := false
-	for i in range(_active_messages.size() - 1, -1, -1):
-		var entry := _active_messages[i]
-		var panel: PanelContainer = entry.get("panel")
-		if not is_instance_valid(panel):
-			_active_messages.remove_at(i)
-			removed = true
-			continue
-		entry["remaining"] = float(entry["remaining"]) - delta
-		if float(entry["remaining"]) <= 0.0:
-			panel.queue_free()
-			_active_messages.remove_at(i)
-			removed = true
-			continue
-		_active_messages[i] = entry
-		_refresh_message_item(entry)
-	if removed:
-		_sort_messages()
+	add_message(sample["text"], sample["duration"], sample["priority"], sample["tag"])
 
 func _on_game_status_updated(new_status):
 	print("Game status changed: ", new_status)
@@ -297,7 +184,6 @@ func _on_game_status_updated(new_status):
 # 使用累加器模式按固定频率推送数据
 # 若页面未就绪或未开启推送则直接返回
 func _process(delta):
-	_update_message_feed(delta)
 	if update_rate <= 0 or not page_ready:
 		return
 	acc += delta

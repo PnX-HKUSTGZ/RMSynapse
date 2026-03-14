@@ -1,0 +1,167 @@
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+
+// 根据紧迫程度定义三个等级的消息样式
+const MSG_LEVELS = {
+  critical: { // 一级警报：最高优先级（判罚、基地受击）
+    title: 'CRITICAL ALERT',
+    colorClass: 'text-red-500',
+    borderClass: 'border-red-600',
+    bgClass: 'bg-red-950/60',
+    iconBg: 'bg-red-900/80',
+    glowClass: 'shadow-[0_0_25px_rgba(220,38,38,0.7)] ring-1 ring-red-500/50',
+    icon: '⚠️',
+    extraAnim: 'animate-pulse' // 增加脉冲闪烁效果强调紧迫性
+  },
+  important: { // 二级事件：中等优先级（击杀、高价值事件）
+    title: 'TACTICAL EVENT',
+    colorClass: 'text-amber-400',
+    borderClass: 'border-amber-500',
+    bgClass: 'bg-amber-950/40',
+    iconBg: 'bg-amber-900/50',
+    glowClass: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]',
+    icon: '⚔️',
+    extraAnim: ''
+  },
+  normal: { // 三级提示：最低优先级（Buff触发、系统常规提示）
+    title: 'SYSTEM LOG',
+    colorClass: 'text-emerald-400',
+    borderClass: 'border-emerald-500',
+    bgClass: 'bg-emerald-950/30',
+    iconBg: 'bg-emerald-900/40',
+    glowClass: 'shadow-[0_0_10px_rgba(16,185,129,0.3)]',
+    icon: '⚡',
+    extraAnim: ''
+  }
+};
+
+// 新增：优先级映射表，数值越小优先级越高，排在越上面
+const PRIORITY_MAP = {
+  critical: 1,
+  important: 2,
+  normal: 3
+};
+
+// 渲染单条消息组件
+// 【性能优化】: React.memo 避免不必要的重绘；添加 willChange 开启硬件加速
+const NotificationItem = React.memo(({ msg }) => {
+  const config = MSG_LEVELS[msg.level];
+  
+  return (
+    <div 
+      className={`
+        relative flex items-stretch w-80 overflow-hidden rounded-r-xl
+        backdrop-blur-md border-l-4 ${config.borderClass} ${config.glowClass} ${config.bgClass}
+        transition-all duration-300 ease-in-out
+        ${msg.isLeaving ? 'opacity-0 -translate-x-full scale-95 mb-3' : 'opacity-100 translate-x-0 scale-100 mb-3'}
+      `}
+      style={{ willChange: 'transform, opacity, margin-bottom' }}
+    >
+      {/* 图标区域 */}
+      <div className={`flex items-center justify-center w-12 text-xl ${config.iconBg} ${config.extraAnim}`}>
+        {config.icon}
+      </div>
+      
+      {/* 内容区域 */}
+      <div className="flex flex-col flex-1 py-2 px-3 justify-center z-10">
+        <span className={`text-xs font-black tracking-widest ${config.colorClass}`}>
+          {config.title}
+        </span>
+        <span className="text-white text-sm font-medium mt-0.5 leading-snug drop-shadow-md">
+          {msg.text}
+        </span>
+      </div>
+
+      {/* 纯CSS驱动的倒计时进度条 */}
+      <div 
+        className={`absolute bottom-0 left-0 h-[3px] origin-left z-20 ${msg.level === 'critical' ? 'bg-red-400' : 'bg-white/70'}`}
+        style={{ 
+          width: '100%',
+          animation: `shrink ${msg.duration}ms linear forwards`,
+          willChange: 'transform'
+        }}
+      />
+    </div>
+  );
+});
+
+export default function App() {
+  const [messages, setMessages] = useState([]);
+  
+  // 【性能优化】: 使用 useRef 记录所有定时器，防止组件卸载或清空列表时发生内存泄漏
+  const timersRef = useRef(new Set());
+
+  // 清理所有定时器
+  const clearAllTimers = useCallback(() => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current.clear();
+  }, []);
+
+  // 组件卸载时自动清理
+  useEffect(() => {
+    return clearAllTimers;
+  }, [clearAllTimers]);
+
+  // 添加消息的核心逻辑
+  const addMessage = useCallback((level, text, duration = 5000) => {
+    const id = Date.now() + Math.random().toString(36).substr(2, 9); 
+    const timestamp = Date.now(); // 新增：记录时间戳用于同级排序
+    
+    setMessages(prev => [...prev, { id, level, text, duration, timestamp, isLeaving: false }]);
+
+    // 触发退场动画
+    const timer1 = setTimeout(() => {
+      setMessages(prev => 
+        prev.map(msg => msg.id === id ? { ...msg, isLeaving: true } : msg)
+      );
+      timersRef.current.delete(timer1);
+    }, duration - 300);
+
+    // 完全移除 DOM
+    const timer2 = setTimeout(() => {
+      setMessages(prev => prev.filter(msg => msg.id !== id));
+      timersRef.current.delete(timer2);
+    }, duration);
+
+    timersRef.current.add(timer1);
+    timersRef.current.add(timer2);
+  }, []);
+
+  // 【性能优化】: 清空消息时，一并清空后台正在倒数的定时器，防止无意义的 state 更新
+  const handleClearAll = useCallback(() => {
+    clearAllTimers();
+    setMessages([]);
+  }, [clearAllTimers]);
+
+  // 【性能优化】: 使用 useMemo 缓存排序结果，避免 React 每次 render 都重新执行 sort 计算
+  const sortedMessages = useMemo(() => {
+    return [...messages].sort((a, b) => {
+      if (PRIORITY_MAP[a.level] !== PRIORITY_MAP[b.level]) {
+        return PRIORITY_MAP[a.level] - PRIORITY_MAP[b.level];
+      }
+      return a.timestamp - b.timestamp;
+    });
+  }, [messages]);
+
+  return (
+    <div className="relative w-full h-screen bg-gray-800 text-white font-sans overflow-hidden select-none">
+      {/* 模拟游戏背景 */}
+      <div className="absolute inset-0 bg-[#4a4a4d]"></div>
+
+      {/* CSS 动画：倒计时条 */}
+      <style>{`
+        @keyframes shrink {
+          from { transform: scaleX(1); }
+          to { transform: scaleX(0); }
+        }
+      `}</style>
+
+      {/* 消息展示区 - 垂直排列 */}
+      <div className="absolute left-6 top-1/4 flex flex-col z-40 pointer-events-none">
+        {sortedMessages.map(msg => (
+          <NotificationItem key={msg.id} msg={msg} />
+        ))}
+      </div>
+
+    </div>
+  );
+}

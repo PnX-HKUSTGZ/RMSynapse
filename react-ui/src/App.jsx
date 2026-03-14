@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CenterCombatHUD, MechaHUD, TopCoreLayout } from './HudComponents';
 import MiniMapHUD from './MiniMapHUD';
+import MessageCenter from './MessageCenter';
 import ReviveOverlay from './ReviveOverlay';
 import { DEFAULT_UI_STATE, deepMerge, normalizeIncomingData } from './uiState';
 
@@ -41,6 +42,7 @@ export default function App() {
     bases,
     outposts,
     stats,
+    messageCenter,
     robots,
     mecha,
     centerHud,
@@ -167,6 +169,8 @@ export default function App() {
         uiSizing={uiSizing}
       />
 
+      <MessageCenter messageCenter={messageCenter} />
+
       <CenterCombatHUD centerHud={centerHud} uiSizing={uiSizing} />
       <MechaHUD mecha={mecha} maxValues={maxValues} uiSizing={uiSizing} boostBuffs={boostBuffs} />
 
@@ -185,6 +189,9 @@ export default function App() {
         eco={currentEco}
         reviveCost={mergedRespawn.reviveCost}
         scale={mergedRespawn.scale}
+        minScale={mergedRespawn.minScale}
+        maxScale={mergedRespawn.maxScale}
+        texts={mergedRespawn.texts}
         onNormalRevive={handleNormalRevive}
         onBuyRevive={handleBuyRevive}
       />

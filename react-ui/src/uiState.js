@@ -112,6 +112,79 @@ const DEFAULT_UI_STATE = {
     tech: 4,
     radar: 5
   },
+  messageCenter: {
+    enabled: true,
+    topPercent: 25,
+    scale: 0.7,
+    minScale: 0.5,
+    maxScale: 2,
+    maxVisible: 8,
+    defaultDurationMs: 5000,
+    leaveAnimationMs: 300,
+    priorityMap: {
+      critical: 1,
+      important: 2,
+      normal: 3
+    },
+    levels: {
+      critical: {
+        title: 'CRITICAL ALERT',
+        colorClass: 'text-red-500',
+        borderClass: 'border-red-600',
+        bgClass: 'bg-red-950/40',
+        iconBg: 'bg-red-900/60',
+        glowClass: 'shadow-[0_0_25px_rgba(220,38,38,0.7)] ring-1 ring-red-500/50',
+        icon: '⚠️',
+        extraAnim: 'animate-pulse'
+      },
+      important: {
+        title: 'TACTICAL EVENT',
+        colorClass: 'text-amber-400',
+        borderClass: 'border-amber-500',
+        bgClass: 'bg-amber-950/28',
+        iconBg: 'bg-amber-900/38',
+        glowClass: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]',
+        icon: '⚔️',
+        extraAnim: ''
+      },
+      normal: {
+        title: 'SYSTEM LOG',
+        colorClass: 'text-emerald-400',
+        borderClass: 'border-emerald-500',
+        bgClass: 'bg-emerald-950/20',
+        iconBg: 'bg-emerald-900/28',
+        glowClass: 'shadow-[0_0_10px_rgba(16,185,129,0.3)]',
+        icon: '⚡',
+        extraAnim: ''
+      }
+    },
+    items: [
+      {
+        id: 'msg-test-critical-1',
+        tag: 'base-shield-broken',
+        level: 'critical',
+        text: '测试：基地护盾崩溃，进入高危状态',
+        duration: 8000,
+        timestamp: 1
+      },
+      {
+        id: 'msg-test-important-1',
+        tag: 'kill-streak',
+        level: 'important',
+        text: '测试：我方完成关键击杀，获得战术优势',
+        duration: 6000,
+        timestamp: 2
+      },
+      {
+        id: 'msg-test-normal-1',
+        tag: 'buff-activated',
+        level: 'normal',
+        text: '测试：系统提示，增益模块已激活',
+        duration: 4500,
+        timestamp: 3
+      }
+    ]
+  },
   controls: {
     activeRole: 'infantry',
     isLocked: false,
@@ -179,7 +252,23 @@ const DEFAULT_UI_STATE = {
     isDead: true,
     countdown: 10,
     reviveCost: 500,
-    scale: 0.8
+    scale: 0.8,
+    minScale: 0.4,
+    maxScale: 3,
+    texts: {
+      rebootTitle: 'SYSTEM REBOOT IN',
+      ready: 'READY',
+      ecoLabel: '当前金币(ECO)',
+      normalReviveTitle: '普通复活',
+      normalReviveReadyHint: '点击左键复活',
+      normalReviveCoolingPrefix: '冷却中',
+      buyReviveTitle: '立刻复活',
+      noEcoTitle: '金币不足',
+      buyTriggerHint: '右键触发',
+      confirmBuyTitle: '确认购买？',
+      confirmHint: '左键 确认',
+      cancelHint: '右键 取消'
+    }
   },
   centerHud: {
     ammo: 300,
