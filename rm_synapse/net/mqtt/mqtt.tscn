@@ -10,4 +10,4 @@ script = ExtResource("1_qmlgy")
 
 [node name="Transport" type="Node" parent="."]
 script = ExtResource("2_x7r4m")
-broker_url = "127.0.0.1:3333"
+broker_url = "10.4.144.223:3333"

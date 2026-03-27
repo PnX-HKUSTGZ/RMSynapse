@@ -24,3 +24,5 @@ build/
 .DS_Store
 rm_synapse/Export/
 *.log
+
+.sisyphus
