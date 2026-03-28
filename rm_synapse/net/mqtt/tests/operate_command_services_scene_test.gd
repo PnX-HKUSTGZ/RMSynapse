@@ -258,7 +258,11 @@ func _ready() -> void:
 		ok = false
 		errors.append("sentry protocol reject classify")
 
-	var air_timeout_req = air.request_air_support_command(99, 0.2)
+	var air_timeout_req = air.request_air_support_command(1, 0.2)
+	var air_timeout_payload = adapter.last_payload.get("air", {})
+	if int(air_timeout_payload.get("command_id", -1)) != 1:
+		ok = false
+		errors.append("air timeout payload should use legal command_id")
 	OS.delay_msec(250)
 	air._process(0.25)
 	if _find_code(air_finished, air_timeout_req) != AirSupportCommandService.ErrorCode.VERIFY_TIMEOUT:
@@ -284,7 +288,11 @@ func _ready() -> void:
 		ok = false
 		errors.append("assembly payload")
 
-	var assembly_timeout_req = assembly.request_assembly_command(4, 1, 0.2)
+	var assembly_timeout_req = assembly.request_assembly_command(2, 1, 0.2)
+	var assembly_timeout_payload = adapter.last_payload.get("assembly", {})
+	if int(assembly_timeout_payload.get("operation", -1)) != 2 or int(assembly_timeout_payload.get("difficulty", -1)) != 1:
+		ok = false
+		errors.append("assembly timeout payload should use legal values")
 	var unchanged_timeout_msg = DummySyncMessage.new()
 	unchanged_timeout_msg.basic_state = 1
 	adapter.tech_core_motion_state_sync.emit(unchanged_timeout_msg)
@@ -294,11 +302,15 @@ func _ready() -> void:
 		ok = false
 		errors.append("assembly timeout on unchanged vector")
 
-	var perf_req = perf.request_robot_performance_selection(4, 5, 6, 0.5)
+	var perf_req = perf.request_robot_performance_selection(4, 4, 1, 0.5)
+	var perf_payload = adapter.last_payload.get("perf", {})
+	if int(perf_payload.get("shooter", -1)) != 4 or int(perf_payload.get("chassis", -1)) != 4 or int(perf_payload.get("sentry_control", -1)) != 1:
+		ok = false
+		errors.append("perf payload should use legal values")
 	var perf_msg = DummySyncMessage.new()
 	perf_msg.shooter = 4
-	perf_msg.chassis = 5
-	perf_msg.sentry_control = 6
+	perf_msg.chassis = 4
+	perf_msg.sentry_control = 1
 	adapter.robot_performance_selection_sync.emit(perf_msg)
 	if _find_code(perf_finished, perf_req) != RobotPerformanceSelectionCommandService.ErrorCode.OK:
 		ok = false
@@ -312,7 +324,11 @@ func _ready() -> void:
 		ok = false
 		errors.append("hero success")
 
-	var dart_open_req = dart.request_dart_command(7, true, false, 0.5)
+	var dart_open_req = dart.request_dart_command(4, true, false, 0.5)
+	var dart_open_payload = adapter.last_payload.get("dart", {})
+	if int(dart_open_payload.get("target_id", -1)) != 4 or not bool(dart_open_payload.get("open", false)) or bool(dart_open_payload.get("launch_confirm", false)):
+		ok = false
+		errors.append("dart open payload should use legal target")
 	var dart_msg = DummySyncMessage.new()
 	dart_msg.open = 1
 	adapter.dart_select_target_status_sync.emit(dart_msg)
@@ -320,12 +336,12 @@ func _ready() -> void:
 		ok = false
 		errors.append("dart open success")
 
-	var dart_launch_req = dart.request_dart_command(8, false, true, 0.5)
+	var dart_launch_req = dart.request_dart_command(5, false, true, 0.5)
 	if _find_code(dart_finished, dart_launch_req) != DartCommandService.ErrorCode.OK:
 		ok = false
 		errors.append("dart launch_confirm success")
 	var dart_payload = adapter.last_payload.get("dart", {})
-	if not bool(dart_payload.get("launch_confirm", false)):
+	if int(dart_payload.get("target_id", -1)) != 5 or not bool(dart_payload.get("launch_confirm", false)):
 		ok = false
 		errors.append("dart launch payload")
 
@@ -345,6 +361,14 @@ func _ready() -> void:
 	if _find_code(air_finished, air_open_req) != AirSupportCommandService.ErrorCode.OK:
 		ok = false
 		errors.append("air command 1 success")
+
+	var air_paid_req = air.request_air_support_command(2, 0.5)
+	var air_paid_msg = DummySyncMessage.new()
+	air_paid_msg.airsupport_status = 1
+	adapter.air_support_status_sync.emit(air_paid_msg)
+	if _find_code(air_finished, air_paid_req) != AirSupportCommandService.ErrorCode.OK:
+		ok = false
+		errors.append("air command 2 success")
 
 	var air_stop_req = air.request_air_support_command(0, 0.5)
 	var air_stop_msg = DummySyncMessage.new()

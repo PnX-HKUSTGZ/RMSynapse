@@ -11,4 +11,6 @@
 
 ## 行为
 - 单请求 in-flight，支持覆盖与取消。
-- 按 1Hz 重发，直到 `status == mode` 或超时。
+- `mode` 仅允许 `0/1`。
+- 服务默认按 1Hz 重发，直到 `status == mode` 或超时。
+- `ProtocolAdapter` 对该 topic 采用 `100ms` 上限限频。

@@ -56,17 +56,18 @@
 - KeyboardMouseControl（75Hz）：传输鼠标键盘输入，用于把客户端键鼠操作下发给机器人。
 <!-- - CustomControl（75Hz）：发送最大 30 字节的自定义控制数据。 -->
 <!-- - MapClickInfoNotify（触发式发送）：小地图点击交互指令，用于把地图坐标、按键、目标机器人 ID 等信息发给机器人。 -->
-- AssemblyCommand（1Hz）：工程装配指令。<!-- 按键触发（给个标识） -->
-- RobotPerformanceSelectionCommand（1Hz）：切换地面机器人性能体系或控制方式。<!-- 点击选择 -->
+- AssemblyCommand（协议上限 10Hz）：工程装配指令。<!-- 按键触发（给个标识） -->
+- RobotPerformanceSelectionCommand（协议上限 10Hz）：切换地面机器人性能体系或控制方式。<!-- 点击选择 -->
 - CommonCommand（触发式发送，最高 10Hz）：机器人多种常用指令。<!-- 买弹/血可点击，复活的话弹窗点击吧 -->
-- HeroDeployModeEventCommand（1Hz）：英雄部署模式相关指令。<!-- 按键触发 -->
-- RuneActivateCommand（1Hz）：能量机关激活指令。<!-- 按键激活 -->
-- DartCommand（1Hz）：飞镖控制指令。<!-- 点击 -->
-- SentryCtrlCommand（1Hz）：哨兵控制指令请求，`command_id` 按协议 raw 值透传，当前文档不再保留旧版“地图标点”枚举说明。<!-- 点击 -->
-- AirSupportCommand（1Hz）：空中支援操作指令，V1.3 语义为 `0=取消`、`1=免费呼叫`、`2=付费呼叫`。<!-- 点击 -->
+- HeroDeployModeEventCommand（协议上限 10Hz）：英雄部署模式相关指令。<!-- 按键触发 -->
+- RuneActivateCommand（协议上限 10Hz）：能量机关激活指令。<!-- 按键激活 -->
+- DartCommand（协议上限 10Hz）：飞镖控制指令。<!-- 点击 -->
+- SentryCtrlCommand（协议上限 10Hz）：哨兵控制指令请求，`command_id` 仅允许 `1..9`。<!-- 点击 -->
+- AirSupportCommand（触发请求）：空中支援操作指令，V1.3 语义为 `0=取消`、`1=免费呼叫`、`2=付费呼叫`；协议层不做 topic 级限频，服务默认仍按请求流程重试直至验证或超时。<!-- 点击 -->
 
 ## 协议勘误
-- `MapClickInfoNotify` 的 PDF 字段表与 proto 示例冲突，仓库按 proto 示例实现：保留 `mode/type` 字段名，坐标字段使用 `map_x/map_y`。
+- `MapClickInfoNotify` 的 PDF 2.2.17 字段说明表与 proto 示例冲突，仓库继续按消息定义实现：`mode=标记类型`、`type=标记模式`，坐标字段使用 `map_x/map_y`。
+- `MapClickInfoNotify` 仅 `mode=4` 时允许自定义 ASCII，允许集合为 `C-L`、`N`、`O`、`Q-Z`。
 - `RadarInfoToClient` 的 PDF proto 示例不是合法 proto，仓库采用 `repeated RadarSingleRobotInfo radar_single_robot_info = 1` 作为固定实现。
 
 
@@ -95,7 +96,7 @@
         - 控制闸门开关（开/关）
         - 确认是否发射
     - 哨兵控制
-        - 当前 UI 文档只保留 raw `command_id` 透传约束，不再内嵌旧版枚举文案
+        - `command_id` 仅允许 `1..9`，具体含义以当期协议表为准
     - 飞机控制
         - 免费呼叫空中支援
         - 花费金币呼叫空中支援（仍优先使用免费时长）

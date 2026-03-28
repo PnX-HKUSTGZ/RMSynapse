@@ -14,4 +14,6 @@
 - 其余情况：`DartSelectTargetStatusSync.open` 达到目标值判定成功。
 
 ## 行为
-- 单请求 in-flight，支持覆盖、取消和 1Hz 重发。
+- `target_id` 仅允许 `1..5`。
+- 单请求 in-flight，支持覆盖、取消和默认 1Hz 重发。
+- `ProtocolAdapter` 对该 topic 采用 `100ms` 上限限频。

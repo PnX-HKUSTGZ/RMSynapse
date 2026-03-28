@@ -144,6 +144,7 @@ const SUBSCRIBE_TOPICS: PackedStringArray = [
 	TOPIC_BUFF,
 	TOPIC_PENALTY_INFO,
 	TOPIC_ROBOT_PATH_PLAN_INFO,
+	TOPIC_MAP_CLICK_INFO_NOTIFY,
 	TOPIC_RADAR_INFO_TO_CLIENT,
 	TOPIC_CUSTOM_BYTE_BLOCK,
 	TOPIC_TECH_CORE_MOTION_STATE_SYNC,
@@ -159,19 +160,32 @@ const SUBSCRIBE_TOPICS: PackedStringArray = [
 const CUSTOM_CONTROL_MAX_BYTES := 30
 const MAP_CLICK_ROBOT_ID_BYTES := 7
 const MAP_CLICK_MIN_INTERVAL_MSEC := 500
+const MAP_CLICK_SEMI_AUTO_MIN_INTERVAL_MSEC := 3000
 const COMMON_COMMAND_MIN_INTERVAL_MSEC := 100
-const LOW_RATE_COMMAND_MIN_INTERVAL_MSEC := 1000
+const COMMAND_10HZ_MIN_INTERVAL_MSEC := 100
 
 const SEND_RATE_LIMIT_MSEC_BY_TOPIC := {
-	TOPIC_MAP_CLICK_INFO_NOTIFY: MAP_CLICK_MIN_INTERVAL_MSEC,
 	TOPIC_COMMON_COMMAND: COMMON_COMMAND_MIN_INTERVAL_MSEC,
-	TOPIC_ASSEMBLY_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
-	TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
-	TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
-	TOPIC_RUNE_ACTIVATE_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
-	TOPIC_DART_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
-	TOPIC_SENTRY_CTRL_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
-	TOPIC_AIR_SUPPORT_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
+	TOPIC_ASSEMBLY_COMMAND: COMMAND_10HZ_MIN_INTERVAL_MSEC,
+	TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND: COMMAND_10HZ_MIN_INTERVAL_MSEC,
+	TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND: COMMAND_10HZ_MIN_INTERVAL_MSEC,
+	TOPIC_RUNE_ACTIVATE_COMMAND: COMMAND_10HZ_MIN_INTERVAL_MSEC,
+	TOPIC_DART_COMMAND: COMMAND_10HZ_MIN_INTERVAL_MSEC,
+	TOPIC_SENTRY_CTRL_COMMAND: COMMAND_10HZ_MIN_INTERVAL_MSEC,
+}
+
+const RESTRICTED_SEND_METHOD_BY_TOPIC := {
+	TOPIC_KEYBOARD_MOUSE_CONTROL: "send_keyboard_mouse_control()",
+	TOPIC_CUSTOM_CONTROL: "send_custom_control()",
+	TOPIC_MAP_CLICK_INFO_NOTIFY: "send_map_click_info_notify()",
+	TOPIC_ASSEMBLY_COMMAND: "send_assembly_command()",
+	TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND: "send_robot_performance_selection_command()",
+	TOPIC_COMMON_COMMAND: "send_common_command()",
+	TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND: "send_hero_deploy_mode_event_command()",
+	TOPIC_RUNE_ACTIVATE_COMMAND: "send_rune_activate_command()",
+	TOPIC_DART_COMMAND: "send_dart_command()",
+	TOPIC_SENTRY_CTRL_COMMAND: "send_sentry_ctrl_command()",
+	TOPIC_AIR_SUPPORT_COMMAND: "send_air_support_command()",
 }
 
 var _transport: Node
@@ -225,21 +239,22 @@ func subscribe_all() -> void:
 		_transport.subscribe(topic, _get_subscribe_qos(topic))
 
 func send_message(topic: String, message) -> int:
-	if _transport == null:
-		Log.error("[ProtocolAdapter] Cannot send message because transport is not bound.")
+	var required_method = str(RESTRICTED_SEND_METHOD_BY_TOPIC.get(topic, ""))
+	if required_method != "":
+		Log.error("[ProtocolAdapter] Use %s for %s." % [required_method, topic])
 		return -1
+	return _send_topic_message(topic, message)
+
+func _send_topic_message(topic: String, message) -> int:
 	var min_interval_msec = _get_send_rate_limit_msec(topic)
 	if _is_rate_limited(topic, min_interval_msec):
 		return -1
-	var payload = message.to_bytes()
-	var qos = _get_publish_qos(topic)
-	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d qos=%d" % [topic, payload.size(), qos])
-	var publish_result = _transport.publish_bytes(topic, payload, false, qos)
-	if publish_result >= 0:
-		_last_sent_msec_by_topic[topic] = Time.get_ticks_msec()
-	return publish_result
+	return _publish_message(topic, message)
 
 func send_keyboard_mouse_control(data: AdapterTypes.KeyboardMouseControlData) -> int:
+	if data == null:
+		Log.warn("[ProtocolAdapter] send_keyboard_mouse_control got null data.")
+		return -1
 	var message = RMProto.KeyboardMouseControl.new()
 	message.set_mouse_x(data.mouse_x)
 	message.set_mouse_y(data.mouse_y)
@@ -248,7 +263,7 @@ func send_keyboard_mouse_control(data: AdapterTypes.KeyboardMouseControlData) ->
 	message.set_right_button_down(data.right_button_down)
 	message.set_keyboard_value(data.keyboard_value)
 	message.set_mid_button_down(data.mid_button_down)
-	return send_message(TOPIC_KEYBOARD_MOUSE_CONTROL, message)
+	return _send_topic_message(TOPIC_KEYBOARD_MOUSE_CONTROL, message)
 
 func send_custom_control(data: AdapterTypes.CustomControlData) -> int:
 	if data == null:
@@ -262,11 +277,17 @@ func send_custom_control(data: AdapterTypes.CustomControlData) -> int:
 		return -1
 	var message = RMProto.CustomControl.new()
 	message.set_data(raw_data)
-	return send_message(TOPIC_CUSTOM_CONTROL, message)
+	return _send_topic_message(TOPIC_CUSTOM_CONTROL, message)
 
 func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_map_click_info_notify got null data.")
+		return -1
+	if not _validate_map_click_info_notify(data):
+		return -1
+	var min_interval_msec = _get_map_click_rate_limit_msec(data)
+	var rate_limit_key = _get_map_click_rate_limit_key(data)
+	if _is_rate_limited(rate_limit_key, min_interval_msec):
 		return -1
 	var message = RMProto.MapClickInfoNotify.new()
 	message.set_is_send_all(data.is_send_all)
@@ -277,77 +298,93 @@ func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> in
 	message.set_type(data.type)
 	message.set_map_x(data.map_x)
 	message.set_map_y(data.map_y)
-	return send_message(TOPIC_MAP_CLICK_INFO_NOTIFY, message)
+	return _publish_map_click_message(message, rate_limit_key)
 
 func send_assembly_command(data: AdapterTypes.AssemblyCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_assembly_command got null data.")
 		return -1
+	if not _validate_assembly_command(data):
+		return -1
 	var message = RMProto.AssemblyCommand.new()
 	message.set_operation(data.operation)
 	message.set_difficulty(data.difficulty)
-	return send_message(TOPIC_ASSEMBLY_COMMAND, message)
+	return _send_topic_message(TOPIC_ASSEMBLY_COMMAND, message)
 
 func send_robot_performance_selection_command(data: AdapterTypes.RobotPerformanceSelectionCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_robot_performance_selection_command got null data.")
 		return -1
+	if not _validate_robot_performance_selection_command(data):
+		return -1
 	var message = RMProto.RobotPerformanceSelectionCommand.new()
 	message.set_shooter(data.shooter)
 	message.set_chassis(data.chassis)
 	message.set_sentry_control(data.sentry_control)
-	return send_message(TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND, message)
+	return _send_topic_message(TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND, message)
 
 func send_common_command(data: AdapterTypes.CommonCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_common_command got null data.")
 		return -1
+	if not _validate_common_command(data):
+		return -1
 	var message = RMProto.CommonCommand.new()
 	message.set_cmd_type(data.cmd_type)
 	message.set_param(data.param)
-	return send_message(TOPIC_COMMON_COMMAND, message)
+	return _send_topic_message(TOPIC_COMMON_COMMAND, message)
 
 func send_hero_deploy_mode_event_command(data: AdapterTypes.HeroDeployModeEventCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_hero_deploy_mode_event_command got null data.")
 		return -1
+	if not _validate_hero_deploy_mode_event_command(data):
+		return -1
 	var message = RMProto.HeroDeployModeEventCommand.new()
 	message.set_mode(data.mode)
-	return send_message(TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND, message)
+	return _send_topic_message(TOPIC_HERO_DEPLOY_MODE_EVENT_COMMAND, message)
 
 func send_rune_activate_command(data: AdapterTypes.RuneActivateCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_rune_activate_command got null data.")
 		return -1
+	if not _validate_rune_activate_command(data):
+		return -1
 	var message = RMProto.RuneActivateCommand.new()
 	message.set_activate(data.activate)
-	return send_message(TOPIC_RUNE_ACTIVATE_COMMAND, message)
+	return _send_topic_message(TOPIC_RUNE_ACTIVATE_COMMAND, message)
 
 func send_dart_command(data: AdapterTypes.DartCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_dart_command got null data.")
 		return -1
+	if not _validate_dart_command(data):
+		return -1
 	var message = RMProto.DartCommand.new()
 	message.set_target_id(data.target_id)
 	message.set_open(data.open)
 	message.set_launch_confirm(data.launch_confirm)
-	return send_message(TOPIC_DART_COMMAND, message)
+	return _send_topic_message(TOPIC_DART_COMMAND, message)
 
 func send_sentry_ctrl_command(data: AdapterTypes.SentryCtrlCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_sentry_ctrl_command got null data.")
 		return -1
+	if not _validate_sentry_ctrl_command(data):
+		return -1
 	var message = RMProto.SentryCtrlCommand.new()
 	message.set_command_id(data.command_id)
-	return send_message(TOPIC_SENTRY_CTRL_COMMAND, message)
+	return _send_topic_message(TOPIC_SENTRY_CTRL_COMMAND, message)
 
 func send_air_support_command(data: AdapterTypes.AirSupportCommandData) -> int:
 	if data == null:
 		Log.warn("[ProtocolAdapter] send_air_support_command got null data.")
 		return -1
+	if not _validate_air_support_command(data):
+		return -1
 	var message = RMProto.AirSupportCommand.new()
 	message.set_command_id(data.command_id)
-	return send_message(TOPIC_AIR_SUPPORT_COMMAND, message)
+	return _send_topic_message(TOPIC_AIR_SUPPORT_COMMAND, message)
 
 func set_publish_qos(topic: String, qos: Qos) -> void:
 	publish_qos_by_topic[topic] = _normalize_qos(qos)
@@ -386,6 +423,133 @@ func _normalize_map_click_robot_id(robot_id: PackedByteArray) -> PackedByteArray
 	elif source.size() > MAP_CLICK_ROBOT_ID_BYTES:
 		Log.warn("[ProtocolAdapter] MapClickInfoNotify robot_id size=%d, truncate to %d bytes." % [source.size(), MAP_CLICK_ROBOT_ID_BYTES])
 	return normalized
+
+func _publish_message(topic: String, message) -> int:
+	if topic == TOPIC_MAP_CLICK_INFO_NOTIFY:
+		Log.error("[ProtocolAdapter] MapClickInfoNotify must be sent through send_map_click_info_notify().")
+		return -1
+	if _transport == null:
+		Log.error("[ProtocolAdapter] Cannot send message because transport is not bound.")
+		return -1
+	var payload = message.to_bytes()
+	var qos = _get_publish_qos(topic)
+	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d qos=%d" % [topic, payload.size(), qos])
+	var publish_result = _transport.publish_bytes(topic, payload, false, qos)
+	if publish_result >= 0:
+		_last_sent_msec_by_topic[topic] = Time.get_ticks_msec()
+	return publish_result
+
+func _publish_map_click_message(message, rate_limit_key: String) -> int:
+	if _transport == null:
+		Log.error("[ProtocolAdapter] Cannot send message because transport is not bound.")
+		return -1
+	var payload = message.to_bytes()
+	var qos = _get_publish_qos(TOPIC_MAP_CLICK_INFO_NOTIFY)
+	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d qos=%d" % [TOPIC_MAP_CLICK_INFO_NOTIFY, payload.size(), qos])
+	var publish_result = _transport.publish_bytes(TOPIC_MAP_CLICK_INFO_NOTIFY, payload, false, qos)
+	if publish_result >= 0:
+		_last_sent_msec_by_topic[rate_limit_key] = Time.get_ticks_msec()
+	return publish_result
+
+func _get_map_click_rate_limit_msec(data: AdapterTypes.MapClickInfoNotifyData) -> int:
+	if _get_map_click_sender_context(data) == AdapterTypes.MapClickInfoNotifyData.SENDER_CONTEXT_SEMI_AUTO_OPERATOR:
+		return MAP_CLICK_SEMI_AUTO_MIN_INTERVAL_MSEC
+	return MAP_CLICK_MIN_INTERVAL_MSEC
+
+func _get_map_click_rate_limit_key(data: AdapterTypes.MapClickInfoNotifyData) -> String:
+	return "%s:%d" % [TOPIC_MAP_CLICK_INFO_NOTIFY, _get_map_click_sender_context(data)]
+
+func _get_map_click_sender_context(data: AdapterTypes.MapClickInfoNotifyData) -> int:
+	return data.sender_context
+
+func _is_valid_map_click_sender_context(data: AdapterTypes.MapClickInfoNotifyData) -> bool:
+	if data.sender_context == AdapterTypes.MapClickInfoNotifyData.SENDER_CONTEXT_GUNNER:
+		return true
+	if data.sender_context == AdapterTypes.MapClickInfoNotifyData.SENDER_CONTEXT_SEMI_AUTO_OPERATOR:
+		return true
+	Log.warn("[ProtocolAdapter] MapClickInfoNotify sender_context=%d is invalid." % data.sender_context)
+	return false
+
+func _validate_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> bool:
+	if not _is_valid_map_click_sender_context(data):
+		return false
+	if data.is_send_all < 0 or data.is_send_all > 2:
+		Log.warn("[ProtocolAdapter] MapClickInfoNotify is_send_all=%d is invalid." % data.is_send_all)
+		return false
+	if data.mode < 1 or data.mode > 4:
+		Log.warn("[ProtocolAdapter] MapClickInfoNotify mode=%d is invalid." % data.mode)
+		return false
+	if data.type < 1 or data.type > 2:
+		Log.warn("[ProtocolAdapter] MapClickInfoNotify type=%d is invalid." % data.type)
+		return false
+	if data.mode == 4:
+		if not _is_valid_map_click_ascii(data.ascii):
+			Log.warn("[ProtocolAdapter] MapClickInfoNotify ascii=%d is invalid for custom marker." % data.ascii)
+			return false
+	elif data.ascii != 0:
+		Log.warn("[ProtocolAdapter] MapClickInfoNotify ascii=%d must be 0 when mode=%d." % [data.ascii, data.mode])
+		return false
+	return true
+
+func _is_valid_map_click_ascii(ascii: int) -> bool:
+	return (ascii >= 67 and ascii <= 76) or ascii == 78 or ascii == 79 or (ascii >= 81 and ascii <= 90)
+
+func _validate_assembly_command(data: AdapterTypes.AssemblyCommandData) -> bool:
+	if data.operation < 0 or data.operation > 2:
+		Log.warn("[ProtocolAdapter] AssemblyCommand operation=%d is invalid." % data.operation)
+		return false
+	return true
+
+func _validate_robot_performance_selection_command(data: AdapterTypes.RobotPerformanceSelectionCommandData) -> bool:
+	if data.shooter < 1 or data.shooter > 4:
+		Log.warn("[ProtocolAdapter] RobotPerformanceSelectionCommand shooter=%d is invalid." % data.shooter)
+		return false
+	if data.chassis < 1 or data.chassis > 4:
+		Log.warn("[ProtocolAdapter] RobotPerformanceSelectionCommand chassis=%d is invalid." % data.chassis)
+		return false
+	if data.sentry_control < 0 or data.sentry_control > 1:
+		Log.warn("[ProtocolAdapter] RobotPerformanceSelectionCommand sentry_control=%d is invalid." % data.sentry_control)
+		return false
+	return true
+
+func _validate_common_command(data: AdapterTypes.CommonCommandData) -> bool:
+	if data.cmd_type < 1 or data.cmd_type > 6:
+		Log.warn("[ProtocolAdapter] CommonCommand cmd_type=%d is invalid." % data.cmd_type)
+		return false
+	if data.cmd_type == 1 and data.param % 10 != 0:
+		Log.warn("[ProtocolAdapter] CommonCommand param=%d must be a multiple of 10 for cmd_type=1." % data.param)
+		return false
+	return true
+
+func _validate_hero_deploy_mode_event_command(data: AdapterTypes.HeroDeployModeEventCommandData) -> bool:
+	if data.mode < 0 or data.mode > 1:
+		Log.warn("[ProtocolAdapter] HeroDeployModeEventCommand mode=%d is invalid." % data.mode)
+		return false
+	return true
+
+func _validate_rune_activate_command(data: AdapterTypes.RuneActivateCommandData) -> bool:
+	if data.activate != 1:
+		Log.warn("[ProtocolAdapter] RuneActivateCommand activate=%d is invalid." % data.activate)
+		return false
+	return true
+
+func _validate_dart_command(data: AdapterTypes.DartCommandData) -> bool:
+	if data.target_id < 1 or data.target_id > 5:
+		Log.warn("[ProtocolAdapter] DartCommand target_id=%d is invalid." % data.target_id)
+		return false
+	return true
+
+func _validate_sentry_ctrl_command(data: AdapterTypes.SentryCtrlCommandData) -> bool:
+	if data.command_id < 1 or data.command_id > 9:
+		Log.warn("[ProtocolAdapter] SentryCtrlCommand command_id=%d is invalid." % data.command_id)
+		return false
+	return true
+
+func _validate_air_support_command(data: AdapterTypes.AirSupportCommandData) -> bool:
+	if data.command_id < 0 or data.command_id > 2:
+		Log.warn("[ProtocolAdapter] AirSupportCommand command_id=%d is invalid." % data.command_id)
+		return false
+	return true
 
 func _get_send_rate_limit_msec(topic: String) -> int:
 	return int(SEND_RATE_LIMIT_MSEC_BY_TOPIC.get(topic, 0))

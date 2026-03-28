@@ -10,11 +10,11 @@
 ## 2. 关键约束（已确认）
 1. `CommonCommand` 必须严格“按一次发送一次”，不允许自动重发。
 2. `CommonCommand` 每种命令类型单独暴露服务节点（不能合并为单一泛化服务）。
-3. `CommonCommand` 仅对 `cmd_type=1` 做参数约束（必须为 10 的倍数）；其他类型不做额外校验。
+3. `CommonCommand` 由 `ProtocolAdapter` 统一做协议校验：`cmd_type` 仅允许 `1..6`，且 `cmd_type=1` 时 `param` 必须为 10 的倍数。
 4. 其余 operate 命令按“每种命令单独服务”实现。
 5. `RuneActivateCommand` 成功判定按协议：`RuneStatusSync.rune_status == 3`（已激活）。
 6. 失败原因统一使用固定枚举（见第 5 节）。
-7. 除第 3 条外，不增加任何业务入参校验（范围/枚举/组合关系）；其余字段均透传发送，结果由协议回执或超时决定。
+7. 协议文本中明确给出的枚举、固定取值和结构性约束统一在 `ProtocolAdapter.send_*` 层严格拒绝；request service 不重复实现同一套校验。
 
 ## 3. 协议依据（实现必须对齐）
 1. `RuneStatusSync.rune_status` 枚举：
@@ -35,7 +35,7 @@
 - `6` 远程兑换血量
 
 4. 协议勘误（按仓库固定实现）：
-- `MapClickInfoNotify` 的 PDF 字段表与 proto 示例冲突，仓库按 proto 示例实现：保留 `mode=3`、`type=6`，并使用 `map_x=7`、`map_y=8`。
+- `MapClickInfoNotify` 的 PDF 2.2.17 字段说明表与 proto 示例冲突，仓库继续以消息定义为准：保留 `mode/type` 字段名，并按仓库现行语义解释为 `mode=标记类型`、`type=标记模式`，使用 `map_x=7`、`map_y=8`。
 - `RadarInfoToClient` 的 PDF proto 示例不是合法 proto，仓库采用 `repeated RadarSingleRobotInfo radar_single_robot_info = 1` 作为合法化写法。
 
 ## 4. Event 类实现分解
@@ -121,7 +121,7 @@
 2. 仅创建并发送一次 `AdapterTypes.CommonCommandData`。
 3. `cmd_type` 在服务内固定写死，不允许调用方覆盖。
 4. `cmd_type=1` 时校验 `param % 10 == 0`；不满足则直接返回失败码并不发送。
-5. `cmd_type=2~6` 不做额外参数校验，按透传发送。
+5. `cmd_type=2~6` 不增加额外业务语义校验。
 6. 限频依赖 `ProtocolAdapter` 的 10Hz topic 限流。
 
 ## 5.4 其余 operate 命令（每种命令单独服务）
@@ -144,7 +144,7 @@
 1. 同一服务同一时刻仅允许一个 in-flight 请求。
 2. 新请求到来时覆盖旧请求，旧请求标记 `OVERRIDDEN`。
 3. 请求发起后按命令频率重发（1Hz），直到满足成功条件或超时。
-4. 不做额外业务入参校验（除 `CommonCommand cmd_type=1`）；命令参数按调用值直接透传。
+4. request service 保持轻量；协议枚举、固定取值与结构性约束由 `ProtocolAdapter` 统一拒绝，非法输入返回 `-1` 且不发送。
 
 成功判定：
 1. `AssemblyCommand`：

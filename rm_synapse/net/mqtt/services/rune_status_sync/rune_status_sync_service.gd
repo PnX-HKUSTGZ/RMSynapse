@@ -76,6 +76,12 @@ func get_average_rings() -> float:
 	return _state.average_rings
 
 func get_rune_status_name(status: int) -> String:
+	if status == 1:
+		return "未激活"
+	if status == 2:
+		return "正在激活"
+	if status == 3:
+		return "已激活"
 	return "Unknown"
 
 func _on_rune_status_sync(message) -> void:

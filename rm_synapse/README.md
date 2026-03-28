@@ -27,8 +27,8 @@ AutoLoad 定义见 `project.godot`：
   - 高频上行 `KeyboardMouseControl + CustomControl`（默认 75Hz）
 - `LowRateSender`（脚本：`net/low_rate_sender.gd`）
   - 固定低频上行（定时）
-- `TriggerSender`（脚本：`net/trigger_service.gd`）
-  - 触发式上行（当前封装 `MapClickInfoNotify`）
+- `MapClickInfoNotify`
+  - 当前仓库直接通过 `ProtocolAdapter.send_map_click_info_notify(...)` 发送
 
 ## 3. 前后端连接方式（新 UI 必看）
 
@@ -40,7 +40,6 @@ var game_state := net_root.get_node("GameState")
 var kb_sender := net_root.get_node("KeyboardMouseControlSender")
 var custom_sender := net_root.get_node("CustomControlSender")
 var low_rate_sender := net_root.get_node("LowRateSender")
-var trigger_sender := net_root.get_node("TriggerSender")
 ```
 
 ### 3.2 订阅下行数据（推荐优先用专用信号）
@@ -124,8 +123,10 @@ var snapshot: Dictionary = gs.snapshot()
 - `set_air_support_command(command_id)` -> `AirSupportCommand`
 - `set_dart_command(target_id, open)` -> `DartCommand`
 
-`TriggerSender`（触发式）：
-- `fire_map_click(...)` -> `MapClickInfoNotify`
+`MapClickInfoNotify`（触发请求）：
+- `MapClickInfoNotify`
+- 若当前仓库中没有现成的 `fire_map_click(...)` 包装，请直接调用 `ProtocolAdapter.send_map_click_info_notify(...)`
+- 需显式传 `sender_context`：`0=云台手`、`1=半自动操作手`；两者分别使用 `500ms/3000ms` 限频。
 
 ## 4. 推荐的新 UI 接入步骤
 

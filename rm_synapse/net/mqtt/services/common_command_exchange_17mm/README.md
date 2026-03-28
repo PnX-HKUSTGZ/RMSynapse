@@ -6,7 +6,8 @@
 ## 行为
 - `send_once(param: int = 0)` 每次只发送一次，不自动重试。
 - 服务内固定命令类型，调用方不可覆盖。
-- `cmd_type=1` 时要求 `param % 10 == 0`，否则返回失败且不发送。
+- `param` 需满足 `param % 10 == 0`；否则返回失败且不发送。
+- `ProtocolAdapter` 对 `CommonCommand` 采用 `100ms` 上限限频。
 
 ## 接口
 - `send_once(param: int = 0) -> int`

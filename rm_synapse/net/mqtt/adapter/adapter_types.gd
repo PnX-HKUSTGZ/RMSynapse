@@ -19,6 +19,8 @@ class CustomControlData:
 class MapClickInfoNotifyData:
 	extends RefCounted
 	const ROBOT_ID_BYTES := 7
+	const SENDER_CONTEXT_GUNNER := 0
+	const SENDER_CONTEXT_SEMI_AUTO_OPERATOR := 1
 	var is_send_all: int = 0
 	var robot_id: PackedByteArray = PackedByteArray()
 	var mode: int = 0
@@ -27,6 +29,7 @@ class MapClickInfoNotifyData:
 	var type: int = 0
 	var map_x: float = 0.0
 	var map_y: float = 0.0
+	var sender_context: int = SENDER_CONTEXT_GUNNER
 
 class AssemblyCommandData:
 	extends RefCounted
