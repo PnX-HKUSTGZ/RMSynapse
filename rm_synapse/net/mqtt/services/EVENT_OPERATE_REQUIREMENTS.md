@@ -34,13 +34,19 @@
 - `5` 远程兑换允许发弹量
 - `6` 远程兑换血量
 
+4. 协议勘误（按仓库固定实现）：
+- `MapClickInfoNotify` 的 PDF 字段表与 proto 示例冲突，仓库按 proto 示例实现：保留 `mode=3`、`type=6`，并使用 `map_x=7`、`map_y=8`。
+- `RadarInfoToClient` 的 PDF proto 示例不是合法 proto，仓库采用 `repeated RadarSingleRobotInfo radar_single_robot_info = 1` 作为合法化写法。
+
 ## 4. Event 类实现分解
 
 ### 4.1 Event（已存在）
 - 服务：`event/event_service.gd`
 - 维持现有逻辑，重点保持：
   - adapter 延迟绑定 + 重绑
-  - strict side 解析
+  - 严格按 RM2026 V1.3 事件集暴露信号与缓存
+  - `event_id=3` 第二参数按 `float` 解析
+  - `event_id=9` 第一参数按绝对阵营 `RED/BLUE` 解析
   - 缓存访问与信号分发
 
 ### 4.2 PenaltyInfo（新增）
@@ -142,7 +148,9 @@
 
 成功判定：
 1. `AssemblyCommand`：
-- 第一版以“发送成功 + 状态有更新”判定（可观察 `TechCoreMotionStateSync.status`）。
+- 以 `TechCoreMotionStateSync` 状态向量变化判定成功：
+  `basic_state`, `putin_state`, `move_state`, `rotate_state`, `enemy_core_status`, `remain_time_all`, `remain_time_step`
+- 请求发起后，若只收到与起点完全相同的状态直到超时，归类为 `VERIFY_TIMEOUT`
 
 2. `RobotPerformanceSelectionCommand`：
 - `RobotPerformanceSelectionSync` 三字段达到目标值即成功。
@@ -164,7 +172,7 @@
 
 7. `AirSupportCommand`：
 - `command_id=1/2`：`AirSupportStatusSync.airsupport_status == 1` 成功。
-- `command_id=3`：`AirSupportStatusSync.airsupport_status == 0` 成功。
+- `command_id=0`：`AirSupportStatusSync.airsupport_status == 0` 成功。
 
 ## 6. 通用编码规范
 1. 服务统一 `extends Node` + `class_name XxxService`。

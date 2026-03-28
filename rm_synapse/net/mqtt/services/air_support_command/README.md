@@ -11,8 +11,9 @@
 
 ## 成功判定
 - `command_id=1/2`：`airsupport_status == 1`
-- `command_id=3`：`airsupport_status == 0`
+- `command_id=0`：`airsupport_status == 0`
 - 其他 `command_id` 不做额外校验，超时归类为 `VERIFY_TIMEOUT`
 
-## 行为
-- 单请求 in-flight，支持覆盖、取消和 1Hz 重发。
+## 说明
+- 协议语义按 V1.3：`0=取消`、`1=免费呼叫`、`2=付费呼叫`。
+- 服务层不做枚举范围校验，`command_id` 按 raw 值透传。

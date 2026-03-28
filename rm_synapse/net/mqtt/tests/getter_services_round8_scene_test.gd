@@ -1,5 +1,16 @@
 extends Node
 
+class DummyRadarRobotInfo:
+    extends RefCounted
+
+    var target_pos_x: int = 0
+    var target_pos_y: int = 0
+    var is_high_light: int = 0
+
+    func get_target_pos_x() -> int: return target_pos_x
+    func get_target_pos_y() -> int: return target_pos_y
+    func get_is_high_light() -> int: return is_high_light
+
 class DummyMessage:
     extends RefCounted
 
@@ -82,14 +93,14 @@ class DummyMessage:
     var offset_y: Array = []
     var sender_id: int = 0
 
-    var target_robot_id: int = 0
-    var target_pos_x: float = 0.0
-    var target_pos_y: float = 0.0
-    var torward_angle: float = 0.0
-    var is_high_light: int = 0
+    var radar_single_robot_info: Array = []
 
     var maximum_difficulty_level: int = 0
     var status: int = 0
+    var basic_state: int = 0
+    var putin_state: int = 0
+    var move_state: int = 0
+    var rotate_state: int = 0
     var enemy_core_status: int = 0
     var remain_time_all: int = 0
     var remain_time_step: int = 0
@@ -100,7 +111,7 @@ class DummyMessage:
 
     var rune_status: int = 0
     var activated_arms: int = 0
-    var average_rings: int = 0
+    var average_rings: float = 0.0
 
     var posture_id: int = 0
     var is_weakened: bool = false
@@ -193,14 +204,14 @@ class DummyMessage:
     func get_offset_y() -> Array: return offset_y
     func get_sender_id() -> int: return sender_id
 
-    func get_target_robot_id() -> int: return target_robot_id
-    func get_target_pos_x() -> float: return target_pos_x
-    func get_target_pos_y() -> float: return target_pos_y
-    func get_torward_angle() -> float: return torward_angle
-    func get_is_high_light() -> int: return is_high_light
+    func get_radar_single_robot_info() -> Array: return radar_single_robot_info
 
     func get_maximum_difficulty_level() -> int: return maximum_difficulty_level
     func get_status() -> int: return status
+    func get_basic_state() -> int: return basic_state
+    func get_putin_state() -> int: return putin_state
+    func get_move_state() -> int: return move_state
+    func get_rotate_state() -> int: return rotate_state
     func get_enemy_core_status() -> int: return enemy_core_status
     func get_remain_time_all() -> int: return remain_time_all
     func get_remain_time_step() -> int: return remain_time_step
@@ -211,7 +222,7 @@ class DummyMessage:
 
     func get_rune_status() -> int: return rune_status
     func get_activated_arms() -> int: return activated_arms
-    func get_average_rings() -> int: return average_rings
+    func get_average_rings() -> float: return average_rings
 
     func get_posture_id() -> int: return posture_id
     func get_is_weakened() -> bool: return is_weakened
@@ -261,30 +272,51 @@ func _make_message(fields: Dictionary) -> DummyMessage:
         m.set(str(k), fields[k])
     return m
 
+func _make_radar_entries(entry_dicts: Array) -> Array:
+    var entries: Array = []
+    for entry_dict in entry_dicts:
+        var entry = DummyRadarRobotInfo.new()
+        entry.target_pos_x = int(entry_dict.get("target_pos_x", 0))
+        entry.target_pos_y = int(entry_dict.get("target_pos_y", 0))
+        entry.is_high_light = int(entry_dict.get("is_high_light", 0))
+        entries.append(entry)
+    return entries
+
+func _values_equal(actual, expected) -> bool:
+    if typeof(actual) == TYPE_FLOAT or typeof(expected) == TYPE_FLOAT:
+        return is_equal_approx(float(actual), float(expected))
+    return actual == expected
+
+func _get_first_radar_entry_x(service) -> int:
+    var entry = service.get_entry(0)
+    if entry == null:
+        return -1
+    return entry.target_pos_x_cm
+
 func _run_case(
     name: String,
     service: Node,
     ingest_method: String,
     signal_name: String,
     read_value: Callable,
-    default_val: int,
-    val_a: int,
-    val_b: int,
+    default_val,
+    val_a,
+    val_b,
     fields_a: Dictionary,
     fields_b: Dictionary,
     errors: Array[String]
 ) -> void:
     service.clear_cache()
-    if int(read_value.call(service)) != default_val:
+    if not _values_equal(read_value.call(service), default_val):
         errors.append("%s default" % name)
 
     var msg_a = _make_message(fields_a)
     service.call(ingest_method, msg_a)
-    if int(read_value.call(service)) != val_a:
+    if not _values_equal(read_value.call(service), val_a):
         errors.append("%s ingest" % name)
 
     service.clear_cache()
-    if int(read_value.call(service)) != default_val:
+    if not _values_equal(read_value.call(service), default_val):
         errors.append("%s clear_cache" % name)
 
     var getter = FakeAdapterGetter.new()
@@ -294,13 +326,13 @@ func _run_case(
 
     var adapter_a = FakeAdapter.new()
     adapter_a.emit_signal(signal_name, msg_a)
-    if int(read_value.call(delayed_service)) != default_val:
+    if not _values_equal(read_value.call(delayed_service), default_val):
         errors.append("%s delayed prebind" % name)
 
     getter.adapter_ref = adapter_a
     delayed_service._process(0.2)
     adapter_a.emit_signal(signal_name, msg_a)
-    if int(read_value.call(delayed_service)) != val_a:
+    if not _values_equal(read_value.call(delayed_service), val_a):
         errors.append("%s delayed bind ingest" % name)
 
     var msg_b = _make_message(fields_b)
@@ -309,12 +341,31 @@ func _run_case(
     delayed_service._process(0.2)
 
     adapter_a.emit_signal(signal_name, msg_b)
-    if int(read_value.call(delayed_service)) != val_a:
+    if not _values_equal(read_value.call(delayed_service), val_a):
         errors.append("%s rebind stale old adapter" % name)
 
     adapter_b.emit_signal(signal_name, msg_b)
-    if int(read_value.call(delayed_service)) != val_b:
+    if not _values_equal(read_value.call(delayed_service), val_b):
         errors.append("%s rebind new adapter" % name)
+
+func _assert_radar_info_entries(errors: Array[String]) -> void:
+    var svc = RadarInfoToClientService.new()
+    svc.ingest_radar_info_to_client(_make_message({
+        "radar_single_robot_info": _make_radar_entries([
+            {"target_pos_x": 201, "target_pos_y": 301, "is_high_light": 1},
+            {"target_pos_x": 202, "target_pos_y": 302, "is_high_light": 2},
+        ]),
+    }))
+    if svc.get_entry_count() != 12:
+        errors.append("radar_info_to_client entry_count")
+    var entry = svc.get_entry(1)
+    if entry == null or entry.target_pos_x_cm != 202 or entry.target_pos_y_cm != 302 or entry.is_high_light != 2:
+        errors.append("radar_info_to_client entry content")
+    var cloned_entries = svc.get_entries()
+    cloned_entries[0].target_pos_x_cm = 999
+    var original_entry = svc.get_entry(0)
+    if original_entry == null or original_entry.target_pos_x_cm == 999:
+        errors.append("radar_info_to_client clone isolation")
 
 func _assert_robot_dynamic_signals(errors: Array[String]) -> void:
     var svc = RobotDynamicStatusService.new()
@@ -544,12 +595,12 @@ func _ready() -> void:
         RobotPositionService.new(),
         "ingest_robot_position",
         "robot_position",
-        func(s): return int(round(s.get_x() * 100.0)),
+        func(s): return s.get_robot_id(),
         0,
-        123,
-        456,
-        {"x": 1.23},
-        {"x": 4.56},
+        106,
+        107,
+        {"x": 1.23, "robot_id": 106},
+        {"x": 4.56, "robot_id": 107},
         errors
     )
 
@@ -586,12 +637,12 @@ func _ready() -> void:
         RadarInfoToClientService.new(),
         "ingest_radar_info_to_client",
         "radar_info_to_client",
-        func(s): return s.get_target_robot_id(),
+        func(s): return _get_first_radar_entry_x(s),
         0,
         201,
         202,
-        {"target_robot_id": 201},
-        {"target_robot_id": 202},
+        {"radar_single_robot_info": _make_radar_entries([{"target_pos_x": 201, "target_pos_y": 301, "is_high_light": 1}])},
+        {"radar_single_robot_info": _make_radar_entries([{"target_pos_x": 202, "target_pos_y": 302, "is_high_light": 2}])},
         errors
     )
 
@@ -600,12 +651,12 @@ func _ready() -> void:
         TechCoreMotionStateSyncService.new(),
         "ingest_tech_core_motion_state_sync",
         "tech_core_motion_state_sync",
-        func(s): return s.get_status(),
+        func(s): return s.get_basic_state(),
         0,
         2,
         3,
-        {"status": 2},
-        {"status": 3},
+        {"basic_state": 2, "putin_state": 0, "move_state": 0, "rotate_state": 0},
+        {"basic_state": 3, "putin_state": 1, "move_state": 1, "rotate_state": 0},
         errors
     )
 
@@ -642,12 +693,12 @@ func _ready() -> void:
         RuneStatusSyncService.new(),
         "ingest_rune_status_sync",
         "rune_status_sync",
-        func(s): return s.get_rune_status(),
-        0,
-        6,
-        7,
-        {"rune_status": 6},
-        {"rune_status": 7},
+        func(s): return s.get_average_rings(),
+        0.0,
+        9.6,
+        10.2,
+        {"rune_status": 2, "activated_arms": 10, "average_rings": 9.6},
+        {"rune_status": 3, "activated_arms": 12, "average_rings": 10.2},
         errors
     )
 
@@ -696,6 +747,7 @@ func _ready() -> void:
     _assert_robot_dynamic_signals(errors)
     _assert_robot_respawn_signals(errors)
     _assert_buff_signals(errors)
+    _assert_radar_info_entries(errors)
 
     if errors.is_empty():
         print("GETTER_SERVICES_ROUND8_SCENE_TEST_OK")

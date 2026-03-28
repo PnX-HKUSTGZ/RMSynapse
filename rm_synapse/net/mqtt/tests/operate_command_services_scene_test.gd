@@ -3,6 +3,13 @@ extends Node
 class DummySyncMessage:
 	extends RefCounted
 	var status: int = 0
+	var basic_state: int = 0
+	var putin_state: int = 0
+	var move_state: int = 0
+	var rotate_state: int = 0
+	var enemy_core_status: int = 0
+	var remain_time_all: int = 0
+	var remain_time_step: int = 0
 	var shooter: int = 0
 	var chassis: int = 0
 	var sentry_control: int = 0
@@ -14,6 +21,27 @@ class DummySyncMessage:
 
 	func get_status() -> int:
 		return status
+
+	func get_basic_state() -> int:
+		return basic_state
+
+	func get_putin_state() -> int:
+		return putin_state
+
+	func get_move_state() -> int:
+		return move_state
+
+	func get_rotate_state() -> int:
+		return rotate_state
+
+	func get_enemy_core_status() -> int:
+		return enemy_core_status
+
+	func get_remain_time_all() -> int:
+		return remain_time_all
+
+	func get_remain_time_step() -> int:
+		return remain_time_step
 
 	func get_shooter() -> int:
 		return shooter
@@ -237,9 +265,16 @@ func _ready() -> void:
 		ok = false
 		errors.append("air timeout classify")
 
+	var baseline_motion_msg = DummySyncMessage.new()
+	adapter.tech_core_motion_state_sync.emit(baseline_motion_msg)
 	var assembly_req = assembly.request_assembly_command(2, 3, 0.5)
+	var unchanged_motion_msg = DummySyncMessage.new()
+	adapter.tech_core_motion_state_sync.emit(unchanged_motion_msg)
+	if _find_code(assembly_finished, assembly_req) != -999:
+		ok = false
+		errors.append("assembly should ignore unchanged vector")
 	var motion_msg = DummySyncMessage.new()
-	motion_msg.status = 1
+	motion_msg.basic_state = 1
 	adapter.tech_core_motion_state_sync.emit(motion_msg)
 	if _find_code(assembly_finished, assembly_req) != AssemblyCommandService.ErrorCode.OK:
 		ok = false
@@ -248,6 +283,16 @@ func _ready() -> void:
 	if int(assembly_payload.get("operation", -1)) != 2 or int(assembly_payload.get("difficulty", -1)) != 3:
 		ok = false
 		errors.append("assembly payload")
+
+	var assembly_timeout_req = assembly.request_assembly_command(4, 1, 0.2)
+	var unchanged_timeout_msg = DummySyncMessage.new()
+	unchanged_timeout_msg.basic_state = 1
+	adapter.tech_core_motion_state_sync.emit(unchanged_timeout_msg)
+	OS.delay_msec(250)
+	assembly._process(0.25)
+	if _find_code(assembly_finished, assembly_timeout_req) != AssemblyCommandService.ErrorCode.VERIFY_TIMEOUT:
+		ok = false
+		errors.append("assembly timeout on unchanged vector")
 
 	var perf_req = perf.request_robot_performance_selection(4, 5, 6, 0.5)
 	var perf_msg = DummySyncMessage.new()
@@ -301,13 +346,13 @@ func _ready() -> void:
 		ok = false
 		errors.append("air command 1 success")
 
-	var air_stop_req = air.request_air_support_command(3, 0.5)
+	var air_stop_req = air.request_air_support_command(0, 0.5)
 	var air_stop_msg = DummySyncMessage.new()
 	air_stop_msg.airsupport_status = 0
 	adapter.air_support_status_sync.emit(air_stop_msg)
 	if _find_code(air_finished, air_stop_req) != AirSupportCommandService.ErrorCode.OK:
 		ok = false
-		errors.append("air command 3 success")
+		errors.append("air command 0 success")
 
 	var delayed_getter = FakeAdapterGetter.new()
 	var delayed_service = AssemblyCommandService.new()
@@ -324,8 +369,11 @@ func _ready() -> void:
 	var delayed_adapter_a = FakeAdapter.new()
 	delayed_getter.adapter_ref = delayed_adapter_a
 	delayed_service._process(0.2)
-	var delayed_req_1 = delayed_service.request_assembly_command(1, 1, 0.5)
 	delayed_adapter_a.tech_core_motion_state_sync.emit(DummySyncMessage.new())
+	var delayed_req_1 = delayed_service.request_assembly_command(1, 1, 0.5)
+	var delayed_changed_msg = DummySyncMessage.new()
+	delayed_changed_msg.basic_state = 1
+	delayed_adapter_a.tech_core_motion_state_sync.emit(delayed_changed_msg)
 	if _find_code(delayed_finished, delayed_req_1) != AssemblyCommandService.ErrorCode.OK:
 		ok = false
 		errors.append("delayed adapter bind success")
@@ -334,12 +382,14 @@ func _ready() -> void:
 	delayed_getter.adapter_ref = delayed_adapter_b
 	delayed_service._process(0.2)
 	var delayed_req_2 = delayed_service.request_assembly_command(2, 2, 0.5)
-	delayed_adapter_a.tech_core_motion_state_sync.emit(DummySyncMessage.new())
+	var delayed_stale_msg = DummySyncMessage.new()
+	delayed_stale_msg.basic_state = 2
+	delayed_adapter_a.tech_core_motion_state_sync.emit(delayed_stale_msg)
 	if not delayed_service.is_running():
 		ok = false
 		errors.append("adapter replace should disconnect old adapter")
 	var delayed_new_msg = DummySyncMessage.new()
-	delayed_new_msg.status = 2
+	delayed_new_msg.basic_state = 2
 	delayed_adapter_b.tech_core_motion_state_sync.emit(delayed_new_msg)
 	if _find_code(delayed_finished, delayed_req_2) != AssemblyCommandService.ErrorCode.OK:
 		ok = false

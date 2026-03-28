@@ -275,8 +275,6 @@ func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> in
 	message.set_enemy_id(data.enemy_id)
 	message.set_ascii(data.ascii)
 	message.set_type(data.type)
-	message.set_screen_x(data.screen_x)
-	message.set_screen_y(data.screen_y)
 	message.set_map_x(data.map_x)
 	message.set_map_y(data.map_y)
 	return send_message(TOPIC_MAP_CLICK_INFO_NOTIFY, message)

@@ -2664,6 +2664,11 @@ class RobotPosition:
 		service.field = __yaw
 		data[__yaw.tag] = service
 		
+		__robot_id = PBField.new("robot_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __robot_id
+		data[__robot_id.tag] = service
+		
 	var data = {}
 	
 	var __x: PBField
@@ -2717,6 +2722,19 @@ class RobotPosition:
 		__yaw.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_yaw(value : float) -> void:
 		__yaw.value = value
+	
+	var __robot_id: PBField
+	func has_robot_id() -> bool:
+		if __robot_id.value != null:
+			return true
+		return false
+	func get_robot_id() -> int:
+		return __robot_id.value
+	func clear_robot_id() -> void:
+		data[5].state = PB_SERVICE_STATE.UNFILLED
+		__robot_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_robot_id(value : int) -> void:
+		__robot_id.value = value
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
@@ -3100,22 +3118,12 @@ class MapClickInfoNotify:
 		service.field = __type
 		data[__type.tag] = service
 		
-		__screen_x = PBField.new("screen_x", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
-		service = PBServiceField.new()
-		service.field = __screen_x
-		data[__screen_x.tag] = service
-		
-		__screen_y = PBField.new("screen_y", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
-		service = PBServiceField.new()
-		service.field = __screen_y
-		data[__screen_y.tag] = service
-		
-		__map_x = PBField.new("map_x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		__map_x = PBField.new("map_x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __map_x
 		data[__map_x.tag] = service
 		
-		__map_y = PBField.new("map_y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		__map_y = PBField.new("map_y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __map_y
 		data[__map_y.tag] = service
@@ -3200,32 +3208,6 @@ class MapClickInfoNotify:
 	func set_type(value : int) -> void:
 		__type.value = value
 	
-	var __screen_x: PBField
-	func has_screen_x() -> bool:
-		if __screen_x.value != null:
-			return true
-		return false
-	func get_screen_x() -> int:
-		return __screen_x.value
-	func clear_screen_x() -> void:
-		data[7].state = PB_SERVICE_STATE.UNFILLED
-		__screen_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_screen_x(value : int) -> void:
-		__screen_x.value = value
-	
-	var __screen_y: PBField
-	func has_screen_y() -> bool:
-		if __screen_y.value != null:
-			return true
-		return false
-	func get_screen_y() -> int:
-		return __screen_y.value
-	func clear_screen_y() -> void:
-		data[8].state = PB_SERVICE_STATE.UNFILLED
-		__screen_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_screen_y(value : int) -> void:
-		__screen_y.value = value
-	
 	var __map_x: PBField
 	func has_map_x() -> bool:
 		if __map_x.value != null:
@@ -3234,7 +3216,7 @@ class MapClickInfoNotify:
 	func get_map_x() -> float:
 		return __map_x.value
 	func clear_map_x() -> void:
-		data[9].state = PB_SERVICE_STATE.UNFILLED
+		data[7].state = PB_SERVICE_STATE.UNFILLED
 		__map_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_map_x(value : float) -> void:
 		__map_x.value = value
@@ -3247,10 +3229,91 @@ class MapClickInfoNotify:
 	func get_map_y() -> float:
 		return __map_y.value
 	func clear_map_y() -> void:
-		data[10].state = PB_SERVICE_STATE.UNFILLED
+		data[8].state = PB_SERVICE_STATE.UNFILLED
 		__map_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_map_y(value : float) -> void:
 		__map_y.value = value
+	
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+		
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+		
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class RadarSingleRobotInfo:
+	func _init():
+		var service
+		
+		__target_pos_x = PBField.new("target_pos_x", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __target_pos_x
+		data[__target_pos_x.tag] = service
+		
+		__target_pos_y = PBField.new("target_pos_y", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __target_pos_y
+		data[__target_pos_y.tag] = service
+		
+		__is_high_light = PBField.new("is_high_light", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __is_high_light
+		data[__is_high_light.tag] = service
+		
+	var data = {}
+	
+	var __target_pos_x: PBField
+	func has_target_pos_x() -> bool:
+		if __target_pos_x.value != null:
+			return true
+		return false
+	func get_target_pos_x() -> int:
+		return __target_pos_x.value
+	func clear_target_pos_x() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__target_pos_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_target_pos_x(value : int) -> void:
+		__target_pos_x.value = value
+	
+	var __target_pos_y: PBField
+	func has_target_pos_y() -> bool:
+		if __target_pos_y.value != null:
+			return true
+		return false
+	func get_target_pos_y() -> int:
+		return __target_pos_y.value
+	func clear_target_pos_y() -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__target_pos_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_target_pos_y(value : int) -> void:
+		__target_pos_y.value = value
+	
+	var __is_high_light: PBField
+	func has_is_high_light() -> bool:
+		if __is_high_light.value != null:
+			return true
+		return false
+	func get_is_high_light() -> int:
+		return __is_high_light.value
+	func clear_is_high_light() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__is_high_light.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_is_high_light(value : int) -> void:
+		__is_high_light.value = value
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
@@ -3277,97 +3340,25 @@ class RadarInfoToClient:
 	func _init():
 		var service
 		
-		__target_robot_id = PBField.new("target_robot_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		var __radar_single_robot_info_default: Array[RadarSingleRobotInfo] = []
+		__radar_single_robot_info = PBField.new("radar_single_robot_info", PB_DATA_TYPE.MESSAGE, PB_RULE.REPEATED, 1, true, __radar_single_robot_info_default)
 		service = PBServiceField.new()
-		service.field = __target_robot_id
-		data[__target_robot_id.tag] = service
-		
-		__target_pos_x = PBField.new("target_pos_x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
-		service = PBServiceField.new()
-		service.field = __target_pos_x
-		data[__target_pos_x.tag] = service
-		
-		__target_pos_y = PBField.new("target_pos_y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
-		service = PBServiceField.new()
-		service.field = __target_pos_y
-		data[__target_pos_y.tag] = service
-		
-		__torward_angle = PBField.new("torward_angle", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
-		service = PBServiceField.new()
-		service.field = __torward_angle
-		data[__torward_angle.tag] = service
-		
-		__is_high_light = PBField.new("is_high_light", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
-		service = PBServiceField.new()
-		service.field = __is_high_light
-		data[__is_high_light.tag] = service
+		service.field = __radar_single_robot_info
+		service.func_ref = Callable(self, "add_radar_single_robot_info")
+		data[__radar_single_robot_info.tag] = service
 		
 	var data = {}
 	
-	var __target_robot_id: PBField
-	func has_target_robot_id() -> bool:
-		if __target_robot_id.value != null:
-			return true
-		return false
-	func get_target_robot_id() -> int:
-		return __target_robot_id.value
-	func clear_target_robot_id() -> void:
+	var __radar_single_robot_info: PBField
+	func get_radar_single_robot_info() -> Array[RadarSingleRobotInfo]:
+		return __radar_single_robot_info.value
+	func clear_radar_single_robot_info() -> void:
 		data[1].state = PB_SERVICE_STATE.UNFILLED
-		__target_robot_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_target_robot_id(value : int) -> void:
-		__target_robot_id.value = value
-	
-	var __target_pos_x: PBField
-	func has_target_pos_x() -> bool:
-		if __target_pos_x.value != null:
-			return true
-		return false
-	func get_target_pos_x() -> float:
-		return __target_pos_x.value
-	func clear_target_pos_x() -> void:
-		data[2].state = PB_SERVICE_STATE.UNFILLED
-		__target_pos_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
-	func set_target_pos_x(value : float) -> void:
-		__target_pos_x.value = value
-	
-	var __target_pos_y: PBField
-	func has_target_pos_y() -> bool:
-		if __target_pos_y.value != null:
-			return true
-		return false
-	func get_target_pos_y() -> float:
-		return __target_pos_y.value
-	func clear_target_pos_y() -> void:
-		data[3].state = PB_SERVICE_STATE.UNFILLED
-		__target_pos_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
-	func set_target_pos_y(value : float) -> void:
-		__target_pos_y.value = value
-	
-	var __torward_angle: PBField
-	func has_torward_angle() -> bool:
-		if __torward_angle.value != null:
-			return true
-		return false
-	func get_torward_angle() -> float:
-		return __torward_angle.value
-	func clear_torward_angle() -> void:
-		data[4].state = PB_SERVICE_STATE.UNFILLED
-		__torward_angle.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
-	func set_torward_angle(value : float) -> void:
-		__torward_angle.value = value
-	
-	var __is_high_light: PBField
-	func has_is_high_light() -> bool:
-		if __is_high_light.value != null:
-			return true
-		return false
-	func get_is_high_light() -> int:
-		return __is_high_light.value
-	func clear_is_high_light() -> void:
-		data[5].state = PB_SERVICE_STATE.UNFILLED
-		__is_high_light.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_is_high_light(value : int) -> void:
-		__is_high_light.value = value
+		__radar_single_robot_info.value.clear()
+	func add_radar_single_robot_info() -> RadarSingleRobotInfo:
+		var element = RadarSingleRobotInfo.new()
+		__radar_single_robot_info.value.append(element)
+		return element
 	
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
@@ -3507,22 +3498,37 @@ class TechCoreMotionStateSync:
 		service.field = __maximum_difficulty_level
 		data[__maximum_difficulty_level.tag] = service
 		
-		__status = PBField.new("status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__basic_state = PBField.new("basic_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
-		service.field = __status
-		data[__status.tag] = service
+		service.field = __basic_state
+		data[__basic_state.tag] = service
 		
-		__enemy_core_status = PBField.new("enemy_core_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__putin_state = PBField.new("putin_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __putin_state
+		data[__putin_state.tag] = service
+		
+		__move_state = PBField.new("move_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __move_state
+		data[__move_state.tag] = service
+		
+		__rotate_state = PBField.new("rotate_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __rotate_state
+		data[__rotate_state.tag] = service
+		
+		__enemy_core_status = PBField.new("enemy_core_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_core_status
 		data[__enemy_core_status.tag] = service
 		
-		__remain_time_all = PBField.new("remain_time_all", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__remain_time_all = PBField.new("remain_time_all", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __remain_time_all
 		data[__remain_time_all.tag] = service
 		
-		__remain_time_step = PBField.new("remain_time_step", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__remain_time_step = PBField.new("remain_time_step", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __remain_time_step
 		data[__remain_time_step.tag] = service
@@ -3542,18 +3548,57 @@ class TechCoreMotionStateSync:
 	func set_maximum_difficulty_level(value : int) -> void:
 		__maximum_difficulty_level.value = value
 	
-	var __status: PBField
-	func has_status() -> bool:
-		if __status.value != null:
+	var __basic_state: PBField
+	func has_basic_state() -> bool:
+		if __basic_state.value != null:
 			return true
 		return false
-	func get_status() -> int:
-		return __status.value
-	func clear_status() -> void:
+	func get_basic_state() -> int:
+		return __basic_state.value
+	func clear_basic_state() -> void:
 		data[2].state = PB_SERVICE_STATE.UNFILLED
-		__status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_status(value : int) -> void:
-		__status.value = value
+		__basic_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_basic_state(value : int) -> void:
+		__basic_state.value = value
+	
+	var __putin_state: PBField
+	func has_putin_state() -> bool:
+		if __putin_state.value != null:
+			return true
+		return false
+	func get_putin_state() -> int:
+		return __putin_state.value
+	func clear_putin_state() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__putin_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_putin_state(value : int) -> void:
+		__putin_state.value = value
+	
+	var __move_state: PBField
+	func has_move_state() -> bool:
+		if __move_state.value != null:
+			return true
+		return false
+	func get_move_state() -> int:
+		return __move_state.value
+	func clear_move_state() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__move_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_move_state(value : int) -> void:
+		__move_state.value = value
+	
+	var __rotate_state: PBField
+	func has_rotate_state() -> bool:
+		if __rotate_state.value != null:
+			return true
+		return false
+	func get_rotate_state() -> int:
+		return __rotate_state.value
+	func clear_rotate_state() -> void:
+		data[5].state = PB_SERVICE_STATE.UNFILLED
+		__rotate_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_rotate_state(value : int) -> void:
+		__rotate_state.value = value
 	
 	var __enemy_core_status: PBField
 	func has_enemy_core_status() -> bool:
@@ -3563,7 +3608,7 @@ class TechCoreMotionStateSync:
 	func get_enemy_core_status() -> int:
 		return __enemy_core_status.value
 	func clear_enemy_core_status() -> void:
-		data[3].state = PB_SERVICE_STATE.UNFILLED
+		data[6].state = PB_SERVICE_STATE.UNFILLED
 		__enemy_core_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_core_status(value : int) -> void:
 		__enemy_core_status.value = value
@@ -3576,7 +3621,7 @@ class TechCoreMotionStateSync:
 	func get_remain_time_all() -> int:
 		return __remain_time_all.value
 	func clear_remain_time_all() -> void:
-		data[4].state = PB_SERVICE_STATE.UNFILLED
+		data[7].state = PB_SERVICE_STATE.UNFILLED
 		__remain_time_all.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remain_time_all(value : int) -> void:
 		__remain_time_all.value = value
@@ -3589,7 +3634,7 @@ class TechCoreMotionStateSync:
 	func get_remain_time_step() -> int:
 		return __remain_time_step.value
 	func clear_remain_time_step() -> void:
-		data[5].state = PB_SERVICE_STATE.UNFILLED
+		data[8].state = PB_SERVICE_STATE.UNFILLED
 		__remain_time_step.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remain_time_step(value : int) -> void:
 		__remain_time_step.value = value
@@ -3989,7 +4034,7 @@ class RuneStatusSync:
 		service.field = __activated_arms
 		data[__activated_arms.tag] = service
 		
-		__average_rings = PBField.new("average_rings", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__average_rings = PBField.new("average_rings", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __average_rings
 		data[__average_rings.tag] = service
@@ -4027,12 +4072,12 @@ class RuneStatusSync:
 		if __average_rings.value != null:
 			return true
 		return false
-	func get_average_rings() -> int:
+	func get_average_rings() -> float:
 		return __average_rings.value
 	func clear_average_rings() -> void:
 		data[3].state = PB_SERVICE_STATE.UNFILLED
-		__average_rings.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_average_rings(value : int) -> void:
+		__average_rings.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
+	func set_average_rings(value : float) -> void:
 		__average_rings.value = value
 	
 	func _to_string() -> String:

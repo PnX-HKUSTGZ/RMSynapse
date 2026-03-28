@@ -32,7 +32,7 @@ class_name HudDataBridge
 #   fields: power_manager,rfid,light_strip,small_shooter,big_shooter,uwb,armor,video_transmission,capacitor,
 #           main_controller,laser_detection_module,last_update_msec
 # - robot_position_updated / get_robot_position_state -> RobotPositionState
-#   fields: x,y,z,yaw,last_update_msec
+#   fields: x,y,z,yaw,robot_id,last_update_msec
 # - buff_updated / get_buff_state -> BuffState
 #   fields: robot_id,buff_type,buff_level,buff_max_time,buff_left_time,last_update_msec
 # - penalty_info_updated / get_penalty_info_state -> PenaltyInfoState
@@ -40,13 +40,14 @@ class_name HudDataBridge
 # - robot_path_plan_info_updated / get_robot_path_plan_info_state -> RobotPathPlanInfoState
 #   fields: intention,start_pos_x,start_pos_y,offsets(Array[PathPointOffset{dx,dy}]),sender_id,last_update_msec
 # - radar_info_updated / get_radar_info_state -> RadarInfoToClientState
-#   fields: target_robot_id,target_pos_x,target_pos_y,torward_angle,is_high_light,last_update_msec
+#   fields: entries(Array[RadarRobotInfo{target_pos_x_cm,target_pos_y_cm,is_high_light}]),last_update_msec
 # - robot_performance_selection_sync_updated / get_robot_performance_selection_sync_state -> RobotPerformanceSelectionSyncState
 #   fields: shooter,chassis,sentry_control,last_update_msec
 # - deploy_mode_status_sync_updated / get_deploy_mode_status_sync_state -> DeployModeStatusSyncState
 #   fields: status,last_update_msec
 # - tech_core_motion_state_sync_updated / get_tech_core_motion_state_sync_state -> TechCoreMotionStateSyncState
-#   fields: maximum_difficulty_level,status,enemy_core_status,remain_time_all,remain_time_step,last_update_msec
+#   fields: maximum_difficulty_level,basic_state,putin_state,move_state,rotate_state,enemy_core_status,
+#           remain_time_all,remain_time_step,last_update_msec
 # - rune_status_sync_updated / get_rune_status_sync_state -> RuneStatusSyncState
 #   fields: rune_status,activated_arms,average_rings,last_update_msec
 # - sentry_status_sync_updated / get_sentry_status_sync_state -> SentryStatusSyncState

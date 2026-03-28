@@ -84,7 +84,7 @@ func _on_air_support_status_sync(message) -> void:
 func _expected_status_for_command(command_id: int) -> int:
 	if command_id == 1 or command_id == 2:
 		return 1
-	if command_id == 3:
+	if command_id == 0:
 		return 0
 	return -1
 

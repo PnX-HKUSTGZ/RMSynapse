@@ -2,7 +2,7 @@ extends Node
 class_name TechCoreMotionStateSyncService
 
 signal tech_core_motion_state_sync_updated(state)
-signal tech_core_status_changed(status, enemy_core_status)
+signal tech_core_state_changed(basic_state, putin_state, move_state, rotate_state, enemy_core_status)
 
 @export var bind_retry_interval_sec: float = 1.0
 
@@ -11,7 +11,10 @@ var adapter_getter: MQTTProtocolAdapterGetter = MQTTProtocolAdapterGetter.new()
 class TechCoreMotionStateSyncState:
 	extends RefCounted
 	var maximum_difficulty_level: int = 0
-	var status: int = 0
+	var basic_state: int = 0
+	var putin_state: int = 0
+	var move_state: int = 0
+	var rotate_state: int = 0
 	var enemy_core_status: int = 0
 	var remain_time_all: int = 0
 	var remain_time_step: int = 0
@@ -20,7 +23,10 @@ class TechCoreMotionStateSyncState:
 	func clone() -> TechCoreMotionStateSyncState:
 		var c = TechCoreMotionStateSyncState.new()
 		c.maximum_difficulty_level = maximum_difficulty_level
-		c.status = status
+		c.basic_state = basic_state
+		c.putin_state = putin_state
+		c.move_state = move_state
+		c.rotate_state = rotate_state
 		c.enemy_core_status = enemy_core_status
 		c.remain_time_all = remain_time_all
 		c.remain_time_step = remain_time_step
@@ -30,7 +36,10 @@ class TechCoreMotionStateSyncState:
 	func to_dict() -> Dictionary:
 		return {
 			"maximum_difficulty_level": maximum_difficulty_level,
-			"status": status,
+			"basic_state": basic_state,
+			"putin_state": putin_state,
+			"move_state": move_state,
+			"rotate_state": rotate_state,
 			"enemy_core_status": enemy_core_status,
 			"remain_time_all": remain_time_all,
 			"remain_time_step": remain_time_step,
@@ -74,8 +83,17 @@ func get_state() -> TechCoreMotionStateSyncState:
 func get_maximum_difficulty_level() -> int:
 	return _state.maximum_difficulty_level
 
-func get_status() -> int:
-	return _state.status
+func get_basic_state() -> int:
+	return _state.basic_state
+
+func get_putin_state() -> int:
+	return _state.putin_state
+
+func get_move_state() -> int:
+	return _state.move_state
+
+func get_rotate_state() -> int:
+	return _state.rotate_state
 
 func get_enemy_core_status() -> int:
 	return _state.enemy_core_status
@@ -96,7 +114,10 @@ func _on_tech_core_motion_state_sync(message) -> void:
 
 	var old_state = _state.clone()
 	_state.maximum_difficulty_level = int(message.get_maximum_difficulty_level())
-	_state.status = int(message.get_status())
+	_state.basic_state = int(message.get_basic_state())
+	_state.putin_state = int(message.get_putin_state())
+	_state.move_state = int(message.get_move_state())
+	_state.rotate_state = int(message.get_rotate_state())
 	_state.enemy_core_status = int(message.get_enemy_core_status())
 	_state.remain_time_all = int(message.get_remain_time_all())
 	_state.remain_time_step = int(message.get_remain_time_step())
@@ -140,8 +161,19 @@ func _disconnect_bound_adapter() -> void:
 	_bound_adapter = null
 
 func _emit_change_signals(old_state: TechCoreMotionStateSyncState) -> void:
-	if _state.status != old_state.status or _state.enemy_core_status != old_state.enemy_core_status:
-		emit_signal("tech_core_status_changed", _state.status, _state.enemy_core_status)
+	if _state.basic_state != old_state.basic_state \
+	or _state.putin_state != old_state.putin_state \
+	or _state.move_state != old_state.move_state \
+	or _state.rotate_state != old_state.rotate_state \
+	or _state.enemy_core_status != old_state.enemy_core_status:
+		emit_signal(
+			"tech_core_state_changed",
+			_state.basic_state,
+			_state.putin_state,
+			_state.move_state,
+			_state.rotate_state,
+			_state.enemy_core_status
+		)
 
 func _log_error(message: String) -> void:
 	var logger = get_node_or_null("/root/Log")

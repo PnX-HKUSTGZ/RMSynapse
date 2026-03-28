@@ -27,8 +27,8 @@ var _pending: Dictionary = {}
 var _last_error_code: int = ErrorCode.OK
 var _logged_missing: bool = false
 var _motion_seq: int = 0
-var _last_sync_status: int = 0
-var _has_last_sync_status: bool = false
+var _last_sync_vector: Array = []
+var _has_last_sync_vector: bool = false
 
 func _ready() -> void:
 	_try_bind_adapter()
@@ -53,8 +53,8 @@ func request_assembly_command(operation: int, difficulty: int, timeout_sec: floa
 		"difficulty": int(difficulty),
 		"deadline_msec": _make_deadline_msec(timeout_sec),
 		"motion_seq": _motion_seq,
-		"start_status_known": _has_last_sync_status,
-		"start_status": _last_sync_status,
+		"start_vector_known": _has_last_sync_vector,
+		"start_vector": _last_sync_vector.duplicate(),
 		"had_send_success": false,
 	}
 	_resend_elapsed = 0.0
@@ -82,19 +82,30 @@ func _on_tech_core_motion_state_sync(message) -> void:
 	_motion_seq += 1
 	if message == null:
 		return
-	var current_status = int(message.get_status())
-	_last_sync_status = current_status
-	_has_last_sync_status = true
+	var current_vector = _state_vector_from_message(message)
+	_last_sync_vector = current_vector.duplicate()
+	_has_last_sync_vector = true
 	if not _has_pending():
 		return
 	var begin_seq = int(_pending.get("motion_seq", -1))
 	if _motion_seq <= begin_seq:
 		return
-	var start_known = bool(_pending.get("start_status_known", false))
-	var start_status = int(_pending.get("start_status", 0))
-	if start_known and current_status == start_status:
+	var start_known = bool(_pending.get("start_vector_known", false))
+	var start_vector: Array = _pending.get("start_vector", [])
+	if start_known and current_vector == start_vector:
 		return
 	_finish_pending(ErrorCode.OK)
+
+func _state_vector_from_message(message) -> Array:
+	return [
+		int(message.get_basic_state()),
+		int(message.get_putin_state()),
+		int(message.get_move_state()),
+		int(message.get_rotate_state()),
+		int(message.get_enemy_core_status()),
+		int(message.get_remain_time_all()),
+		int(message.get_remain_time_step()),
+	]
 
 func _process_bind(delta: float) -> void:
 	var interval = maxf(bind_retry_interval_sec, 0.1)

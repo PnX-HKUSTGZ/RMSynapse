@@ -135,6 +135,7 @@ message RobotPosition {
   float y = 2;
   float z = 3;
   float yaw = 4;
+  uint32 robot_id = 5;
 }
 
 message Buff {
@@ -167,18 +168,18 @@ message MapClickInfoNotify {
   uint32 enemy_id = 4;
   uint32 ascii = 5;
   uint32 type = 6;
-  uint32 screen_x = 7;
-  uint32 screen_y = 8;
-  float map_x = 9;
-  float map_y = 10;
+  float map_x = 7;
+  float map_y = 8;
+}
+
+message RadarSingleRobotInfo {
+  uint32 target_pos_x = 1;
+  uint32 target_pos_y = 2;
+  uint32 is_high_light = 3;
 }
 
 message RadarInfoToClient {
-  uint32 target_robot_id = 1;
-  float target_pos_x = 2;
-  float target_pos_y = 3;
-  float torward_angle = 4;
-  uint32 is_high_light = 5;
+  repeated RadarSingleRobotInfo radar_single_robot_info = 1;
 }
 
 message CustomByteBlock {
@@ -192,10 +193,13 @@ message AssemblyCommand {
 
 message TechCoreMotionStateSync {
   uint32 maximum_difficulty_level = 1;
-  uint32 status = 2;
-  uint32 enemy_core_status = 3;
-  uint32 remain_time_all = 4;
-  uint32 remain_time_step = 5;
+  uint32 basic_state = 2;
+  uint32 putin_state = 3;
+  uint32 move_state = 4;
+  uint32 rotate_state = 5;
+  uint32 enemy_core_status = 6;
+  uint32 remain_time_all = 7;
+  uint32 remain_time_step = 8;
 }
 
 message RobotPerformanceSelectionCommand {
@@ -230,7 +234,7 @@ message RuneActivateCommand {
 message RuneStatusSync {
   uint32 rune_status = 1;
   uint32 activated_arms = 2;
-  uint32 average_rings = 3;
+  float average_rings = 3;
 }
 
 message SentryStatusSync {

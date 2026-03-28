@@ -32,15 +32,15 @@
 - RobotStaticStatus（1Hz）：同步机器人静态属性。
 - RobotDynamicStatus（10Hz）：同步机器人实时动态状态。
 - RobotModuleStatus（1Hz）：同步机器人各模块运行状态。
-- RobotPosition（1Hz）：同步机器人位置与朝向。
+- RobotPosition（1Hz）：同步机器人位置、朝向与 `robot_id`。
 - Buff（1Hz）：同步增益信息，如回血、冷却、防御、负防御、攻击、剩余能量反馈等。
 - RobotPathPlanInfo（1Hz）：同步路径规划结果。
-- RadarInfoToClient（1Hz）：同步雷达发给客户端的目标位置信息。
+- RadarInfoToClient（1Hz）：同步雷达发给客户端的 12 项目标位置信息，顺序固定为敌方 1/2/3/4/6/7 后接我方 1/2/3/4/6/7。
 <!-- - CustomByteBlock（50Hz）：机器人自定义上传数据流，对应机器人端 0x0310。 -->
-- TechCoreMotionStateSync（1Hz）：同步科技核心运动状态。
+- TechCoreMotionStateSync（1Hz）：同步科技核心运动状态，字段为 `basic/putin/move/rotate/enemy_core_status` 与剩余时间。
 - RobotPerformanceSelectionSync（1Hz）：同步步兵/英雄性能体系状态。
 - DeployModeStatusSync（1Hz）：同步英雄部署模式状态。
-- RuneStatusSync（1Hz）：同步能量机关状态。
+- RuneStatusSync（1Hz）：同步能量机关状态，其中 `average_rings` 为浮点数。
 - SentryStatusSync（1Hz）：同步哨兵姿态相关信息。
 - DartSelectTargetStatusSync（1Hz）：同步飞镖目标选择状态。
 - AirSupportStatusSync（1Hz）：同步空中支援状态，比如当前是否支援、剩余免费时间、已花费金币、是否被照射、是否被反制。
@@ -62,8 +62,12 @@
 - HeroDeployModeEventCommand（1Hz）：英雄部署模式相关指令。<!-- 按键触发 -->
 - RuneActivateCommand（1Hz）：能量机关激活指令。<!-- 按键激活 -->
 - DartCommand（1Hz）：飞镖控制指令。<!-- 点击 -->
-- SentryCtrlCommand（1Hz）：哨兵控制指令请求，用于补血点补弹、补给站补弹、远程补弹、远程回血、确认复活、花费金币复活、地图标点、切换进攻/防御/移动姿态等操作。<!-- 点击 -->
-- AirSupportCommand（1Hz）：空中支援操作指令，用于免费呼叫空中支援、花费金币呼叫空中支援、或中断空中支援。<!-- 点击 -->
+- SentryCtrlCommand（1Hz）：哨兵控制指令请求，`command_id` 按协议 raw 值透传，当前文档不再保留旧版“地图标点”枚举说明。<!-- 点击 -->
+- AirSupportCommand（1Hz）：空中支援操作指令，V1.3 语义为 `0=取消`、`1=免费呼叫`、`2=付费呼叫`。<!-- 点击 -->
+
+## 协议勘误
+- `MapClickInfoNotify` 的 PDF 字段表与 proto 示例冲突，仓库按 proto 示例实现：保留 `mode/type` 字段名，坐标字段使用 `map_x/map_y`。
+- `RadarInfoToClient` 的 PDF proto 示例不是合法 proto，仓库采用 `repeated RadarSingleRobotInfo radar_single_robot_info = 1` 作为固定实现。
 
 
 # 交互界面：
@@ -91,11 +95,11 @@
         - 控制闸门开关（开/关）
         - 确认是否发射
     - 哨兵控制
-        -  1: 补血点补弹  2: 补给站实体补弹  3: 远程补弹  4: 远程回血  5: 确认复活  6: 确认花费金币复活  7: 地图标点  8：切换为进攻姿态  9: 切换为防御姿态
+        - 当前 UI 文档只保留 raw `command_id` 透传约束，不再内嵌旧版枚举文案
     - 飞机控制
         - 免费呼叫空中支援
         - 花费金币呼叫空中支援（仍优先使用免费时长）
-        - 中断空中支援
+        - 取消空中支援
     
 
 

@@ -1,10 +1,7 @@
 # RuneStatusSync Service
 
 ## 作用
-缓存并分发 `RuneStatusSync` 消息，提供符文状态与环臂参数。
-
-## 监听信号
-- `ProtocolAdapter.rune_status_sync(message)`
+缓存并分发 `RuneStatusSync`，提供符文状态与环臂统计。
 
 ## 状态模型
 - `RuneStatusSyncState { rune_status, activated_arms, average_rings, last_update_msec }`
@@ -16,6 +13,11 @@
 
 ## 主要接口
 - `get_state()`
-- 各字段 getter
-- `get_rune_status_name(status)`（占位）
+- `get_rune_status()`
+- `get_activated_arms()`
+- `get_average_rings()`
+- `get_rune_status_name(status)`
 - `clear_cache()`
+
+## 说明
+- `average_rings` 在 V1.3 中为 `float`，对应 getter 与信号参数均保持浮点。

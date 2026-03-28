@@ -10,8 +10,9 @@
 - `get_last_error_code() -> int`
 
 ## 成功判定
-- 回执 `command_id` 匹配且 `result_code == 0`。
-- `result_code != 0` 归类为 `PROTOCOL_REJECTED`。
+- 回执 `command_id` 匹配且 `result_code == 0`
+- `result_code != 0` 归类为 `PROTOCOL_REJECTED`
 
-## 行为
-- 单请求 in-flight，支持覆盖、取消和 1Hz 重发。
+## 说明
+- `command_id` 按 raw 值透传，不在服务层枚举解释。
+- README 不再保留旧版“`7=地图标点`”说明；具体含义以当期协议表为准。

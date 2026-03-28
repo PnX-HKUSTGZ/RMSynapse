@@ -2,42 +2,56 @@ extends Node
 class_name RadarInfoToClientService
 
 signal radar_info_updated(state)
-signal target_changed(target_robot_id)
+signal radar_entries_changed(entries)
+
+const ENTRY_COUNT := 12
 
 @export var bind_retry_interval_sec: float = 1.0
 
 var adapter_getter: MQTTProtocolAdapterGetter = MQTTProtocolAdapterGetter.new()
 
-class RadarInfoToClientState:
+class RadarRobotInfo:
 	extends RefCounted
-	var target_robot_id: int = 0
-	var target_pos_x: float = 0.0
-	var target_pos_y: float = 0.0
-	var torward_angle: float = 0.0
+	var target_pos_x_cm: int = 0
+	var target_pos_y_cm: int = 0
 	var is_high_light: int = 0
-	var last_update_msec: int = 0
 
-	func clone() -> RadarInfoToClientState:
-		var c = RadarInfoToClientState.new()
-		c.target_robot_id = target_robot_id
-		c.target_pos_x = target_pos_x
-		c.target_pos_y = target_pos_y
-		c.torward_angle = torward_angle
+	func clone() -> RadarRobotInfo:
+		var c = RadarRobotInfo.new()
+		c.target_pos_x_cm = target_pos_x_cm
+		c.target_pos_y_cm = target_pos_y_cm
 		c.is_high_light = is_high_light
-		c.last_update_msec = last_update_msec
 		return c
 
 	func to_dict() -> Dictionary:
 		return {
-			"target_robot_id": target_robot_id,
-			"target_pos_x": target_pos_x,
-			"target_pos_y": target_pos_y,
-			"torward_angle": torward_angle,
+			"target_pos_x_cm": target_pos_x_cm,
+			"target_pos_y_cm": target_pos_y_cm,
 			"is_high_light": is_high_light,
-			"last_update_msec": last_update_msec
 		}
 
-var _state: RadarInfoToClientState = RadarInfoToClientState.new()
+class RadarInfoToClientState:
+	extends RefCounted
+	var entries: Array = []
+	var last_update_msec: int = 0
+
+	func clone() -> RadarInfoToClientState:
+		var c = RadarInfoToClientState.new()
+		for entry in entries:
+			c.entries.append(entry.clone())
+		c.last_update_msec = last_update_msec
+		return c
+
+	func to_dict() -> Dictionary:
+		var entry_dicts: Array = []
+		for entry in entries:
+			entry_dicts.append(entry.to_dict())
+		return {
+			"entries": entry_dicts,
+			"last_update_msec": last_update_msec,
+		}
+
+var _state: RadarInfoToClientState = _make_default_state()
 var _bound_adapter = null
 var _bind_retry_elapsed: float = 0.0
 var _logged_missing: bool = false
@@ -60,7 +74,7 @@ func _exit_tree() -> void:
 
 func clear_cache() -> void:
 	var old_state = _state.clone()
-	_state = RadarInfoToClientState.new()
+	_state = _make_default_state()
 	_state.last_update_msec = Time.get_ticks_msec()
 	_emit_change_signals(old_state)
 	emit_signal("radar_info_updated", _state.clone())
@@ -71,20 +85,30 @@ func ingest_radar_info_to_client(message) -> void:
 func get_state() -> RadarInfoToClientState:
 	return _state.clone()
 
-func get_target_robot_id() -> int:
-	return _state.target_robot_id
+func get_entries() -> Array:
+	var entries: Array = []
+	for entry in _state.entries:
+		entries.append(entry.clone())
+	return entries
 
-func get_target_pos_x() -> float:
-	return _state.target_pos_x
+func get_entry(index: int) -> RadarRobotInfo:
+	if index < 0 or index >= _state.entries.size():
+		return null
+	return _state.entries[index].clone()
 
-func get_target_pos_y() -> float:
-	return _state.target_pos_y
+func get_entry_count() -> int:
+	return _state.entries.size()
 
-func get_torward_angle() -> float:
-	return _state.torward_angle
+func _make_default_state() -> RadarInfoToClientState:
+	var state = RadarInfoToClientState.new()
+	state.entries = _make_default_entries()
+	return state
 
-func get_is_high_light() -> int:
-	return _state.is_high_light
+func _make_default_entries() -> Array:
+	var entries: Array = []
+	for _i in range(ENTRY_COUNT):
+		entries.append(RadarRobotInfo.new())
+	return entries
 
 func _on_radar_info_to_client(message) -> void:
 	if message == null:
@@ -95,11 +119,15 @@ func _on_radar_info_to_client(message) -> void:
 	_logged_null_message = false
 
 	var old_state = _state.clone()
-	_state.target_robot_id = int(message.get_target_robot_id())
-	_state.target_pos_x = float(message.get_target_pos_x())
-	_state.target_pos_y = float(message.get_target_pos_y())
-	_state.torward_angle = float(message.get_torward_angle())
-	_state.is_high_light = int(message.get_is_high_light())
+	_state.entries = _make_default_entries()
+	var incoming_entries = message.get_radar_single_robot_info()
+	var copy_count = mini(incoming_entries.size(), ENTRY_COUNT)
+	for i in range(copy_count):
+		var src = incoming_entries[i]
+		var dst: RadarRobotInfo = _state.entries[i]
+		dst.target_pos_x_cm = int(src.get_target_pos_x())
+		dst.target_pos_y_cm = int(src.get_target_pos_y())
+		dst.is_high_light = int(src.get_is_high_light())
 	_state.last_update_msec = Time.get_ticks_msec()
 	_emit_change_signals(old_state)
 	emit_signal("radar_info_updated", _state.clone())
@@ -140,8 +168,22 @@ func _disconnect_bound_adapter() -> void:
 	_bound_adapter = null
 
 func _emit_change_signals(old_state: RadarInfoToClientState) -> void:
-	if _state.target_robot_id != old_state.target_robot_id:
-		emit_signal("target_changed", _state.target_robot_id)
+	if _entries_changed(old_state.entries, _state.entries):
+		emit_signal("radar_entries_changed", get_entries())
+
+func _entries_changed(old_entries: Array, new_entries: Array) -> bool:
+	if old_entries.size() != new_entries.size():
+		return true
+	for i in range(new_entries.size()):
+		var old_entry = old_entries[i]
+		var new_entry = new_entries[i]
+		if old_entry.target_pos_x_cm != new_entry.target_pos_x_cm:
+			return true
+		if old_entry.target_pos_y_cm != new_entry.target_pos_y_cm:
+			return true
+		if old_entry.is_high_light != new_entry.is_high_light:
+			return true
+	return false
 
 func _log_error(message: String) -> void:
 	var logger = get_node_or_null("/root/Log")

@@ -1,10 +1,5 @@
 extends Node
 
-const DART_TARGET_BASE_RANDOM_MOVING := 4
-const RELATIVE_SIDE_ALLY := 1
-const RELATIVE_SIDE_ENEMY := 2
-const RELATIVE_SIDE_UNKNOWN := 0
-
 class DummyEventMessage:
 	extends RefCounted
 	var event_id: int = 0
@@ -37,82 +32,23 @@ func _ready() -> void:
 	var svc = EventService.new()
 	svc.clear_cache()
 
-	svc.ingest_event(EventService.EventId.KILL_EVENT, "1,101")
-	var kills = svc.get_kill_events()
-	if kills.size() != 1:
-		ok = false
-		errors.append("kill_events size")
-	else:
-		var k = kills[0]
-		if k.killer_id != 1 or k.victim_id != 101:
-			ok = false
-			errors.append("kill_events values")
-
-	svc.ingest_event(EventService.EventId.BASE_OR_OUTPOST_DESTROYED, "110")
-	var destroys = svc.get_destroy_events()
-	if destroys.size() != 1 or destroys[0].target_id != 110:
-		ok = false
-		errors.append("destroy_events")
-
-	svc.ingest_event(EventService.EventId.ENERGY_MECH_ACTIVATION_COUNT_CHANGED, "5")
-	if svc.get_energy_activation_count() != 5:
-		ok = false
-		errors.append("energy_activation_count")
-
-	svc.ingest_event(EventService.EventId.ALLY_AIR_SUPPORT_INTERRUPTED, "2")
-	if svc.get_ally_air_support_interrupts_left() != 2:
-		ok = false
-		errors.append("ally_air_support_interrupts_left")
-
-	svc.ingest_event(EventService.EventId.DART_HIT, "4")
-	var hits = svc.get_dart_hit_events()
-	if hits.size() != 1 or int(hits[0].target) != DART_TARGET_BASE_RANDOM_MOVING:
-		ok = false
-		errors.append("dart_hit")
-
-	var gate_side := [0]
-	svc.dart_gate_opened.connect(func(side):
-		gate_side[0] = int(side)
+	var rune_signal := [0.0]
+	svc.big_rune_active_arms_changed.connect(func(_arms_count, avg_rings):
+		rune_signal[0] = float(avg_rings)
 	)
-	svc.ingest_event(EventService.EventId.BOTH_DART_GATE_OPENED, "1")
-	if gate_side[0] != RELATIVE_SIDE_ALLY:
+	svc.ingest_event(EventService.EventId.BIG_RUNE_ACTIVE_ARMS_CHANGED, "10,9.6")
+	if not is_equal_approx(rune_signal[0], 9.6):
 		ok = false
-		errors.append("dart_gate_opened side")
+		errors.append("big_rune_active_arms_changed signal")
 
-	var outpost_side := [0]
-	svc.outpost_stopped.connect(func(side):
-		outpost_side[0] = int(side)
+	var request_level4 := [false]
+	svc.enemy_requested_level4_assembly.connect(func():
+		request_level4[0] = true
 	)
-	svc.ingest_event(EventService.EventId.BOTH_OUTPOST_STOPPED, "2")
-	if outpost_side[0] != RELATIVE_SIDE_ENEMY:
+	svc.ingest_event(EventService.EventId.ENEMY_REQUESTED_LEVEL4_ASSEMBLY)
+	if not request_level4[0]:
 		ok = false
-		errors.append("outpost_stopped side")
-
-	var base_armor_side := [RELATIVE_SIDE_ALLY]
-	svc.base_armor_deployed.connect(func(side):
-		base_armor_side[0] = int(side)
-	)
-	svc.ingest_event(EventService.EventId.BOTH_BASE_ARMOR_DEPLOYED, "3")
-	if base_armor_side[0] != RELATIVE_SIDE_UNKNOWN:
-		ok = false
-		errors.append("base_armor_deployed side strict")
-
-	svc.clear_cache()
-	if svc.get_kill_events().size() != 0:
-		ok = false
-		errors.append("clear_cache kill_events")
-	if svc.get_destroy_events().size() != 0:
-		ok = false
-		errors.append("clear_cache destroy_events")
-	if svc.get_dart_hit_events().size() != 0:
-		ok = false
-		errors.append("clear_cache dart_hit_events")
-	if svc.get_energy_activation_count() != 0:
-		ok = false
-		errors.append("clear_cache energy_activation_count")
-	if svc.get_ally_air_support_interrupts_left() != 3:
-		ok = false
-		errors.append("clear_cache ally_air_support_interrupts_left")
+		errors.append("enemy_requested_level4_assembly signal")
 
 	var delayed_getter = FakeAdapterGetter.new()
 	var delayed_service = EventService.new()
@@ -135,6 +71,24 @@ func _ready() -> void:
 	if delayed_service.get_kill_events().size() != 1:
 		ok = false
 		errors.append("delayed bind ingest kill event")
+	else:
+		var delayed_kill = delayed_service.get_kill_events()[0]
+		if delayed_kill.victim_id != 2 or delayed_kill.killer_id != 102:
+			ok = false
+			errors.append("delayed bind kill values")
+
+	var delayed_msg_dart = DummyEventMessage.new()
+	delayed_msg_dart.event_id = EventService.EventId.DART_HIT
+	delayed_msg_dart.param = "2,5"
+	adapter_a.event_message.emit(delayed_msg_dart)
+	if delayed_service.get_dart_hit_events().size() != 1:
+		ok = false
+		errors.append("delayed bind dart hit")
+	else:
+		var delayed_hit = delayed_service.get_dart_hit_events()[0]
+		if int(delayed_hit.hit_team) != EventService.HitTeam.BLUE or int(delayed_hit.target) != EventService.DartHitTarget.BASE_TERMINAL_MOVING_TARGET:
+			ok = false
+			errors.append("delayed bind dart hit values")
 
 	var adapter_b = FakeAdapter.new()
 	delayed_getter.adapter_ref = adapter_b
@@ -149,12 +103,12 @@ func _ready() -> void:
 		errors.append("adapter replace should disconnect old adapter")
 
 	var delayed_msg_2 = DummyEventMessage.new()
-	delayed_msg_2.event_id = EventService.EventId.KILL_EVENT
-	delayed_msg_2.param = "3,103"
+	delayed_msg_2.event_id = EventService.EventId.ASSEMBLY_RESULT
+	delayed_msg_2.param = "6"
 	adapter_b.event_message.emit(delayed_msg_2)
-	if delayed_service.get_kill_events().size() != 2:
+	if delayed_service.get_last_assembly_result() != 6:
 		ok = false
-		errors.append("adapter replace ingest kill event")
+		errors.append("adapter replace ingest assembly_result")
 
 	if ok:
 		print("EVENT_SERVICE_SCENE_TEST_OK")

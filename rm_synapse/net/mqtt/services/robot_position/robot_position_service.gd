@@ -14,6 +14,7 @@ class RobotPositionState:
 	var y: float = 0.0
 	var z: float = 0.0
 	var yaw: float = 0.0
+	var robot_id: int = 0
 	var last_update_msec: int = 0
 
 	func clone() -> RobotPositionState:
@@ -22,6 +23,7 @@ class RobotPositionState:
 		c.y = y
 		c.z = z
 		c.yaw = yaw
+		c.robot_id = robot_id
 		c.last_update_msec = last_update_msec
 		return c
 
@@ -31,6 +33,7 @@ class RobotPositionState:
 			"y": y,
 			"z": z,
 			"yaw": yaw,
+			"robot_id": robot_id,
 			"last_update_msec": last_update_msec
 		}
 
@@ -80,6 +83,9 @@ func get_z() -> float:
 func get_yaw() -> float:
 	return _state.yaw
 
+func get_robot_id() -> int:
+	return _state.robot_id
+
 func get_planar_position() -> Vector2:
 	return Vector2(_state.x, _state.y)
 
@@ -96,6 +102,7 @@ func _on_robot_position(message) -> void:
 	_state.y = float(message.get_y())
 	_state.z = float(message.get_z())
 	_state.yaw = float(message.get_yaw())
+	_state.robot_id = int(message.get_robot_id())
 	_state.last_update_msec = Time.get_ticks_msec()
 	_emit_change_signals(old_state)
 	emit_signal("robot_position_updated", _state.clone())
