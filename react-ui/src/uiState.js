@@ -45,8 +45,112 @@ function toNonNegativeInt(value, fallback = 0) {
   return Math.max(0, Math.trunc(toFiniteNumber(value, fallback)));
 }
 
+function extractInts(value) {
+  const matches = String(value ?? '').match(/-?\d+/g);
+  if (!matches) return [];
+  return matches.map((item) => Number.parseInt(item, 10)).filter((item) => Number.isFinite(item));
+}
+
+function getDartTargetLabel(targetId) {
+  switch (targetId) {
+    case 1:
+      return '前哨站';
+    case 2:
+      return '基地固定目标';
+    case 3:
+      return '基地随机固定目标';
+    case 4:
+      return '基地随机移动目标';
+    case 5:
+      return '基地末端移动目标';
+    default:
+      return `未知目标(${targetId})`;
+  }
+}
+
+function getSideLabel(side) {
+  switch (side) {
+    case 1:
+      return '己方';
+    case 2:
+      return '对方';
+    case 3:
+      return '双方';
+    default:
+      return `未知方(${side})`;
+  }
+}
+
 function buildEventMessageText(eventId, param) {
-  return `Event #${eventId}${param ? ` (${param})` : ''}`;
+  const textParam = String(param ?? '').trim();
+  const ints = extractInts(textParam);
+
+  switch (eventId) {
+    case 1: {
+      const killerId = ints[0] ?? -1;
+      const victimId = ints[1] ?? -1;
+      return `击杀事件：机器人 ${killerId} 击毁了机器人 ${victimId}`;
+    }
+    case 2: {
+      const targetId = ints[0] ?? -1;
+      return `基地/前哨站被摧毁：目标 ID ${targetId}`;
+    }
+    case 3: {
+      const count = ints[0] ?? 0;
+      return `能量机关可激活次数变化：剩余 ${count} 次`;
+    }
+    case 4:
+      return '能量机关当前可进入激活状态';
+    case 5: {
+      const armsCount = ints[0] ?? 0;
+      const avgRings = ints[1] ?? 0;
+      return `能量机关激活进度：成功灯臂 ${armsCount}，平均环数 ${avgRings}`;
+    }
+    case 6:
+      return `能量机关被激活：类型 ${textParam || '未知'}`;
+    case 7:
+      return '己方英雄进入部署模式';
+    case 8: {
+      const damage = ints[0] ?? 0;
+      return `己方英雄造成狙击伤害：累计 ${damage}`;
+    }
+    case 9: {
+      const damage = ints[0] ?? 0;
+      return `对方英雄造成狙击伤害：累计 ${damage}`;
+    }
+    case 10:
+      return '己方呼叫空中支援';
+    case 11: {
+      const remaining = ints[0] ?? 0;
+      return `己方空中支援被打断：对方剩余可打断次数 ${remaining}`;
+    }
+    case 12:
+      return '对方呼叫空中支援';
+    case 13: {
+      const remaining = ints[0] ?? 0;
+      return `对方空中支援被打断：己方剩余可打断次数 ${remaining}`;
+    }
+    case 14: {
+      const target = ints[0] ?? 0;
+      return `飞镖命中：${getDartTargetLabel(target)}`;
+    }
+    case 15: {
+      const side = ints[0] ?? 0;
+      return `飞镖闸门开启：${getSideLabel(side)}`;
+    }
+    case 16:
+      return '己方基地遭到攻击';
+    case 17: {
+      const side = ints[0] ?? 0;
+      return `前哨站停转：${getSideLabel(side)}`;
+    }
+    case 18: {
+      const side = ints[0] ?? 0;
+      return `基地护甲展开：${getSideLabel(side)}`;
+    }
+    default:
+      return `Event #${eventId}${textParam ? ` (${textParam})` : ''}`;
+  }
 }
 
 function buildProtoPatch(data) {
@@ -203,7 +307,7 @@ const DEFAULT_MINI_MAP_PLAYERS = [
 
 // 默认 UI 数据（当 Godot 还没推送任何数据时使用）
 const DEFAULT_UI_STATE = {
-  forceBlackBg: false,
+  forceBlackBg: true,
   uiSizing: {
     topCoreScale: 1,
     centerHudScale: 1,
