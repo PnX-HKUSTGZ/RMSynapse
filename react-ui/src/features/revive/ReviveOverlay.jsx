@@ -1,16 +1,10 @@
 import { useState } from 'react';
-import { DEFAULT_UI_STATE } from './uiState';
+import { clamp, DEFAULT_UI_STATE } from '../../state';
 
 function normalizeCountdown(value) {
   const seconds = Number(value);
   if (!Number.isFinite(seconds)) return 0;
   return Math.max(0, Math.floor(seconds));
-}
-
-function normalizeScale(value, min, max) {
-  const scale = Number(value);
-  if (!Number.isFinite(scale)) return 1;
-  return Math.min(max, Math.max(min, scale));
 }
 
 export default function ReviveOverlay({
@@ -28,18 +22,23 @@ export default function ReviveOverlay({
   const respawnDefaults = DEFAULT_UI_STATE.respawn ?? {};
   const defaultTexts = respawnDefaults.texts ?? {};
   const mergedTexts = { ...defaultTexts, ...(texts ?? {}) };
-
   const [isConfirmingBuy, setIsConfirmingBuy] = useState(false);
 
   const safeCountdown = normalizeCountdown(countdown);
   const safeEco = Number.isFinite(Number(eco)) ? Number(eco) : 0;
-  const safeDefaultReviveCost = Number(respawnDefaults.reviveCost) > 0 ? Number(respawnDefaults.reviveCost) : 500;
+  const safeDefaultReviveCost = Number(respawnDefaults.reviveCost) > 0
+    ? Number(respawnDefaults.reviveCost)
+    : 500;
   const safeReviveCost = Number.isFinite(Number(reviveCost)) && Number(reviveCost) > 0
     ? Number(reviveCost)
     : safeDefaultReviveCost;
-  const safeMinScale = Number(minScale) > 0 ? Number(minScale) : (Number(respawnDefaults.minScale) > 0 ? Number(respawnDefaults.minScale) : 0.4);
-  const safeMaxScale = Number(maxScale) > safeMinScale ? Number(maxScale) : (Number(respawnDefaults.maxScale) > safeMinScale ? Number(respawnDefaults.maxScale) : 3);
-  const safeScale = normalizeScale(scale, safeMinScale, safeMaxScale);
+  const safeMinScale = Number(minScale) > 0
+    ? Number(minScale)
+    : (Number(respawnDefaults.minScale) > 0 ? Number(respawnDefaults.minScale) : 0.4);
+  const safeMaxScale = Number(maxScale) > safeMinScale
+    ? Number(maxScale)
+    : (Number(respawnDefaults.maxScale) > safeMinScale ? Number(respawnDefaults.maxScale) : 3);
+  const safeScale = clamp(Number(scale) || 1, safeMinScale, safeMaxScale);
   const canNormalRevive = safeCountdown === 0;
   const canBuyRevive = safeEco >= safeReviveCost;
 
@@ -64,7 +63,7 @@ export default function ReviveOverlay({
 
   return (
     <div
-      className="absolute bottom-[15%] left-1/2 z-40 flex flex-col items-center rounded-2xl border border-gray-700/80 bg-gray-900/90 p-8 shadow-[0_0_40px_rgba(0,0,0,0.8)]"
+      className="absolute bottom-[15%] left-1/2 z-40 flex -translate-x-1/2 flex-col items-center rounded-2xl border border-gray-700/80 bg-gray-900/90 p-8 shadow-[0_0_40px_rgba(0,0,0,0.8)]"
       style={{ transform: `translateX(-50%) scale(${safeScale})`, transformOrigin: 'bottom center' }}
     >
       <div className="mb-6 flex flex-col items-center">
@@ -92,7 +91,9 @@ export default function ReviveOverlay({
         >
           <span className="mb-1 text-xl font-bold">{mergedTexts.normalReviveTitle}</span>
           <span className="text-sm font-medium">
-            {canNormalRevive ? mergedTexts.normalReviveReadyHint : `${mergedTexts.normalReviveCoolingPrefix} (${safeCountdown}s)`}
+            {canNormalRevive
+              ? mergedTexts.normalReviveReadyHint
+              : `${mergedTexts.normalReviveCoolingPrefix} (${safeCountdown}s)`}
           </span>
         </button>
 
@@ -117,14 +118,12 @@ export default function ReviveOverlay({
                   !canBuyRevive
                     ? 'border-red-800/50 bg-red-950/80 text-red-300'
                     : 'border-amber-700/50 bg-amber-950/80 text-amber-200'
-                }`}
-                >
+                }`}>
                   {safeReviveCost}
                 </span>
                 <span className={`border-l pl-2 ${
                   !canBuyRevive ? 'border-red-800/50 text-red-300/50' : 'border-amber-700/50 text-amber-100/70'
-                }`}
-                >
+                }`}>
                   {mergedTexts.buyTriggerHint}
                 </span>
               </div>

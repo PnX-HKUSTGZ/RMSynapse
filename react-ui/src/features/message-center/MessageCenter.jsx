@@ -1,67 +1,18 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_UI_STATE } from './uiState';
-
-function buildMergedConfig(messageCenter) {
-  const defaults = DEFAULT_UI_STATE.messageCenter ?? {};
-  const incoming = messageCenter ?? {};
-
-  return {
-    ...defaults,
-    ...incoming,
-    levels: { ...(defaults.levels ?? {}), ...(incoming.levels ?? {}) },
-    priorityMap: { ...(defaults.priorityMap ?? {}), ...(incoming.priorityMap ?? {}) },
-    items: Array.isArray(incoming.items) ? incoming.items : (defaults.items ?? []),
-  };
-}
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { resolveMessageCenterState } from '../../state';
+import NotificationItem from './NotificationItem';
 
 function clearTimersById(timersRef, id) {
   const timers = timersRef.current.get(id);
   if (!timers) return;
+
   clearTimeout(timers.leaveTimer);
   clearTimeout(timers.removeTimer);
   timersRef.current.delete(id);
 }
 
-const NotificationItem = memo(function NotificationItem({ msg, levelConfig, leaveAnimationMs }) {
-  return (
-    <div
-      className={`
-        relative flex items-stretch w-80 overflow-hidden rounded-r-xl
-        border-l-4 backdrop-blur-md ${levelConfig.borderClass} ${levelConfig.glowClass} ${levelConfig.bgClass}
-        transition-all duration-300 ease-in-out
-        ${msg.isLeaving ? 'opacity-0 -translate-x-full scale-95 mb-3' : 'opacity-100 translate-x-0 scale-100 mb-3'}
-      `}
-      style={{ willChange: 'transform, opacity, margin-bottom' }}
-    >
-      <div className={`flex w-12 items-center justify-center text-xl ${levelConfig.iconBg} ${levelConfig.extraAnim}`}>
-        {levelConfig.icon}
-      </div>
-
-      <div className="z-10 flex flex-1 flex-col justify-center px-3 py-2">
-        <span className={`text-xs font-black tracking-widest ${levelConfig.colorClass}`}>
-          {levelConfig.title}
-        </span>
-        <span className="mt-0.5 text-sm font-medium leading-snug text-white drop-shadow-md">
-          {msg.text}
-        </span>
-      </div>
-
-      <div
-        className={`absolute bottom-0 left-0 z-20 h-[3px] origin-left ${
-          msg.level === 'critical' ? 'bg-red-400' : 'bg-white/70'
-        }`}
-        style={{
-          width: '100%',
-          animation: `msg-shrink ${Math.max(leaveAnimationMs, msg.duration)}ms linear forwards`,
-          willChange: 'transform',
-        }}
-      />
-    </div>
-  );
-});
-
 export default function MessageCenter({ messageCenter }) {
-  const config = useMemo(() => buildMergedConfig(messageCenter), [messageCenter]);
+  const config = useMemo(() => resolveMessageCenterState(messageCenter), [messageCenter]);
   const [messages, setMessages] = useState([]);
   const timersRef = useRef(new Map());
   const seenEventsRef = useRef(new Set());
@@ -70,6 +21,7 @@ export default function MessageCenter({ messageCenter }) {
   useEffect(() => {
     const timers = timersRef.current;
     const activeTags = activeTagsRef.current;
+
     return () => {
       timers.forEach(({ leaveTimer, removeTimer }) => {
         clearTimeout(leaveTimer);
@@ -122,7 +74,9 @@ export default function MessageCenter({ messageCenter }) {
       const timestamp = hasTimestamp ? timestampFromItem : Date.now();
 
       const rawId = item?.id;
-      const id = rawId != null ? String(rawId) : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      const id = rawId != null
+        ? String(rawId)
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const eventKey = rawId != null
         ? `${id}::${hasTimestamp ? String(timestampFromItem) : 'na'}`
         : `${tag ?? 'untagged'}::${level}::${text}::${hasTimestamp ? String(timestampFromItem) : 'na'}`;
@@ -133,17 +87,11 @@ export default function MessageCenter({ messageCenter }) {
       if (tag) {
         const activeMessageId = activeTagsRef.current.get(tag);
         if (activeMessageId) {
-          setMessages((prev) => prev.map((msg) => {
-            if (msg.id !== activeMessageId) return msg;
-            return {
-              ...msg,
-              level,
-              text,
-              duration,
-              isLeaving: false,
-              rev: (msg.rev ?? 0) + 1,
-            };
-          }));
+          setMessages((prev) => prev.map((msg) => (
+            msg.id !== activeMessageId
+              ? msg
+              : { ...msg, level, text, duration, isLeaving: false, rev: (msg.rev ?? 0) + 1 }
+          )));
           scheduleLifecycle(activeMessageId, duration);
           return;
         }
@@ -165,13 +113,15 @@ export default function MessageCenter({ messageCenter }) {
   const sortedMessages = useMemo(() => {
     const priorityMap = config.priorityMap ?? {};
     const maxVisible = Number(config.maxVisible) > 0 ? Number(config.maxVisible) : 8;
-    const sorted = [...messages].sort((a, b) => {
-      const pa = Number(priorityMap[a.level] ?? 99);
-      const pb = Number(priorityMap[b.level] ?? 99);
-      if (pa !== pb) return pa - pb;
-      return a.timestamp - b.timestamp;
-    });
-    return sorted.slice(0, maxVisible);
+
+    return [...messages]
+      .sort((a, b) => {
+        const leftPriority = Number(priorityMap[a.level] ?? 99);
+        const rightPriority = Number(priorityMap[b.level] ?? 99);
+        if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+        return a.timestamp - b.timestamp;
+      })
+      .slice(0, maxVisible);
   }, [messages, config.priorityMap, config.maxVisible]);
 
   if (!config.enabled) return null;
@@ -186,34 +136,27 @@ export default function MessageCenter({ messageCenter }) {
     : 1;
 
   return (
-    <>
-      <style>{`
-        @keyframes msg-shrink {
-          from { transform: scaleX(1); }
-          to { transform: scaleX(0); }
-        }
-      `}</style>
-      <div
-        className="absolute left-6 z-40 flex flex-col pointer-events-none"
-        style={{
-          top: `${safeTopPercent}%`,
-          transform: `scale(${safeScale})`,
-          transformOrigin: 'top left',
-        }}
-      >
-        {sortedMessages.map((msg) => {
-          const levelConfig = config.levels?.[msg.level] ?? config.levels?.normal;
-          if (!levelConfig) return null;
-          return (
-            <NotificationItem
-              key={`${msg.id}-${msg.rev ?? 0}`}
-              msg={msg}
-              levelConfig={levelConfig}
-              leaveAnimationMs={config.leaveAnimationMs}
-            />
-          );
-        })}
-      </div>
-    </>
+    <div
+      className="pointer-events-none absolute left-6 z-40 flex flex-col"
+      style={{
+        top: `${safeTopPercent}%`,
+        transform: `scale(${safeScale})`,
+        transformOrigin: 'top left',
+      }}
+    >
+      {sortedMessages.map((msg) => {
+        const levelConfig = config.levels?.[msg.level] ?? config.levels?.normal;
+        if (!levelConfig) return null;
+
+        return (
+          <NotificationItem
+            key={`${msg.id}-${msg.rev ?? 0}`}
+            msg={msg}
+            levelConfig={levelConfig}
+            leaveAnimationMs={config.leaveAnimationMs}
+          />
+        );
+      })}
+    </div>
   );
 }

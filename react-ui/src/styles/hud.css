@@ -1,0 +1,55 @@
+.font-orbitron {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.clip-trapezoid {
+  clip-path: polygon(15px 0, calc(100% - 15px) 0, 100% 100%, 0 100%);
+}
+
+.clip-trapezoid-top {
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 100%, 0 100%);
+}
+
+.scanline-bg {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.4) 2px,
+    rgba(0, 0, 0, 0.4) 4px
+  );
+}
+
+.glass-panel {
+  background: linear-gradient(180deg, rgba(15, 20, 25, 0.3) 0%, rgba(5, 10, 15, 0.5) 100%);
+  backdrop-filter: blur(8px);
+}
+
+.ultra-glass {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(6px);
+}
+
+@keyframes msg-shrink {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 1.8s linear infinite;
+}
