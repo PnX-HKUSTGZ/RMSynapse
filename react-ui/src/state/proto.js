@@ -39,6 +39,16 @@ const STAGE_LABELS = {
 
 const GLOBAL_UNIT_ROBOT_IDS = [1, 2, 3, 4, 7];
 
+const BUFF_TYPE_META = {
+  1: { type: 'attack', name: '攻击增益', value: '+20%' },
+  2: { type: 'defense', name: '防御/易伤', value: '+150%' },
+  3: { type: 'cooling', name: '射击热量冷却', value: '+5/s' },
+  4: { type: 'power', name: '底盘功率' },
+  5: { type: 'regen', name: '回血增益', value: '+10' },
+  6: { type: 'ammo', name: '可兑换弹量' },
+  7: { type: 'terrain', name: '地形跨越' },
+};
+
 function extractInts(value) {
   const matches = String(value ?? '').match(/-?\d+/g);
   if (!matches) return [];
@@ -334,17 +344,20 @@ function buildProtoPatch(data) {
 
   if (isPlainObject(data.Buff)) {
     const source = data.Buff;
+    const buffType = toNonNegativeInt(source.buff_type);
+    const meta = BUFF_TYPE_META[buffType] ?? {
+      type: `buff-${buffType}`,
+      name: `BUFF ${buffType}`,
+    };
+
     patch.boostBuffs = [
       {
-        id: toNonNegativeInt(source.buff_type),
-        type: `buff-${toNonNegativeInt(source.buff_type)}`,
-        name: `BUFF ${toNonNegativeInt(source.buff_type)}`,
+        id: buffType,
+        ...meta,
         time: toFiniteNumber(source.buff_left_time),
         maxTime: toFiniteNumber(source.buff_max_time),
         level: toNonNegativeInt(source.buff_level),
         robotId: toNonNegativeInt(source.robot_id),
-        icon: 'zap',
-        color: 'cyan',
       },
     ];
   }

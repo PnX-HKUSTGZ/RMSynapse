@@ -1,5 +1,5 @@
-import { Shield, Sword } from 'lucide-react';
 import { resolveCenterHudState, resolveUiSizing } from '../../state';
+import StatusBuffList from '../buffs/StatusBuffList';
 
 export default function CenterCombatHUD({ centerHud, uiSizing }) {
   const hud = resolveCenterHudState(centerHud);
@@ -12,9 +12,13 @@ export default function CenterCombatHUD({ centerHud, uiSizing }) {
   const maxHeat = hud.maxHeat > 0 ? hud.maxHeat : 100;
   const isOverheated = !!hud.isOverheated;
   const attackBuffTime = hud.attackBuffTime ?? 0;
-  const defenseBuffTime = hud.defenseBuffTime ?? 0;
+  const coolingBuffTime = hud.coolingBuffTime ?? hud.defenseBuffTime ?? 0;
   const isShooting = !!hud.isShooting;
   const isLowAmmo = ammo <= 5;
+  const centerBuffs = [
+    { id: 'center-attack', type: 'attack', time: attackBuffTime, maxTime: attackBuffTime },
+    { id: 'center-cooling', type: 'cooling', time: coolingBuffTime, maxTime: coolingBuffTime },
+  ];
 
   const getHeatColor = () => {
     if (isOverheated) return '#ef4444';
@@ -79,25 +83,12 @@ export default function CenterCombatHUD({ centerHud, uiSizing }) {
           </span>
         </div>
 
-        <div className="absolute left-[130px] top-1/2 flex -translate-y-1/2 flex-col gap-2">
-          {attackBuffTime > 0 && (
-            <div
-              className="flex items-center justify-center rounded border border-orange-500/30 bg-slate-900/60 p-1.5 backdrop-blur-sm transition-opacity duration-75"
-              style={{ opacity: attackBuffTime <= 5 && Math.floor(attackBuffTime * 4) % 2 === 0 ? 0.2 : 1 }}
-            >
-              <Sword size={18} className="text-orange-400 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" />
-            </div>
-          )}
-
-          {defenseBuffTime > 0 && (
-            <div
-              className="flex items-center justify-center rounded border border-blue-500/30 bg-slate-900/60 p-1.5 backdrop-blur-sm transition-opacity duration-75"
-              style={{ opacity: defenseBuffTime <= 5 && Math.floor(defenseBuffTime * 4) % 2 === 0 ? 0.2 : 1 }}
-            >
-              <Shield size={18} className="text-blue-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.8)]" />
-            </div>
-          )}
-        </div>
+        <StatusBuffList
+          buffs={centerBuffs}
+          iconOnly
+          size="xs"
+          className="absolute left-[130px] top-1/2 -translate-y-1/2 flex-col"
+        />
       </div>
     </div>
   );

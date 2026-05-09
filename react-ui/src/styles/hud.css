@@ -53,3 +53,198 @@
 .animate-spin-slow {
   animation: spin-slow 1.8s linear infinite;
 }
+
+.status-buff-list {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+  opacity: 0.82;
+}
+
+.status-buff-list--sm {
+  gap: 4px;
+}
+
+.status-buff-item {
+  --status-buff-size: 38px;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: var(--status-buff-size);
+}
+
+.status-buff-item--no-label {
+  min-width: var(--status-buff-size);
+}
+
+.status-buff-item--sm {
+  --status-buff-size: 32px;
+}
+
+.status-buff-item--xs {
+  --status-buff-size: 28px;
+}
+
+.status-buff-item--lg {
+  --status-buff-size: 52px;
+}
+
+.status-buff-icon {
+  position: relative;
+  width: var(--status-buff-size);
+  height: var(--status-buff-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--status-buff-color) 42%, transparent);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.72);
+  color: var(--status-buff-color);
+  /* box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05); */
+}
+
+.status-buff-icon--sm {
+  --status-buff-size: 32px;
+}
+
+.status-buff-icon--xs {
+  --status-buff-size: 28px;
+  border-radius: 7px;
+}
+
+.status-buff-icon--lg {
+  --status-buff-size: 46px;
+}
+
+.status-buff-svg {
+  z-index: 10;
+  width: calc(var(--status-buff-size) * 0.56);
+  height: calc(var(--status-buff-size) * 0.56);
+  /* filter: drop-shadow(0 0 3px currentColor); */
+}
+
+.status-buff-time {
+  position: absolute;
+  top: 3px;
+  z-index: 20;
+  width: 100%;
+  color: #fff;
+  font-size: calc(var(--status-buff-size) * 0.18);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  /* text-shadow: 0 1px 2px #000, 0 0 4px var(--status-buff-color); */
+}
+
+.status-buff-value {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  z-index: 20;
+  color: #fff;
+  font-size: calc(var(--status-buff-size) * 0.2);
+  font-weight: 900;
+  line-height: 1;
+  /* text-shadow: 0 1px 2px #000, 0 0 4px var(--status-buff-color); */
+}
+
+.status-buff-cooldown {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  background: conic-gradient(rgba(0, 0, 0, 0.58) var(--status-buff-cooldown, 360deg), transparent 0deg);
+}
+
+.status-buff-label {
+  width: calc(var(--status-buff-size) + 32px);
+  color: rgba(203, 213, 225, 0.85);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  /* text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9); */
+}
+
+@keyframes status-buff-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(10px);
+  }
+
+  70% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes status-buff-warn-blink {
+  0%,
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+
+  50% {
+    opacity: 0.42;
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes status-buff-invincible-glow {
+  0%,
+  100% {
+    /* box-shadow: 0 0 10px #facc15, inset 0 0 10px rgba(250, 204, 21, 0.75); */
+  }
+
+  50% {
+    /* box-shadow: 0 0 20px #facc15, inset 0 0 18px rgba(250, 204, 21, 0.9); */
+  }
+}
+
+.status-buff-pop {
+  animation: status-buff-pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.status-buff-warn {
+  border-color: var(--status-buff-color);
+  /* box-shadow: 0 0 12px color-mix(in srgb, var(--status-buff-color) 60%, transparent); */
+  animation: status-buff-warn-blink 0.6s infinite;
+}
+
+.status-buff-icon--invincible {
+  border-color: rgba(250, 204, 21, 0.56);
+  animation: status-buff-invincible-glow 2s infinite;
+}
+
+.status-buff-label--inside {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  left: 0;
+  z-index: 12;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 2px;
+  overflow: hidden;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: calc(var(--status-buff-size) * 0.18);
+  line-height: 1;
+  white-space: nowrap;
+}

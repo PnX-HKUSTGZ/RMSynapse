@@ -6,42 +6,17 @@ import {
   ChevronsRight,
   Crosshair,
   Heart,
-  HeartPlus,
-  Mountain,
-  Shield,
-  Snowflake,
-  Sword,
   Wifi,
   Wrench,
   Zap,
 } from 'lucide-react';
 import { resolveBoostBuffs, resolveMechaState, resolveUiSizing, toPercent } from '../../state';
-
-const BUFF_ICON_MAP = {
-  sword: Sword,
-  shield: Shield,
-  snowflake: Snowflake,
-  zap: Zap,
-  heartPlus: HeartPlus,
-  crosshair: Crosshair,
-  mountain: Mountain,
-};
-
-const BUFF_COLOR_MAP = {
-  rose: { border: 'border-rose-500/60', text: 'text-rose-400', glow: 'drop-shadow-[0_0_3px_rgba(244,63,94,0.8)]' },
-  blue: { border: 'border-blue-500/60', text: 'text-blue-400', glow: 'drop-shadow-[0_0_3px_rgba(59,130,246,0.8)]' },
-  cyan: { border: 'border-cyan-500/60', text: 'text-cyan-400', glow: 'drop-shadow-[0_0_3px_rgba(34,211,238,0.8)]' },
-  amber: { border: 'border-amber-500/60', text: 'text-amber-400', glow: 'drop-shadow-[0_0_3px_rgba(251,191,36,0.8)]' },
-  emerald: { border: 'border-emerald-500/60', text: 'text-emerald-400', glow: 'drop-shadow-[0_0_3px_rgba(16,185,129,0.8)]' },
-  violet: { border: 'border-violet-500/60', text: 'text-violet-400', glow: 'drop-shadow-[0_0_3px_rgba(139,92,246,0.8)]' },
-  stone: { border: 'border-stone-500/60', text: 'text-stone-400', glow: 'drop-shadow-[0_0_3px_rgba(168,162,158,0.8)]' },
-};
+import StatusBuffList from '../buffs/StatusBuffList';
 
 export default function MechaHUD({ mecha, maxValues, uiSizing, boostBuffs }) {
   const mergedMecha = resolveMechaState(mecha);
   const mergedSizing = resolveUiSizing(uiSizing);
   const mergedBoostBuffs = resolveBoostBuffs(boostBuffs);
-  const activeBoostBuffs = mergedBoostBuffs.filter((buff) => (Number(buff?.time) || 0) > 0);
 
   const mechaHudScale = mergedSizing.mechaHudScale > 0 ? mergedSizing.mechaHudScale : 1;
   const maxHp = maxValues?.mechaHp ?? 1;
@@ -179,27 +154,11 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, boostBuffs }) {
           style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom center' }}
         >
           <div className="relative w-full">
-            <div className="absolute bottom-full mb-5 flex w-full flex-wrap justify-center gap-1.5 px-2">
-              {activeBoostBuffs.map((buff) => {
-                const IconComponent = BUFF_ICON_MAP[buff.icon] ?? Snowflake;
-                const colors = BUFF_COLOR_MAP[buff.color] ?? BUFF_COLOR_MAP.cyan;
-                const timeLeft = Math.max(0, Math.ceil(Number(buff.time) || 0));
-
-                return (
-                  <div
-                    key={buff.id}
-                    className={`flex h-[22px] items-center justify-center border bg-slate-900/80 px-1.5 shadow-sm skew-x-[-15deg] backdrop-blur-md ${colors.border} ${colors.glow} transition-all duration-300`}
-                  >
-                    <div className="flex items-center gap-1 skew-x-[15deg]">
-                      <IconComponent size={12} className={colors.text} />
-                      <span className={`pt-[1px] text-[10px] font-bold leading-none ${colors.text} ${colors.glow} drop-shadow-[0_1px_1px_rgba(0,0,0,1)]`}>
-                        {timeLeft}s
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <StatusBuffList
+              buffs={mergedBoostBuffs}
+              size="lg"
+              className="absolute bottom-full left-1/2 mb-5 w-max max-w-none -translate-x-1/2 px-2"
+            />
 
             <div className="absolute -top-5 flex w-full justify-between px-2 text-xs font-bold text-cyan-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
               <span className="flex items-center gap-1 drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">

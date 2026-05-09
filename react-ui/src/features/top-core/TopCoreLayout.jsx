@@ -227,8 +227,6 @@ function BuildingCard({
 }) {
   const isRed = team === 'red';
   const align = isRed ? 'left' : 'right';
-  const teamText = isRed ? 'text-red-300' : 'text-blue-300';
-  const teamFill = isRed ? 'bg-red-500' : 'bg-blue-500';
   const widthClass = type === 'base' ? 'min-w-[260px] flex-1' : 'w-[160px] shrink-0';
   const hpSegmentSize = type === 'base' ? 500 : 200;
   const safeShield = Math.max(0, Number(shield) || 0);
