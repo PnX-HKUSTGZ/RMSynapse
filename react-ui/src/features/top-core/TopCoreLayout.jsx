@@ -113,6 +113,7 @@ function StateBadge({ type, state, states, fallbackStates }) {
   );
 }
 
+
 function SegmentedBar({
   value,
   maxValue,
@@ -143,6 +144,49 @@ function SegmentedBar({
               className={`absolute inset-y-0 ${align === 'right' ? 'right-0' : 'left-0'} ${colorClass} transition-all duration-300`}
               style={{ width: `${fill}%` }}
             />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BackgroundSegmentedBar({
+  value,
+  maxValue,
+  segmentSize = 1000,
+  team,
+  align = 'left',
+}) {
+  const isRed = team === 'red';
+  const safeMax = Number(maxValue) > 0 ? Number(maxValue) : 1;
+  const safeSegment = Number(segmentSize) > 0 ? Number(segmentSize) : safeMax;
+  const segmentCount = Math.max(1, Math.ceil(safeMax / safeSegment));
+  const safeValue = Math.max(0, Number(value) || 0);
+  const fillColor = isRed ? 'bg-red-600/35' : 'bg-blue-600/35';
+  const edgeGlow = isRed
+    ? 'bg-red-300 shadow-[0_0_12px_rgba(252,165,165,0.9)]'
+    : 'bg-blue-300 shadow-[0_0_12px_rgba(147,197,253,0.9)]';
+
+  return (
+    <div className={`absolute inset-0 z-0 flex gap-[3px] bg-black/55 p-[3px] ${align === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+      {Array.from({ length: segmentCount }).map((_, index) => {
+        const segmentStart = index * safeSegment;
+        const segmentEnd = Math.min((index + 1) * safeSegment, safeMax);
+        let fill = 0;
+        if (safeValue >= segmentEnd) fill = 100;
+        else if (safeValue > segmentStart) fill = ((safeValue - segmentStart) / (segmentEnd - segmentStart)) * 100;
+
+        return (
+          <div key={index} className="relative h-full flex-1 overflow-hidden rounded-[2px] bg-white/5">
+            <div
+              className={`absolute inset-y-0 ${align === 'right' ? 'right-0' : 'left-0'} ${fillColor} transition-all duration-300 ease-out`}
+              style={{ width: `${fill}%` }}
+            >
+              {fill > 0 && fill < 100 && (
+                <div className={`absolute inset-y-0 ${align === 'right' ? 'left-0' : 'right-0'} w-[3px] ${edgeGlow}`} />
+              )}
+            </div>
           </div>
         );
       })}
@@ -185,58 +229,47 @@ function BuildingCard({
   const align = isRed ? 'left' : 'right';
   const teamText = isRed ? 'text-red-300' : 'text-blue-300';
   const teamFill = isRed ? 'bg-red-500' : 'bg-blue-500';
-  const widthClass = type === 'base' ? 'min-w-[245px] flex-1' : 'w-[160px] shrink-0';
-  const hpSegmentSize = type === 'base' ? 500 : (Number(maxHp) <= 1000 ? 250 : 500);
+  const widthClass = type === 'base' ? 'min-w-[260px] flex-1' : 'w-[160px] shrink-0';
+  const hpSegmentSize = type === 'base' ? 500 : 200;
   const safeShield = Math.max(0, Number(shield) || 0);
   const showShield = type === 'base' && safeShield > 0;
+  const shieldPercent = showShield ? Math.min(100, (safeShield / Math.max(1, Number(maxShield) || 1)) * 100) : 0;
 
   return (
     <div
-      className={`flex h-[62px] flex-col justify-between rounded-lg border border-white/10 bg-neutral-950/70 px-2.5 py-2 shadow-[0_8px_18px_rgba(0,0,0,0.28)] backdrop-blur-md ${widthClass} ${align === 'right' ? 'items-end' : 'items-start'}`}
+      className={`relative flex ${type === 'base' ? 'h-[66px] px-3' : 'h-[62px] px-2.5'} flex-col justify-center overflow-hidden rounded-lg border border-white/10 bg-neutral-950/80 py-0 shadow-[0_8px_18px_rgba(0,0,0,0.34)] backdrop-blur-md ${widthClass} ${align === 'right' ? 'items-end' : 'items-start'}`}
     >
-      <div className={`flex w-full items-center justify-between gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-        <div className={`flex min-w-0 items-center gap-1.5 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-          <span className="whitespace-nowrap text-[9px] font-black tracking-[0.18em] text-white/45 uppercase">{label}</span>
+      <BackgroundSegmentedBar
+        value={hp}
+        maxValue={maxHp}
+        segmentSize={hpSegmentSize}
+        team={team}
+        align={align}
+      />
+      {showShield && (
+        <div
+          className={`absolute top-0 z-10 h-[5px] ${align === 'right' ? 'right-0' : 'left-0'} bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.95)] transition-all duration-300 ease-out`}
+          style={{ width: `${shieldPercent}%` }}
+        />
+      )}
+      <div className={`relative z-20 flex w-full items-center justify-between gap-2 ${type === 'base' ? 'px-0' : ''} ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex min-w-0 ${
+          type === 'base'
+            ? `items-center gap-1.5 ${align === 'right' ? 'flex-row-reverse' : ''}`
+            : `flex-col gap-1 ${align === 'right' ? 'items-end' : 'items-start'}`
+        }`}>
+          <span className={`whitespace-nowrap font-black tracking-[0.18em] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] ${type === 'base' ? 'text-[12px] text-white' : 'text-[10px] text-white/80'}`}>{label}</span>
           <StateBadge type={type} state={state} states={stateMeta} fallbackStates={fallbackStateMeta} />
         </div>
         <div className={`flex items-baseline gap-2 ${align === 'right' ? 'flex-row' : 'flex-row-reverse'}`}>
-          <span className={`font-orbitron text-[20px] font-black leading-none ${teamText}`}>
+          <span className={`font-orbitron font-black leading-none drop-shadow-[0_3px_6px_rgba(0,0,0,0.9)] ${type === 'base' ? `text-[28px] ${isRed ? 'text-red-100' : 'text-blue-100'}` : `text-[22px] ${isRed ? 'text-red-100' : 'text-blue-100'}`}`}>
             {Math.max(0, Number(hp) || 0)}
           </span>
           {showShield && (
-            <span className="font-orbitron text-[11px] font-black leading-none text-cyan-200/90">
+            <span className="font-orbitron text-[16px] font-black leading-none text-cyan-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
               SH {safeShield}
             </span>
           )}
-        </div>
-      </div>
-
-      <div className="flex w-full flex-col gap-[3px]">
-        {showShield && (
-          <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-            <span className="w-8 text-[7px] font-black leading-none tracking-wider text-cyan-300">SHIELD</span>
-            <SegmentedBar
-              value={shield}
-              maxValue={maxShield}
-              segmentSize={500}
-              colorClass="bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.45)]"
-              align={align}
-              className="h-[7px]"
-            />
-          </div>
-        )}
-        <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
-          <span className="w-8 text-[7px] font-black leading-none tracking-wider text-white/35">
-            {type === 'base' ? 'ARMOR' : 'HP'}
-          </span>
-          <SegmentedBar
-            value={hp}
-            maxValue={maxHp}
-            segmentSize={hpSegmentSize}
-            colorClass={`${teamFill} shadow-[0_0_5px_currentColor]`}
-            align={align}
-            className={type === 'base' ? 'h-[12px]' : 'h-[10px]'}
-          />
         </div>
       </div>
     </div>
@@ -287,50 +320,59 @@ function RobotSlot({ robot, team }) {
   const isOffline = !hasHp || robot.isOffline || robot.status === 'offline';
   const isLow = hasHp && !isDead && hpPercent < 30;
   const tags = Array.isArray(robot.tags) ? robot.tags : [];
-  const fillClass = isRed ? 'bg-red-500' : 'bg-blue-500';
+  const fillClass = isRed ? 'bg-red-600/40' : 'bg-blue-600/40';
+  const edgeGlow = isRed
+    ? 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.95)]'
+    : 'bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.95)]';
 
   const cardClass = isDead
-    ? 'border-neutral-800 bg-neutral-950/85 text-neutral-500'
+    ? 'border-neutral-800/80 bg-neutral-950/90 text-neutral-500 grayscale'
     : isOffline
-      ? 'border-neutral-700 bg-neutral-950/60 text-neutral-500'
+      ? 'border-neutral-700 bg-neutral-950/70 text-neutral-500'
       : isLow
-        ? 'border-red-500/75 bg-red-950/40 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.24)]'
-        : 'border-white/10 bg-neutral-950/72 text-white/90';
+        ? 'border-red-500/80 bg-neutral-950/82 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.28)] animate-pulse'
+        : 'border-white/10 bg-neutral-950/80 text-white/90';
 
   return (
-    <div className={`relative h-[46px] min-w-[70px] flex-1 overflow-hidden rounded-md border px-1.5 py-1.5 backdrop-blur-md transition-colors ${cardClass}`}>
-      <div className="relative z-10 flex items-start justify-between gap-1">
-        <span className="font-orbitron text-[13px] font-black leading-none text-white/70">{robot.id}</span>
-        <div className="flex max-w-[48px] flex-col items-end gap-[2px]">
-          {robot.outdated && <span className="rounded bg-yellow-500/20 px-1 text-[7px] font-black leading-none text-yellow-300">OLD</span>}
-          {tags.slice(0, 2).map((tag) => (
-            <span key={tag} className="rounded bg-white/10 px-1 text-[7px] font-black leading-none text-white/70">
-              {tag}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative z-10 mt-1 flex justify-end">
-        {isDead ? (
-          <span className="flex items-center gap-1 font-orbitron text-[11px] font-black text-neutral-500">
-            <Skull size={11} />
-            DEAD
-          </span>
-        ) : isOffline ? (
-          <span className="font-orbitron text-[11px] font-black text-neutral-500">OFFLINE</span>
-        ) : (
-          <span className={`font-orbitron text-[18px] font-black leading-none ${isLow ? 'text-red-300 animate-pulse' : 'text-white'}`}>
-            {hp}
-          </span>
-        )}
-      </div>
-
+    <div className={`relative h-[48px] min-w-[75px] flex-1 overflow-hidden rounded-md border backdrop-blur-md transition-all duration-300 ${cardClass}`}>
       {!isDead && !isOffline && (
-        <div className="absolute inset-x-0 bottom-0 h-[3px] bg-black/60">
-          <div className={`h-full ${fillClass}`} style={{ width: `${hpPercent}%` }} />
+        <div
+          className={`absolute inset-y-0 left-0 z-0 transition-all duration-300 ease-out ${fillClass}`}
+          style={{ width: `${hpPercent}%` }}
+        >
+          {hpPercent > 0 && hpPercent < 100 && (
+            <div className={`absolute inset-y-0 right-0 w-[2px] ${edgeGlow}`} />
+          )}
         </div>
       )}
+      <div className="relative z-10 flex h-full flex-col justify-between px-2 py-1.5">
+        <div className="flex items-start justify-between gap-1">
+          <span className={`font-orbitron text-[14px] font-black leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.75)] ${isDead || isOffline ? 'text-neutral-500' : 'text-white/80'}`}>
+            {robot.id}
+          </span>
+          <div className="flex max-w-[52px] flex-col items-end gap-[2px]">
+            {isDead && <Skull size={13} className="text-neutral-500" />}
+            {robot.outdated && <span className="rounded bg-yellow-500/20 px-1 text-[7px] font-black leading-none text-yellow-300">OLD</span>}
+            {tags.slice(0, 2).map((tag) => (
+              <span key={tag} className="rounded bg-black/35 px-1 text-[7px] font-black leading-none text-white/75 shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          {isDead ? (
+            <span className="font-orbitron text-[13px] font-black leading-none text-neutral-500">DEAD</span>
+          ) : isOffline ? (
+            <span className="font-orbitron text-[12px] font-black leading-none text-neutral-500">OFFLINE</span>
+          ) : (
+            <span className={`font-orbitron text-[20px] font-black leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] ${isLow ? 'text-red-300 animate-pulse' : 'text-white'}`}>
+              {hp}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏状态 UI 图标展示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+SC:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc; /* Slate 50 */
+        }
+
+        .num-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* 状态图标容器基础样式 */
+        .status-icon-wrapper {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.7); /* Slate 800 with opacity */
+            border: 2px solid transparent;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%); /* 简单的科幻切角 */
+        }
+
+        /* SVG 图标基础样式 */
+        .status-svg {
+            width: 36px;
+            height: 36px;
+            z-index: 10;
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+
+        /* 时间文本 */
+        .status-time {
+            position: absolute;
+            top: 2px;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 1px 2px #000, 0 0 4px currentColor;
+            z-index: 20;
+            letter-spacing: 0.5px;
+        }
+
+        /* 数值文本 */
+        .status-value {
+            position: absolute;
+            bottom: -2px;
+            right: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 1px 2px #000, 0 0 4px currentColor;
+            z-index: 20;
+        }
+
+        /* 倒计时遮罩 (Radial Wipe) */
+        .cooldown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 5;
+            /* 使用 conic-gradient 实现径向擦除效果，通过 CSS 变量控制角度 */
+            background: conic-gradient(rgba(0,0,0,0.7) var(--cooldown-deg, 360deg), transparent 0deg);
+            border-radius: inherit;
+        }
+
+        /* 动画：出现 (Fade & Scale In) */
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.5) translateY(10px); }
+            70% { transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .anim-pop-in {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* 动画：即将消失警告 (Pulse/Blink) */
+        @keyframes warnBlink {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.4; filter: brightness(1.5) drop-shadow(0 0 8px currentColor); }
+        }
+        .anim-warn {
+            animation: warnBlink 0.6s infinite;
+        }
+
+        /* 动画：消失 (Fade Out) */
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        .anim-fade-out {
+            animation: fadeOut 0.3s ease-in forwards;
+        }
+
+        /* 特殊：无敌光环 */
+        @keyframes invincibleGlow {
+            0%, 100% { box-shadow: 0 0 10px #facc15, inset 0 0 10px #facc15; }
+            50% { box-shadow: 0 0 20px #facc15, inset 0 0 20px #facc15; }
+        }
+        .glow-invincible {
+            animation: invincibleGlow 2s infinite;
+            border-color: rgba(250, 204, 21, 0.5);
+        }
+
+        /* 特殊：地形跨域斜纹背景 */
+        .bg-hazard-stripes {
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(0,0,0,0.2),
+                rgba(0,0,0,0.2) 5px,
+                rgba(120,113,108,0.2) 5px,
+                rgba(120,113,108,0.2) 10px
+            );
+        }
+
+        /* 控制面板样式 */
+        .control-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid #334155;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative pb-32">
+
+    <header class="p-6 border-b border-slate-800 bg-slate-900/50">
+        <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 tracking-wider">
+            SYSTEM STATUS HUB
+        </h1>
+        <p class="text-slate-400 mt-2 text-sm">战术状态监控面板 - 基础模组与特殊机制</p>
+    </header>
+
+    <main class="flex-grow p-6 flex flex-col gap-12 max-w-6xl mx-auto w-full">
+
+        <!-- 第一类：基础状态模组 -->
+        <section>
+            <h2 class="text-xl font-semibold mb-6 flex items-center border-l-4 border-blue-500 pl-3">
+                [ 类 I ] 基础状态模组 <span class="text-xs text-slate-500 ml-3 font-normal">包含时间/数值变化</span>
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6" id="basic-modules">
+                <!-- 图标将由 JS 渲染 -->
+            </div>
+        </section>
+
+        <!-- 布局分隔线 -->
+        <div class="h-px w-full bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
+
+        <!-- 第二类：特殊机制模组 -->
+        <section>
+            <h2 class="text-xl font-semibold mb-6 flex items-center border-l-4 border-amber-500 pl-3">
+                [ 类 II ] 特殊机制模组 <span class="text-xs text-slate-500 ml-3 font-normal">底层特质/特殊Debuff (通常无时间/数值)</span>
+            </h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="special-modules">
+                <!-- 图标将由 JS 渲染 -->
+            </div>
+        </section>
+
+        <!-- 演示说明区域 -->
+        <section class="mt-8 bg-slate-800/40 p-6 rounded-lg border border-slate-700">
+            <h3 class="text-lg text-slate-300 mb-4 border-b border-slate-700 pb-2">四种展示形式演示 (基于攻击增益)</h3>
+            <div class="flex flex-wrap gap-8 items-center" id="display-modes-demo">
+                <!-- JS 渲染四种模式 -->
+            </div>
+        </section>
+
+    </main>
+
+    <div class="control-panel fixed bottom-0 left-0 w-full p-4 flex justify-center gap-4 z-50">
+        <button id="btn-trigger-all" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all">
+            触发所有状态 (Pop In)
+        </button>
+        <button id="btn-warn-all" class="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold shadow-[0_0_15px_rgba(234,88,12,0.5)] transition-all">
+            模拟即将消失 (Warning)
+        </button>
+        <button id="btn-clear-all" class="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold transition-all">
+            清除状态
+        </button>
+    </div>
+
+    <script>
+        // 定义状态数据
+        const statusData = {
+            basic: [
+                {
+                    id: 'buff-atk',
+                    name: '攻击增益',
+                    color: '#ef4444', // Red 500
+                    type: 'time-value',
+                    value: '+20%',
+                    duration: 10, // 秒
+                    // 全新优化：具有体积感的阔剑 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="status-svg">
+                            <!-- 剑刃 -->
+                            <path d="M12 2 L15 6 V15 H9 V6 Z" />
+                            <!-- 剑脊/血槽 -->
+                            <line x1="12" y1="2" x2="12" y2="15" />
+                            <!-- 护手 -->
+                            <line x1="6" y1="15" x2="18" y2="15" stroke-width="2.5" />
+                            <!-- 剑柄 -->
+                            <path d="M10.5 15 V20 H13.5 V15" />
+                            <!-- 配重球/底座 -->
+                            <line x1="9" y1="20" x2="15" y2="20" stroke-width="2" />
+                          </svg>`
+                },
+                {
+                    id: 'buff-def',
+                    name: '防御增益',
+                    color: '#3b82f6', // Blue 500
+                    type: 'time-value',
+                    value: '150',
+                    duration: 15,
+                    // 盾牌 SVG (六边形)
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`
+                },
+                {
+                    id: 'debuff-armor-break',
+                    name: '负面防御 (碎甲)',
+                    color: '#a855f7', // Purple 500
+                    type: 'time-value',
+                    value: '-50',
+                    duration: 8,
+                    // 碎裂盾牌 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 2v8l-3 3M16 12l-4-2"/></svg>`
+                },
+                {
+                    id: 'buff-cooling',
+                    name: '射击热量冷却',
+                    color: '#22d3ee', // Cyan 400
+                    type: 'value-only',
+                    value: '+5/s',
+                    duration: 5,
+                    // 六芒星雪花 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><path d="m20 17.5-8-4.625L4 17.5M4 6.5l8 4.625 8-4.625M12 22v-9.25M12 2v9.25"/></svg>`
+                },
+                {
+                    id: 'buff-power',
+                    name: '底盘功率',
+                    color: '#eab308', // Yellow 500
+                    type: 'time-only',
+                    value: '',
+                    duration: 12,
+                    // 闪电 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`
+                },
+                {
+                    id: 'buff-heal',
+                    name: '回血增益',
+                    color: '#22c55e', // Green 500
+                    type: 'time-value',
+                    value: '+10',
+                    duration: 6,
+                    // 医疗十字/心形 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M12 8v6M9 11h6"/></svg>`
+                }
+            ],
+            special: [
+                {
+                    id: 'trait-terrain',
+                    name: '地形跨域',
+                    color: '#78716c', // Stone 500
+                    type: 'hidden', // 完全隐藏时间和数值
+                    duration: -1, // 无限
+                    extraClass: 'bg-hazard-stripes border-stone-600',
+                    // 阶梯 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><path d="M4 20h4v-4h4v-4h4V8h4"/></svg>`
+                },
+                {
+                    id: 'trait-invincible',
+                    name: '无敌',
+                    color: '#facc15', // Yellow 400
+                    type: 'hidden',
+                    duration: 5, // 特例，有持续时间但不一定显示数字
+                    extraClass: 'glow-invincible',
+                    // 发光星芒盾
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v8M8 12h8"/></svg>`
+                },
+                {
+                    id: 'debuff-weak',
+                    name: '虚弱 (Debuff)',
+                    color: '#64748b', // Slate 500
+                    type: 'hidden',
+                    duration: -1,
+                    // 全新优化：物理断裂的阔剑，带有倾斜掉落的剑尖 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="status-svg opacity-80">
+                            <!-- 下半截剑身 (参差不齐的断口) -->
+                            <path d="M9 15 V10 L11 11.5 L13 9 L15 10.5 V15 Z" />
+                            <!-- 下半截剑脊 -->
+                            <line x1="12" y1="10.5" x2="12" y2="15" />
+                            <!-- 护手 -->
+                            <line x1="6" y1="15" x2="18" y2="15" stroke-width="2.5" />
+                            <!-- 剑柄 -->
+                            <path d="M10.5 15 V20 H13.5 V15" />
+                            <!-- 配重球/底座 -->
+                            <line x1="9" y1="20" x2="15" y2="20" stroke-width="2" />
+                            
+                            <!-- 悬浮断裂的剑尖 (向右倾斜脱落) -->
+                            <g transform="translate(1.5, -2) rotate(15 12 5)">
+                                <!-- 吻合下半截的断口形状 -->
+                                <path d="M15 8.5 V6 L12 2 L9 6 V7.5 L11 9 L13 6.5 Z" />
+                                <!-- 剑尖剑脊 -->
+                                <line x1="12" y1="2" x2="12" y2="7.5" />
+                            </g>
+                          </svg>`
+                },
+                {
+                    id: 'debuff-eco',
+                    name: '节能 (Debuff)',
+                    color: '#ea580c', // Orange 600
+                    type: 'hidden',
+                    duration: -1,
+                    // 低电量电池 SVG
+                    svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-svg"><rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" x2="22" y1="11" y2="13"/><path d="M10 9v6M10 15l-2-2M10 15l2-2"/></svg>`
+                }
+            ]
+        };
+
+        function createStatusIconHTML(data, customDisplayMode = null) {
+            let displayMode = customDisplayMode || data.type;
+            
+            // 构建内部元素
+            let timeHtml = '';
+            let valueHtml = '';
+            let cooldownHtml = '';
+            
+            // 根据展示模式决定内容
+            if (displayMode === 'time-value' || displayMode === 'time-only') {
+                if(data.duration > 0) {
+                    timeHtml = `<div class="status-time num-font" style="color: ${data.color}">${data.duration}s</div>`;
+                    cooldownHtml = `<div class="cooldown-overlay" style="--cooldown-deg: 360deg;"></div>`;
+                }
+            }
+            
+            if (displayMode === 'time-value' || displayMode === 'value-only') {
+                if(data.value) {
+                    // 如果只展示数值，稍微放大并居中靠下
+                    const valClass = displayMode === 'value-only' ? 'status-value text-[14px] bottom-1' : 'status-value';
+                    valueHtml = `<div class="${valClass} num-font" style="color: ${data.color}">${data.value}</div>`;
+                }
+            }
+
+            const wrapperStyles = `color: ${data.color}; border-color: ${data.color}40;`;
+            
+            return `
+                <div class="flex flex-col items-center gap-2 status-item-container">
+                    <div class="status-icon-wrapper anim-pop-in ${data.extraClass || ''}" 
+                         id="icon-${data.id}" 
+                         style="${wrapperStyles}"
+                         data-duration="${data.duration}"
+                         data-color="${data.color}">
+                        ${cooldownHtml}
+                        <div class="z-10" style="color: ${data.color}">${data.svg}</div>
+                        ${timeHtml}
+                        ${valueHtml}
+                    </div>
+                    <div class="text-xs text-slate-400 text-center w-24 leading-tight">${data.name}</div>
+                </div>
+            `;
+        }
+
+        // 初始化渲染
+        const basicContainer = document.getElementById('basic-modules');
+        const specialContainer = document.getElementById('special-modules');
+        const demoContainer = document.getElementById('display-modes-demo');
+
+        function renderAll() {
+            basicContainer.innerHTML = statusData.basic.map(d => createStatusIconHTML(d)).join('');
+            specialContainer.innerHTML = statusData.special.map(d => createStatusIconHTML(d)).join('');
+            
+            // 渲染四种模式演示
+            const demoData = statusData.basic[0]; // 使用攻击增益作为演示
+            const modes = [
+                { mode: 'value-only', label: '1. 仅展示数值' },
+                { mode: 'time-only', label: '2. 仅展示时间' },
+                { mode: 'time-value', label: '3. 时间与数值同显' },
+                { mode: 'hidden', label: '4. 完全隐藏 (被动)' }
+            ];
+            
+            demoContainer.innerHTML = modes.map(m => `
+                <div class="flex flex-col items-center gap-2 p-4 bg-slate-900 rounded-lg border border-slate-700">
+                    ${createStatusIconHTML({...demoData, id: demoData.id + '-' + m.mode}, m.mode)}
+                    <div class="text-xs text-slate-300 mt-2">${m.label}</div>
+                </div>
+            `).join('');
+            
+            startAllTimers();
+        }
+
+        let activeIntervals = [];
+
+        function startTimer(wrapper) {
+            const durationAttr = wrapper.getAttribute('data-duration');
+            let duration = parseFloat(durationAttr);
+            if (duration <= 0) return; // 无限或无时间
+
+            let timeLeft = duration;
+            const timeEl = wrapper.querySelector('.status-time');
+            const cooldownEl = wrapper.querySelector('.cooldown-overlay');
+            const totalMs = duration * 1000;
+            const updateInterval = 50; // 50ms 更新一次 UI 保证平滑
+            let elapsedMs = 0;
+
+            const intervalId = setInterval(() => {
+                elapsedMs += updateInterval;
+                timeLeft = Math.max(0, duration - (elapsedMs / 1000));
+                
+                // 更新数字
+                if (timeEl) {
+                    timeEl.textContent = Math.ceil(timeLeft) + 's';
+                }
+
+                // 更新遮罩角度 (360 -> 0)
+                if (cooldownEl) {
+                    const percentage = timeLeft / duration;
+                    const deg = percentage * 360;
+                    cooldownEl.style.setProperty('--cooldown-deg', `${deg}deg`);
+                }
+
+                // 警告阶段 (最后3秒)
+                if (timeLeft <= 3 && timeLeft > 0) {
+                    if (!wrapper.classList.contains('anim-warn')) {
+                        wrapper.classList.add('anim-warn');
+                        // 警告颜色加深
+                        const baseColor = wrapper.getAttribute('data-color');
+                        wrapper.style.borderColor = baseColor;
+                        wrapper.style.boxShadow = `0 0 10px ${baseColor}80`;
+                    }
+                }
+
+                // 结束
+                if (timeLeft <= 0) {
+                    clearInterval(intervalId);
+                    if (timeEl) timeEl.textContent = '0s';
+                    wrapper.classList.remove('anim-warn');
+                    wrapper.classList.remove('anim-pop-in');
+                    wrapper.classList.add('anim-fade-out');
+                    
+                    // 可选：动画结束后移除 DOM
+                    // setTimeout(() => wrapper.parentElement.remove(), 300);
+                }
+            }, updateInterval);
+
+            activeIntervals.push(intervalId);
+        }
+
+        function startAllTimers() {
+            // 清除旧的定时器
+            activeIntervals.forEach(clearInterval);
+            activeIntervals = [];
+            
+            document.querySelectorAll('.status-icon-wrapper').forEach(wrapper => {
+                // 重置状态
+                wrapper.classList.remove('anim-fade-out', 'anim-warn');
+                wrapper.classList.add('anim-pop-in');
+                wrapper.style.boxShadow = '';
+                const baseColor = wrapper.getAttribute('data-color');
+                wrapper.style.borderColor = `${baseColor}40`;
+                
+                // 重新触发 pop-in 动画
+                wrapper.style.animation = 'none';
+                wrapper.offsetHeight; /* trigger reflow */
+                wrapper.style.animation = null; 
+
+                startTimer(wrapper);
+            });
+        }
+
+        document.getElementById('btn-trigger-all').addEventListener('click', () => {
+            renderAll(); // 重新渲染会重置一切并启动动画
+        });
+
+        document.getElementById('btn-warn-all').addEventListener('click', () => {
+             document.querySelectorAll('.status-icon-wrapper').forEach(wrapper => {
+                const duration = parseFloat(wrapper.getAttribute('data-duration'));
+                if (duration > 0) {
+                    wrapper.classList.add('anim-warn');
+                    const baseColor = wrapper.getAttribute('data-color');
+                    wrapper.style.borderColor = baseColor;
+                    wrapper.style.boxShadow = `0 0 15px ${baseColor}`;
+                }
+             });
+        });
+
+        document.getElementById('btn-clear-all').addEventListener('click', () => {
+            activeIntervals.forEach(clearInterval);
+            activeIntervals = [];
+            document.querySelectorAll('.status-icon-wrapper').forEach(wrapper => {
+                wrapper.classList.remove('anim-pop-in', 'anim-warn');
+                wrapper.classList.add('anim-fade-out');
+            });
+        });
+
+        // Initial load
+        window.onload = renderAll;
+
+    </script>
+</body>
+</html>
