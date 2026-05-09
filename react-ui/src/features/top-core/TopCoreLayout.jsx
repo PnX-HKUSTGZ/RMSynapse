@@ -155,10 +155,10 @@ function LinkStatus({ name, status = 'ok', outdated = false }) {
   const isWarning = status === 'warning' || outdated;
   const Icon = isOk ? Wifi : WifiOff;
   const className = isOk
-    ? 'border-neutral-600/70 bg-black/20 text-neutral-400'
+    ? 'border-neutral-500/80 bg-neutral-950/75 text-neutral-300 shadow-[0_4px_12px_rgba(0,0,0,0.35)]'
     : isWarning
-      ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-300'
-      : 'border-red-500/60 bg-red-500/12 text-red-300 animate-pulse';
+      ? 'border-yellow-500/65 bg-yellow-950/55 text-yellow-200 shadow-[0_4px_12px_rgba(113,63,18,0.32)]'
+      : 'border-red-500/75 bg-red-950/60 text-red-200 shadow-[0_4px_12px_rgba(127,29,29,0.35)] animate-pulse';
 
   return (
     <div className={`flex h-5 items-center gap-1.5 rounded border px-2 text-[9px] font-black tracking-widest ${className}`}>
@@ -185,8 +185,10 @@ function BuildingCard({
   const align = isRed ? 'left' : 'right';
   const teamText = isRed ? 'text-red-300' : 'text-blue-300';
   const teamFill = isRed ? 'bg-red-500' : 'bg-blue-500';
-  const widthClass = type === 'base' ? 'w-[245px]' : 'w-[160px]';
+  const widthClass = type === 'base' ? 'min-w-[245px] flex-1' : 'w-[160px] shrink-0';
   const hpSegmentSize = type === 'base' ? 500 : (Number(maxHp) <= 1000 ? 250 : 500);
+  const safeShield = Math.max(0, Number(shield) || 0);
+  const showShield = type === 'base' && safeShield > 0;
 
   return (
     <div
@@ -197,13 +199,20 @@ function BuildingCard({
           <span className="whitespace-nowrap text-[9px] font-black tracking-[0.18em] text-white/45 uppercase">{label}</span>
           <StateBadge type={type} state={state} states={stateMeta} fallbackStates={fallbackStateMeta} />
         </div>
-        <span className={`font-orbitron text-[20px] font-black leading-none ${teamText}`}>
-          {Math.max(0, Number(hp) || 0)}
-        </span>
+        <div className={`flex items-baseline gap-2 ${align === 'right' ? 'flex-row' : 'flex-row-reverse'}`}>
+          <span className={`font-orbitron text-[20px] font-black leading-none ${teamText}`}>
+            {Math.max(0, Number(hp) || 0)}
+          </span>
+          {showShield && (
+            <span className="font-orbitron text-[11px] font-black leading-none text-cyan-200/90">
+              SH {safeShield}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex w-full flex-col gap-[3px]">
-        {type === 'base' && Number(maxShield) > 0 && (
+        {showShield && (
           <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
             <span className="w-8 text-[7px] font-black leading-none tracking-wider text-cyan-300">SHIELD</span>
             <SegmentedBar

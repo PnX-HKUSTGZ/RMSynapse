@@ -25,7 +25,7 @@ export default function App() {
   const statsState = resolveStatsState(uiState.stats);
 
   useEffect(() => {
-    const background = uiState.forceBlackBg ? '#000' : 'transparent';
+    const background = uiState.forceBlackBg ? '#3939395b' : 'transparent';
     document.documentElement.style.background = background;
     document.body.style.background = background;
     return () => {
@@ -40,7 +40,7 @@ export default function App() {
   );
 
   return (
-    <div className={`relative flex h-screen w-screen flex-col items-center overflow-hidden pt-2 font-sans text-white select-none ${uiState.forceBlackBg ? 'bg-black' : 'bg-transparent'}`}>
+    <div className="relative flex h-screen w-screen flex-col items-center overflow-hidden pt-2 font-sans text-white select-none">
       <TopCoreLayout
         roundLabel={uiState.roundLabel}
         labels={uiState.labels}
