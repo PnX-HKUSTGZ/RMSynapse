@@ -1,14 +1,43 @@
 import { deepMerge, isPlainObject, toFiniteNumber, toNonNegativeInt } from './utils';
+import { DEFAULT_UI_STATE } from './defaults';
 
 const HANDLED_PROTO_KEYS = [
   'GameStatus',
   'GlobalUnitStatus',
   'GlobalLogisticsStatus',
+  'GlobalSpecialMechanism',
   'Event',
+  'RobotInjuryStat',
   'RobotRespawnStatus',
   'RobotStaticStatus',
   'RobotDynamicStatus',
+  'RobotModuleStatus',
+  'RobotPosition',
+  'Buff',
+  'PenaltyInfo',
+  'RobotPathPlanInfo',
+  'RadarInfoToClient',
+  'TechCoreMotionStateSync',
+  'RobotPerformanceSelectionSync',
+  'DeployModeStatusSync',
+  'RuneStatusSync',
+  'SentryStatusSync',
+  'DartSelectTargetStatusSync',
+  'SentryCtrlResult',
+  'AirSupportStatusSync',
+  'CustomByteBlock',
 ];
+
+const STAGE_LABELS = {
+  0: '未开始',
+  1: '准备阶段',
+  2: '自检阶段',
+  3: '倒计时',
+  4: '比赛中',
+  5: '结算中',
+};
+
+const GLOBAL_UNIT_ROBOT_IDS = [1, 2, 3, 4, 7];
 
 function extractInts(value) {
   const matches = String(value ?? '').match(/-?\d+/g);
@@ -16,6 +45,48 @@ function extractInts(value) {
   return matches
     .map((item) => Number.parseInt(item, 10))
     .filter((item) => Number.isFinite(item));
+}
+
+function getExistingRobotMax(defaultRobots, id) {
+  const robot = defaultRobots.find((item) => Number(item.id) === Number(id));
+  return toNonNegativeInt(robot?.max, 1) || 1;
+}
+
+function buildRobotSideFromHealth(healthValues, offset, defaultRobots) {
+  return GLOBAL_UNIT_ROBOT_IDS.map((id, index) => ({
+    id,
+    hp: toNonNegativeInt(healthValues[offset + index]),
+    max: getExistingRobotMax(defaultRobots, id),
+  }));
+}
+
+function toBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  }
+  return Boolean(value);
+}
+
+function normalizeMechanismEffects(effects) {
+  if (!Array.isArray(effects)) return [];
+  return effects.map((item, index) => ({
+    id: toNonNegativeInt(item?.id ?? item?.mechanism_id ?? index),
+    remainingSec: toFiniteNumber(item?.remaining_sec ?? item?.remainingSec),
+  }));
+}
+
+function normalizeRadarTarget(source) {
+  return {
+    robotId: toNonNegativeInt(source.target_robot_id),
+    x: toFiniteNumber(source.target_pos_x),
+    y: toFiniteNumber(source.target_pos_y),
+    angle: toFiniteNumber(source.torward_angle),
+    highlighted: toBoolean(source.is_high_light),
+    timestamp: toNonNegativeInt(source.last_update_msec, Date.now()),
+  };
 }
 
 function getDartTargetLabel(targetId) {
@@ -127,8 +198,15 @@ function buildProtoPatch(data) {
     const source = data.GameStatus;
     const currentRound = toNonNegativeInt(source.current_round);
     const totalRounds = toNonNegativeInt(source.total_rounds);
+    const currentStage = toNonNegativeInt(source.current_stage);
 
     patch.timeLeft = toNonNegativeInt(source.stage_countdown_sec);
+    patch.match = {
+      currentStage,
+      stageLabel: STAGE_LABELS[currentStage] ?? `阶段 ${currentStage}`,
+      stageElapsedSec: toNonNegativeInt(source.stage_elapsed_sec),
+      isPaused: Boolean(source.is_paused),
+    };
     patch.scores = {
       left: toNonNegativeInt(source.red_score),
       right: toNonNegativeInt(source.blue_score),
@@ -163,6 +241,13 @@ function buildProtoPatch(data) {
         state: toNonNegativeInt(source.enemy_outpost?.status),
       },
     };
+
+    if (Array.isArray(source.robot_health) && source.robot_health.length >= GLOBAL_UNIT_ROBOT_IDS.length * 2) {
+      patch.robots = {
+        left: buildRobotSideFromHealth(source.robot_health, 0, DEFAULT_UI_STATE.robots.left),
+        right: buildRobotSideFromHealth(source.robot_health, GLOBAL_UNIT_ROBOT_IDS.length, DEFAULT_UI_STATE.robots.right),
+      };
+    }
   }
 
   if (isPlainObject(data.GlobalLogisticsStatus)) {
@@ -172,6 +257,13 @@ function buildProtoPatch(data) {
       totalEco: toNonNegativeInt(source.total_economy_obtained),
       tech: toNonNegativeInt(source.tech_level),
       radar: toNonNegativeInt(source.encryption_level),
+    };
+  }
+
+  if (isPlainObject(data.GlobalSpecialMechanism)) {
+    const source = data.GlobalSpecialMechanism;
+    patch.mechanisms = {
+      effects: normalizeMechanismEffects(source.effects),
     };
   }
 
@@ -209,6 +301,189 @@ function buildProtoPatch(data) {
     };
   }
 
+  if (isPlainObject(data.RobotModuleStatus)) {
+    const source = data.RobotModuleStatus;
+    patch.modules = {
+      powerManager: toNonNegativeInt(source.power_manager),
+      rfid: toNonNegativeInt(source.rfid),
+      lightStrip: toNonNegativeInt(source.light_strip),
+      smallShooter: toNonNegativeInt(source.small_shooter),
+      bigShooter: toNonNegativeInt(source.big_shooter),
+      uwb: toNonNegativeInt(source.uwb),
+      armor: toNonNegativeInt(source.armor),
+      videoTransmission: toNonNegativeInt(source.video_transmission),
+      capacitor: toNonNegativeInt(source.capacitor),
+      mainController: toNonNegativeInt(source.main_controller),
+      laserDetectionModule: toNonNegativeInt(source.laser_detection_module),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.RobotPosition)) {
+    const source = data.RobotPosition;
+    patch.miniMap = {
+      currentPosition: {
+        x: toFiniteNumber(source.x),
+        y: toFiniteNumber(source.y),
+        z: toFiniteNumber(source.z),
+        yaw: toFiniteNumber(source.yaw),
+        lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+      },
+    };
+  }
+
+  if (isPlainObject(data.Buff)) {
+    const source = data.Buff;
+    patch.boostBuffs = [
+      {
+        id: toNonNegativeInt(source.buff_type),
+        type: `buff-${toNonNegativeInt(source.buff_type)}`,
+        name: `BUFF ${toNonNegativeInt(source.buff_type)}`,
+        time: toFiniteNumber(source.buff_left_time),
+        maxTime: toFiniteNumber(source.buff_max_time),
+        level: toNonNegativeInt(source.buff_level),
+        robotId: toNonNegativeInt(source.robot_id),
+        icon: 'zap',
+        color: 'cyan',
+      },
+    ];
+  }
+
+  if (isPlainObject(data.PenaltyInfo)) {
+    const source = data.PenaltyInfo;
+    patch.penalty = {
+      type: toNonNegativeInt(source.penalty_type),
+      effectSec: toNonNegativeInt(source.penalty_effect_sec),
+      totalCount: toNonNegativeInt(source.total_penalty_num),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+
+    if (patch.penalty.type > 0) {
+      const timestamp = Date.now();
+      patch.messageCenter = {
+        items: [
+          {
+            id: `penalty-${timestamp}-${patch.penalty.type}`,
+            tag: `penalty-${patch.penalty.type}`,
+            level: patch.penalty.type >= 2 ? 'critical' : 'important',
+            text: `判罚提示：类型 ${patch.penalty.type}，影响 ${patch.penalty.effectSec}s，累计 ${patch.penalty.totalCount}`,
+            duration: 5000,
+            timestamp,
+          },
+        ],
+      };
+    }
+  }
+
+  if (isPlainObject(data.RobotPathPlanInfo)) {
+    const source = data.RobotPathPlanInfo;
+    patch.pathPlan = {
+      intention: toNonNegativeInt(source.intention),
+      start: {
+        x: toFiniteNumber(source.start_pos_x),
+        y: toFiniteNumber(source.start_pos_y),
+      },
+      offsets: Array.isArray(source.offsets) ? source.offsets : [],
+      senderId: toNonNegativeInt(source.sender_id),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.RadarInfoToClient)) {
+    patch.radarTargets = [normalizeRadarTarget(data.RadarInfoToClient)];
+  }
+
+  if (isPlainObject(data.TechCoreMotionStateSync)) {
+    const source = data.TechCoreMotionStateSync;
+    patch.mechanisms = {
+      techCore: {
+        maximumDifficultyLevel: toNonNegativeInt(source.maximum_difficulty_level),
+        status: toNonNegativeInt(source.status),
+        enemyCoreStatus: toNonNegativeInt(source.enemy_core_status),
+        remainTimeAll: toNonNegativeInt(source.remain_time_all),
+        remainTimeStep: toNonNegativeInt(source.remain_time_step),
+        lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+      },
+    };
+  }
+
+  if (isPlainObject(data.RobotPerformanceSelectionSync)) {
+    const source = data.RobotPerformanceSelectionSync;
+    patch.performance = {
+      shooter: toNonNegativeInt(source.shooter),
+      chassis: toNonNegativeInt(source.chassis),
+      sentryControl: toNonNegativeInt(source.sentry_control),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.DeployModeStatusSync)) {
+    const source = data.DeployModeStatusSync;
+    patch.heroDeploy = {
+      status: toNonNegativeInt(source.status),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.RuneStatusSync)) {
+    const source = data.RuneStatusSync;
+    patch.rune = {
+      status: toNonNegativeInt(source.rune_status),
+      activatedArms: toNonNegativeInt(source.activated_arms),
+      averageRings: toFiniteNumber(source.average_rings),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.SentryStatusSync)) {
+    const source = data.SentryStatusSync;
+    patch.sentry = {
+      postureId: toNonNegativeInt(source.posture_id),
+      isWeakened: toBoolean(source.is_weakened),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.DartSelectTargetStatusSync)) {
+    const source = data.DartSelectTargetStatusSync;
+    patch.dart = {
+      targetId: toNonNegativeInt(source.target_id, 1),
+      open: toBoolean(source.open),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.SentryCtrlResult)) {
+    const source = data.SentryCtrlResult;
+    patch.sentry = {
+      lastResult: {
+        commandId: toNonNegativeInt(source.command_id),
+        resultCode: toNonNegativeInt(source.result_code),
+        lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+      },
+    };
+  }
+
+  if (isPlainObject(data.AirSupportStatusSync)) {
+    const source = data.AirSupportStatusSync;
+    patch.airSupport = {
+      status: toNonNegativeInt(source.airsupport_status),
+      leftTime: toNonNegativeInt(source.left_time),
+      costCoins: toNonNegativeInt(source.cost_coins),
+      isBeingTargeted: toBoolean(source.is_being_targeted),
+      shooterStatus: toNonNegativeInt(source.shooter_status),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    };
+  }
+
+  if (isPlainObject(data.CustomByteBlock)) {
+    const source = data.CustomByteBlock;
+    patch.customByteBlock = {
+      data: Array.isArray(source.data) ? source.data : [],
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec, Date.now()),
+    };
+  }
+
   if (isPlainObject(data.RobotRespawnStatus)) {
     const source = data.RobotRespawnStatus;
     const total = toNonNegativeInt(source.total_respawn_progress);
@@ -217,6 +492,23 @@ function buildProtoPatch(data) {
       isDead: Boolean(source.is_pending_respawn),
       countdown: Math.max(total - current, 0),
       reviveCost: toNonNegativeInt(source.gold_cost_for_respawn),
+    };
+  }
+
+  if (isPlainObject(data.RobotInjuryStat)) {
+    const source = data.RobotInjuryStat;
+    patch.injury = {
+      totalDamage: toNonNegativeInt(source.total_damage),
+      collisionDamage: toNonNegativeInt(source.collision_damage),
+      smallProjectileDamage: toNonNegativeInt(source.small_projectile_damage),
+      largeProjectileDamage: toNonNegativeInt(source.large_projectile_damage),
+      dartSplashDamage: toNonNegativeInt(source.dart_splash_damage),
+      moduleOfflineDamage: toNonNegativeInt(source.module_offline_damage),
+      offlineDamage: toNonNegativeInt(source.offline_damage),
+      penaltyDamage: toNonNegativeInt(source.penalty_damage),
+      serverKillDamage: toNonNegativeInt(source.server_kill_damage),
+      killerId: toNonNegativeInt(source.killer_id),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
     };
   }
 

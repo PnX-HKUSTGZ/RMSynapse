@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://cmas2bej0ycbs"]
+[gd_scene load_steps=4 format=3 uid="uid://cmas2bej0ycbs"]
 
 [ext_resource type="Script" uid="uid://c8lkjnxvqaqqc" path="res://net/mqtt/adapter/protocol_adapter.gd" id="1_qmlgy"]
 [ext_resource type="Script" uid="uid://pgmteb873lvp" path="res://net/mqtt/transport/network_transport.gd" id="2_x7r4m"]
+[ext_resource type="Script" path="res://net/mqtt/services/mqtt_client_setter/mqtt_client_setter.gd" id="3_7ph8n"]
 
 [node name="Mqtt" type="Node2D"]
 
@@ -10,4 +11,10 @@ script = ExtResource("1_qmlgy")
 
 [node name="Transport" type="Node" parent="."]
 script = ExtResource("2_x7r4m")
-broker_url = "10.4.144.223:3333"
+broker_url = "127.0.0.1:3333"
+auto_connect = false
+
+[node name="ClientSetter" type="Node" parent="."]
+script = ExtResource("3_7ph8n")
+broker_url = "127.0.0.1:3333"
+connect_after_apply = true

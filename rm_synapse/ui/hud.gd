@@ -23,6 +23,14 @@ var acc := 0.0
 
 var event = EventService.new()
 var hud_data_bridge = HudDataBridge.new()
+var hud_operation_bridge = HudOperationBridge.new()
+var adapter_getter = MQTTProtocolAdapterGetter.new()
+
+var _transport: NetworkTransport = null
+var _mqtt_connected := false
+var _transport_retry_elapsed := 0.0
+var _link_push_elapsed := 0.0
+var _last_data_update_msec := 0
 
 const BRIDGE_SIGNAL_TO_PROTO_KEY := {
 	"game_status_updated": "GameStatus",
@@ -63,13 +71,35 @@ func _ready():
 			page_ready = (status >= 200 and status < 300)
 			print("CEF load_finished status=", status, " page_ready=", page_ready)
 			if page_ready:
+				_push_link_status()
 				_flush_pending_bridge_payloads()
 				_flush_pending_messages()
 		)
+	if web and web.has_signal("ipc_message"):
+		web.ipc_message.connect(_on_web_ipc_message)
+	if web and web.has_signal("ipc_data_message"):
+		web.ipc_data_message.connect(_on_web_ipc_message)
 
 	if hud_data_bridge.get_parent() == null:
 		add_child(hud_data_bridge)
 	_bind_bridge_signals()
+
+	if hud_operation_bridge.get_parent() == null:
+		add_child(hud_operation_bridge)
+	if not hud_operation_bridge.operation_status.is_connected(_on_operation_status):
+		hud_operation_bridge.operation_status.connect(_on_operation_status)
+	_try_bind_transport_signals()
+
+func _process(delta: float) -> void:
+	_transport_retry_elapsed += delta
+	if _transport_retry_elapsed >= 1.0:
+		_transport_retry_elapsed = 0.0
+		_try_bind_transport_signals()
+
+	_link_push_elapsed += delta
+	if _link_push_elapsed >= 1.0:
+		_link_push_elapsed = 0.0
+		_push_link_status()
 
 func _bind_bridge_signals() -> void:
 	for signal_name in BRIDGE_SIGNAL_TO_PROTO_KEY.keys():
@@ -82,6 +112,7 @@ func _bind_bridge_signals() -> void:
 			hud_data_bridge.connect(signal_name, callback)
 
 func _on_bridge_signal_received(value, signal_name: String, proto_key: String) -> void:
+	_last_data_update_msec = Time.get_ticks_msec()
 	var payload := {
 		proto_key: _normalize_bridge_value(proto_key, value)
 	}
@@ -90,6 +121,95 @@ func _on_bridge_signal_received(value, signal_name: String, proto_key: String) -
 	else:
 		_pending_bridge_payloads.append(payload)
 	print("Bridge->UI ", signal_name, " => ", proto_key)
+	_push_link_status()
+
+func _on_web_ipc_message(message, _data = null) -> void:
+	var parsed = _parse_ipc_payload(message)
+	if not (parsed is Dictionary):
+		return
+	if str(parsed.get("channel", "")) != "hudOperate":
+		return
+	hud_operation_bridge.handle_operation(parsed.get("operation", {}))
+
+func _parse_ipc_payload(message):
+	if message is Dictionary:
+		return message
+	if message is Array and message.size() > 0:
+		return _parse_ipc_payload(message[0])
+	if message is PackedByteArray:
+		var byte_text: String = message.get_string_from_utf8()
+		return _parse_ipc_payload(byte_text)
+	var message_text: String = str(message)
+	var json := JSON.new()
+	var err: Error = json.parse(message_text)
+	if err != OK:
+		push_warning("Invalid HUD IPC payload: %s" % message_text)
+		return null
+	return json.data
+
+func _on_operation_status(status: Dictionary) -> void:
+	var level := "normal"
+	if str(status.get("state", "")) == "failed":
+		level = "critical"
+	elif str(status.get("state", "")) == "pending":
+		level = "important"
+	var label := str(status.get("label", "操作"))
+	var state := str(status.get("state", "idle"))
+	var code := int(status.get("code", 0))
+	var text := "%s: %s" % [label, state]
+	if code != 0:
+		text += " (%d)" % code
+	push_payload({
+		"commandStatus": status,
+		"messageCenter": {
+			"items": [
+				_build_message_item(text, 2.5, MessagePriority.CRITICAL if level == "critical" else MessagePriority.HIGH, "cmd-%s" % str(status.get("operationType", "")))
+			]
+		}
+	})
+
+func _try_bind_transport_signals() -> void:
+	if _transport != null and is_instance_valid(_transport):
+		return
+	var transport := adapter_getter.get_transport()
+	if transport == null:
+		return
+	_transport = transport
+	_mqtt_connected = transport.is_broker_connected()
+	if not transport.connected.is_connected(_on_transport_connected):
+		transport.connected.connect(_on_transport_connected)
+	if not transport.disconnected.is_connected(_on_transport_disconnected):
+		transport.disconnected.connect(_on_transport_disconnected)
+	if not transport.connection_failed.is_connected(_on_transport_failed):
+		transport.connection_failed.connect(_on_transport_failed)
+	_push_link_status()
+
+func _on_transport_connected() -> void:
+	_mqtt_connected = true
+	_push_link_status()
+
+func _on_transport_disconnected(_reason = "") -> void:
+	_mqtt_connected = false
+	_push_link_status()
+
+func _on_transport_failed(_reason = "") -> void:
+	_mqtt_connected = false
+	_push_link_status()
+
+func _push_link_status() -> void:
+	if not page_ready:
+		return
+	var now := Time.get_ticks_msec()
+	var has_data := _last_data_update_msec > 0
+	var data_outdated := has_data and now - _last_data_update_msec > 1500
+	var data_status := "ok" if has_data else "warning"
+	push_payload({
+		"links": [
+			{"name": "MQTT", "status": "ok" if _mqtt_connected else "warning", "outdated": false},
+			{"name": "VIDEO", "status": "warning", "outdated": false},
+			{"name": "DATA", "status": data_status, "outdated": data_outdated}
+		]
+	})
 
 func _normalize_bridge_value(proto_key: String, value):
 	if value == null:

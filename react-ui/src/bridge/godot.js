@@ -12,6 +12,21 @@ export function parseGodotPayload(payload, sourceName) {
 }
 
 export function emitGodotOperation(operation, fallbackLabel, fallbackValue) {
+  const ipcPayload = {
+    channel: 'hudOperate',
+    operation,
+  };
+
+  if (typeof window.sendIpcMessage === 'function') {
+    window.sendIpcMessage(JSON.stringify(ipcPayload));
+    return;
+  }
+
+  if (typeof window.sendIpcData === 'function') {
+    window.sendIpcData(JSON.stringify(ipcPayload));
+    return;
+  }
+
   if (typeof window.godotOperate === 'function') {
     window.godotOperate(operation);
     return;
