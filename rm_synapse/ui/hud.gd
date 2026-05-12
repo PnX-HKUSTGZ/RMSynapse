@@ -80,10 +80,12 @@ func _ready():
 	if web and web.has_signal("ipc_data_message"):
 		web.ipc_data_message.connect(_on_web_ipc_message)
 
+	hud_data_bridge.adapter_getter = adapter_getter
 	if hud_data_bridge.get_parent() == null:
 		add_child(hud_data_bridge)
 	_bind_bridge_signals()
 
+	hud_operation_bridge.adapter_getter = adapter_getter
 	if hud_operation_bridge.get_parent() == null:
 		add_child(hud_operation_bridge)
 	if not hud_operation_bridge.operation_status.is_connected(_on_operation_status):

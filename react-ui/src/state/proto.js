@@ -283,10 +283,21 @@ function buildProtoPatch(data) {
       mechaHp: toNonNegativeInt(source.max_health),
       mechaBoost: toNonNegativeInt(source.max_buffer_energy),
       mechaPower: toNonNegativeInt(source.max_power),
+      mechaChassisEnergy: toNonNegativeInt(source.max_chassis_energy),
     };
     patch.mecha = {
       pilotId: String(source.robot_id ?? 'HERO'),
       pilotLevel: `LV.${toNonNegativeInt(source.level)}`,
+      robotId: toNonNegativeInt(source.robot_id),
+      robotType: toNonNegativeInt(source.robot_type),
+      level: toNonNegativeInt(source.level),
+      connectionState: toNonNegativeInt(source.connection_state),
+      fieldState: toNonNegativeInt(source.field_state),
+      aliveState: toNonNegativeInt(source.alive_state),
+      maxHealth: toNonNegativeInt(source.max_health),
+      maxChassisEnergy: toNonNegativeInt(source.max_chassis_energy),
+      maxBufferEnergy: toNonNegativeInt(source.max_buffer_energy),
+      maxPower: toNonNegativeInt(source.max_power),
     };
     patch.centerHud = {
       maxHeat: toNonNegativeInt(source.max_heat),
@@ -297,13 +308,24 @@ function buildProtoPatch(data) {
     const source = data.RobotDynamicStatus;
     patch.mecha = {
       hp: toNonNegativeInt(source.current_health),
+      currentHealth: toNonNegativeInt(source.current_health),
       boost: toNonNegativeInt(source.current_buffer_energy),
+      currentBufferEnergy: toNonNegativeInt(source.current_buffer_energy),
       energy: toNonNegativeInt(source.current_chassis_energy),
+      currentChassisEnergy: toNonNegativeInt(source.current_chassis_energy),
       ammo: toNonNegativeInt(source.remaining_ammo),
+      remainingAmmo: toNonNegativeInt(source.remaining_ammo),
+      currentExperience: toNonNegativeInt(source.current_experience),
+      experienceForUpgrade: toNonNegativeInt(source.experience_for_upgrade),
+      totalProjectilesFired: toNonNegativeInt(source.total_projectiles_fired),
+      lastProjectileFireRate: toFiniteNumber(source.last_projectile_fire_rate),
       inCombat: !source.is_out_of_combat,
+      isOutOfCombat: Boolean(source.is_out_of_combat),
       combatTimer: toFiniteNumber(source.out_of_combat_countdown),
       remoteHealReady: Boolean(source.can_remote_heal),
+      canRemoteHeal: Boolean(source.can_remote_heal),
       remoteAmmoReady: Boolean(source.can_remote_ammo),
+      canRemoteAmmo: Boolean(source.can_remote_ammo),
     };
     patch.centerHud = {
       ammo: toNonNegativeInt(source.remaining_ammo),

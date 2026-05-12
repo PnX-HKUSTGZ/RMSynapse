@@ -41,6 +41,10 @@ func handle_operation(operation) -> void:
 			_handle_performance_selection(operation)
 		"commonCommand":
 			_handle_common_command(operation)
+		"normalRevive":
+			_send_common_once("normalRevive", "确认复活", confirm_respawn_service, int(operation.get("param", 0)))
+		"buyRevive":
+			_send_common_once("buyRevive", "立即复活", buy_respawn_service, int(operation.get("param", operation.get("cost", 0))))
 		"heroDeploy":
 			_request_service("heroDeploy", "英雄部署", hero_deploy_service.request_hero_deploy_mode(int(operation.get("mode", 0))))
 		"runeActivate":
@@ -139,32 +143,30 @@ func _handle_performance_selection(operation: Dictionary) -> void:
 func _handle_common_command(operation: Dictionary) -> void:
 	var command := str(operation.get("command", ""))
 	var param := int(operation.get("param", 0))
-	var result := -1
-	var label := ""
 	match command:
 		"exchange17mm":
-			label = "17mm兑换"
-			result = exchange_17mm_service.send_once(param)
+			_send_common_once("commonCommand", "17mm兑换", exchange_17mm_service, param)
 		"exchange42mm":
-			label = "42mm兑换"
-			result = exchange_42mm_service.send_once(param)
+			_send_common_once("commonCommand", "42mm兑换", exchange_42mm_service, param)
 		"confirmRespawn":
-			label = "确认复活"
-			result = confirm_respawn_service.send_once(param)
+			_send_common_once("commonCommand", "确认复活", confirm_respawn_service, param)
 		"buyRespawn":
-			label = "立即复活"
-			result = buy_respawn_service.send_once(param)
+			_send_common_once("commonCommand", "立即复活", buy_respawn_service, param)
 		"remoteBuyAmmo":
-			label = "远程补弹"
-			result = remote_buy_ammo_service.send_once(param)
+			_send_common_once("commonCommand", "远程补弹", remote_buy_ammo_service, param)
 		"remoteBuyHp":
-			label = "远程回血"
-			result = remote_buy_hp_service.send_once(param)
+			_send_common_once("commonCommand", "远程回血", remote_buy_hp_service, param)
 		_:
 			_emit_immediate(STATUS_FAILED, "未知 CommonCommand: %s" % command, "commonCommand", -1)
 			return
 
-	_emit_immediate(STATUS_SUCCESS if result >= 0 else STATUS_FAILED, label, "commonCommand", result)
+func _send_common_once(operation_type: String, label: String, service: Object, param: int) -> int:
+	if service == null or not service.has_method("send_once"):
+		_emit_immediate(STATUS_FAILED, label, operation_type, -1)
+		return -1
+	var result := int(service.call("send_once", param))
+	_emit_immediate(STATUS_SUCCESS if result >= 0 else STATUS_FAILED, label, operation_type, result)
+	return result
 
 func _request_service(operation_type: String, label: String, request_id: int) -> void:
 	if request_id <= 0:

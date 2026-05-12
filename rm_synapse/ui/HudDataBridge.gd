@@ -164,6 +164,10 @@ func _get_state_services() -> Array[Node]:
 	]
 
 func _attach_service(service: Node) -> void:
+	if service == null:
+		return
+	if service.get("adapter_getter") != null:
+		service.set("adapter_getter", adapter_getter)
 	if service.get_parent() == null:
 		add_child(service)
 
@@ -375,6 +379,7 @@ const DEFAULT_UI_STATE = {
 		"mechaHp": 2000,
 		"mechaBoost": 500,
 		"mechaPower": 3500,
+		"mechaChassisEnergy": 3500,
 		"techLevel": 4,
 		"radarLevel": 5
 	},
@@ -511,6 +516,13 @@ const DEFAULT_UI_STATE = {
 	"mecha": {
 		"pilotId": "HERO",
 		"pilotLevel": "LV.6",
+		"robotId": 1,
+		"robotType": 1,
+		"level": 6,
+		"connectionState": 1,
+		"fieldState": 0,
+		"aliveState": 1,
+		"isLevelEventTriggered": true,
 		"linkState": "LINKED",
 		"hpLabel": "CORE HP",
 		"powerLabel": "ENG PWR",
@@ -524,6 +536,10 @@ const DEFAULT_UI_STATE = {
 		"hp": 1650,
 		"boost": 400,
 		"energy": 2850,
+		"currentExperience": 850,
+		"experienceForUpgrade": 1000,
+		"totalProjectilesFired": 36,
+		"lastProjectileFireRate": 8.0,
 		"ammo": 12450,
 		"inCombat": false,
 		"combatTimer": 5.0,

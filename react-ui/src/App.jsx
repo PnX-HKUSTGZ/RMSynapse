@@ -81,6 +81,7 @@ export default function App() {
         mecha={uiState.mecha}
         maxValues={uiState.maxValues}
         uiSizing={uiState.uiSizing}
+        modules={uiState.modules}
         boostBuffs={uiState.boostBuffs}
       />
       <MiniMapHUD miniMap={miniMapState} uiSizing={uiState.uiSizing} robotHpById={robotHpById} />

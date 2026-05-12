@@ -84,6 +84,13 @@ func _ready() -> void:
 	bridge.handle_operation({"type": "commonCommand", "command": "remoteBuyHp", "param": 0})
 	_assert_payload_value(adapter.last_payload.get("common", {}), "cmd_type", 6, errors, "common hp")
 
+	bridge.handle_operation({"type": "normalRevive"})
+	_assert_payload_value(adapter.last_payload.get("common", {}), "cmd_type", 3, errors, "normal revive")
+
+	bridge.handle_operation({"type": "buyRevive", "cost": 120})
+	_assert_payload_value(adapter.last_payload.get("common", {}), "cmd_type", 4, errors, "buy revive")
+	_assert_payload_value(adapter.last_payload.get("common", {}), "param", 120, errors, "buy revive")
+
 	bridge.handle_operation({"type": "heroDeploy", "mode": 1})
 	_assert_payload_value(adapter.last_payload.get("hero", {}), "mode", 1, errors, "hero deploy")
 
