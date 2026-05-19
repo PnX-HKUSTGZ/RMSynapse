@@ -346,7 +346,7 @@ const DEFAULT_UI_STATE = {
 		"mechaHudScale": 1,
 		"miniMapScale": 0.75,
 		"miniMapWidth": 420,
-		"miniMapHeight": 236,
+		"miniMapHeight": 225,
 		"miniMapMarkerSize": 24,
 		"miniMapBottom": 16,
 		"miniMapRight": 16
@@ -603,8 +603,8 @@ const DEFAULT_UI_STATE = {
 		"miniMapTitle": "地图",
 		"uiSizing": {
 			"miniMapScale": 1,
-			"miniMapWidth": 560,
-			"miniMapHeight": 315,
+			"miniMapWidth": 980,
+			"miniMapHeight": 525,
 			"miniMapMarkerSize": 28,
 			"miniMapBottom": 20,
 			"miniMapRight": 20

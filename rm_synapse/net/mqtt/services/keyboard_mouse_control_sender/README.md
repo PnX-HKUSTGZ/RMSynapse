@@ -1,7 +1,7 @@
 # KeyboardMouseControlSender
 
 ## 作用
-- 按固定频率（默认 `75Hz`）向 `ProtocolAdapter` 发送 `KeyboardMouseControlData`。
+- 按固定频率（默认 `5Hz`，对齐通信协议）向 `ProtocolAdapter` 发送 `KeyboardMouseControlData`。
 - 用于持续上报键鼠控制状态。
 
 ## 文件

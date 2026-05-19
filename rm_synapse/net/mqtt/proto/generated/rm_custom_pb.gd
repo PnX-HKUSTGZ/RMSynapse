@@ -3100,22 +3100,12 @@ class MapClickInfoNotify:
 		service.field = __type
 		data[__type.tag] = service
 		
-		__screen_x = PBField.new("screen_x", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
-		service = PBServiceField.new()
-		service.field = __screen_x
-		data[__screen_x.tag] = service
-		
-		__screen_y = PBField.new("screen_y", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
-		service = PBServiceField.new()
-		service.field = __screen_y
-		data[__screen_y.tag] = service
-		
-		__map_x = PBField.new("map_x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		__map_x = PBField.new("map_x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __map_x
 		data[__map_x.tag] = service
 		
-		__map_y = PBField.new("map_y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		__map_y = PBField.new("map_y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __map_y
 		data[__map_y.tag] = service
@@ -3200,32 +3190,6 @@ class MapClickInfoNotify:
 	func set_type(value : int) -> void:
 		__type.value = value
 	
-	var __screen_x: PBField
-	func has_screen_x() -> bool:
-		if __screen_x.value != null:
-			return true
-		return false
-	func get_screen_x() -> int:
-		return __screen_x.value
-	func clear_screen_x() -> void:
-		data[7].state = PB_SERVICE_STATE.UNFILLED
-		__screen_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_screen_x(value : int) -> void:
-		__screen_x.value = value
-	
-	var __screen_y: PBField
-	func has_screen_y() -> bool:
-		if __screen_y.value != null:
-			return true
-		return false
-	func get_screen_y() -> int:
-		return __screen_y.value
-	func clear_screen_y() -> void:
-		data[8].state = PB_SERVICE_STATE.UNFILLED
-		__screen_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_screen_y(value : int) -> void:
-		__screen_y.value = value
-	
 	var __map_x: PBField
 	func has_map_x() -> bool:
 		if __map_x.value != null:
@@ -3234,7 +3198,7 @@ class MapClickInfoNotify:
 	func get_map_x() -> float:
 		return __map_x.value
 	func clear_map_x() -> void:
-		data[9].state = PB_SERVICE_STATE.UNFILLED
+		data[7].state = PB_SERVICE_STATE.UNFILLED
 		__map_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_map_x(value : float) -> void:
 		__map_x.value = value
@@ -3247,7 +3211,7 @@ class MapClickInfoNotify:
 	func get_map_y() -> float:
 		return __map_y.value
 	func clear_map_y() -> void:
-		data[10].state = PB_SERVICE_STATE.UNFILLED
+		data[8].state = PB_SERVICE_STATE.UNFILLED
 		__map_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_map_y(value : float) -> void:
 		__map_y.value = value

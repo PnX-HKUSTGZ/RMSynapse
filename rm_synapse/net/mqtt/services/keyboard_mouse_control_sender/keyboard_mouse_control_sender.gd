@@ -1,7 +1,7 @@
 extends Node
 class_name KeyboardMouseControlSender
 
-const SEND_HZ := 75.0
+const SEND_HZ := 5.0
 const SEND_INTERVAL_SEC := 1.0 / SEND_HZ
 
 var adapter_getter: MQTTProtocolAdapterGetter
@@ -51,6 +51,9 @@ func _on_tick() -> void:
 	if adapter == null:
 		return
 	adapter.send_keyboard_mouse_control(_data)
+	_data.mouse_x = 0
+	_data.mouse_y = 0
+	_data.mouse_z = 0
 
 func _get_adapter() -> ProtocolAdapter:
 	if adapter_getter == null:

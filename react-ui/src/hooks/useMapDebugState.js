@@ -51,11 +51,9 @@ export function useMapDebugState() {
     };
 
     window.godotMapPush = handler;
-    window.godotPush = handler;
 
     return () => {
       delete window.godotMapPush;
-      delete window.godotPush;
 
       if (rafIdRef.current != null) {
         window.cancelAnimationFrame(rafIdRef.current);

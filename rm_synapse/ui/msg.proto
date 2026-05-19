@@ -182,10 +182,8 @@ message MapClickInfoNotify
   uint32 enemy_id = 4;
   uint32 ascii = 5;
   uint32 type = 6;
-  uint32 screen_x = 7;
-  uint32 screen_y = 8;
-  float map_x = 9;
-  float map_y = 10;
+  float map_x = 7;
+  float map_y = 8;
 }
 
 message RadarInfoToClient

@@ -5,6 +5,7 @@
 - [ ] 选择交互界面绘制
 - [ ] 事件弹窗绘制
 - [ ] 小地图绘制
+  - 坐标当前按协议侧 `0~1000` 归一化范围映射到 `28m x 15m` 地图显示比例；`MapClickInfoNotify.map_x/map_y` 也按 `0~1000` 输出。
 - [ ] 详细buff绘制
 - [ ] 裁判系统等debug界面绘制
 
@@ -53,7 +54,7 @@
 
 ## operate 类
 
-- KeyboardMouseControl（75Hz）：传输鼠标键盘输入，用于把客户端键鼠操作下发给机器人。
+- KeyboardMouseControl（5Hz，HUD 默认关闭）：传输鼠标键盘输入，用于把客户端键鼠操作下发给机器人。
 <!-- - CustomControl（75Hz）：发送最大 30 字节的自定义控制数据。 -->
 <!-- - MapClickInfoNotify（触发式发送）：小地图点击交互指令，用于把地图坐标、按键、目标机器人 ID 等信息发给机器人。 -->
 - AssemblyCommand（1Hz）：工程装配指令。<!-- 按键触发（给个标识） -->

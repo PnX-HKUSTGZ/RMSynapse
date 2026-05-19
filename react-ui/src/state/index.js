@@ -1,6 +1,6 @@
 export { DEFAULT_MINI_MAP_PLAYERS, DEFAULT_UI_STATE } from './defaults';
 export { mergeControlsState, resolveControlsConfig } from './controls';
-export { createDefaultMapDebugState, applyMapPatch, mergePendingPatch, pickMapPatch } from './mapDebug';
+export { createDefaultMapDebugState, applyMapPatch, mergePendingPatch, mergeRadarTargets, pickMapPatch } from './mapDebug';
 export { normalizeIncomingData } from './proto';
 export {
   buildRobotHpById,

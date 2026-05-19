@@ -161,8 +161,10 @@ const MAP_CLICK_ROBOT_ID_BYTES := 7
 const MAP_CLICK_MIN_INTERVAL_MSEC := 500
 const COMMON_COMMAND_MIN_INTERVAL_MSEC := 100
 const LOW_RATE_COMMAND_MIN_INTERVAL_MSEC := 1000
+const KEYBOARD_MOUSE_MIN_INTERVAL_MSEC := 200
 
 const SEND_RATE_LIMIT_MSEC_BY_TOPIC := {
+	TOPIC_KEYBOARD_MOUSE_CONTROL: KEYBOARD_MOUSE_MIN_INTERVAL_MSEC,
 	TOPIC_MAP_CLICK_INFO_NOTIFY: MAP_CLICK_MIN_INTERVAL_MSEC,
 	TOPIC_COMMON_COMMAND: COMMON_COMMAND_MIN_INTERVAL_MSEC,
 	TOPIC_ASSEMBLY_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
@@ -275,8 +277,6 @@ func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> in
 	message.set_enemy_id(data.enemy_id)
 	message.set_ascii(data.ascii)
 	message.set_type(data.type)
-	message.set_screen_x(data.screen_x)
-	message.set_screen_y(data.screen_y)
 	message.set_map_x(data.map_x)
 	message.set_map_y(data.map_y)
 	return send_message(TOPIC_MAP_CLICK_INFO_NOTIFY, message)

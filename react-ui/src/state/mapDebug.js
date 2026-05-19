@@ -13,6 +13,23 @@ function cloneRobots(robots) {
   };
 }
 
+export function mergeRadarTargets(baseTargets, incomingTargets) {
+  if (!Array.isArray(incomingTargets)) return Array.isArray(baseTargets) ? baseTargets : [];
+  const nextById = new Map();
+  if (Array.isArray(baseTargets)) {
+    baseTargets.forEach((target, index) => {
+      const key = target?.robotId ?? `base-${index}`;
+      nextById.set(key, target);
+    });
+  }
+  incomingTargets.forEach((target, index) => {
+    if (!isPlainObject(target)) return;
+    const key = target.robotId ?? `incoming-${index}`;
+    nextById.set(key, target);
+  });
+  return Array.from(nextById.values());
+}
+
 export function pickMapPatch(data) {
   if (!isPlainObject(data)) return null;
 
@@ -31,6 +48,12 @@ export function pickMapPatch(data) {
   }
   if (isPlainObject(data.controls)) {
     patch.controls = data.controls;
+  }
+  if (Array.isArray(data.radarTargets)) {
+    patch.radarTargets = data.radarTargets;
+  }
+  if (isPlainObject(data.pathPlan)) {
+    patch.pathPlan = data.pathPlan;
   }
 
   return Object.keys(patch).length > 0 ? patch : null;
@@ -80,6 +103,14 @@ export function mergePendingPatch(base, incoming) {
   if (isPlainObject(incoming.controls)) {
     next.controls = mergeControlsState(base.controls, incoming.controls);
   }
+  if (Array.isArray(incoming.radarTargets)) {
+    next.radarTargets = mergeRadarTargets(base.radarTargets, incoming.radarTargets);
+  }
+  if (isPlainObject(incoming.pathPlan)) {
+    next.pathPlan = isPlainObject(base.pathPlan)
+      ? { ...base.pathPlan, ...incoming.pathPlan }
+      : { ...incoming.pathPlan };
+  }
 
   return next;
 }
@@ -125,6 +156,14 @@ export function applyMapPatch(prev, patch) {
     next = next === prev ? { ...prev } : next;
     next.controls = mergeControlsState(prev.controls, patch.controls);
   }
+  if (Array.isArray(patch.radarTargets)) {
+    next = next === prev ? { ...prev } : next;
+    next.radarTargets = mergeRadarTargets(prev.radarTargets, patch.radarTargets);
+  }
+  if (isPlainObject(patch.pathPlan)) {
+    next = next === prev ? { ...prev } : next;
+    next.pathPlan = { ...(prev.pathPlan ?? {}), ...patch.pathPlan };
+  }
 
   return next;
 }
@@ -147,5 +186,7 @@ export function createDefaultMapDebugState() {
     robots: cloneRobots(DEFAULT_UI_STATE.robots),
     stats: { ...DEFAULT_UI_STATE.stats },
     controls: { ...DEFAULT_UI_STATE.controls },
+    radarTargets: [],
+    pathPlan: {},
   };
 }

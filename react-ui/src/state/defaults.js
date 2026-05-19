@@ -21,7 +21,7 @@ const DEFAULT_UI_STATE = {
     mechaHudScale: 1,
     miniMapScale: 0.75,
     miniMapWidth: 420,
-    miniMapHeight: 236,
+    miniMapHeight: 225,
     miniMapMarkerSize: 24,
     miniMapBottom: 16,
     miniMapRight: 16,
@@ -44,6 +44,9 @@ const DEFAULT_UI_STATE = {
     { name: 'VIDEO', status: 'ok', outdated: false },
     { name: 'DATA', status: 'ok', outdated: false },
   ],
+  commandPanel: {
+    open: false,
+  },
   mechanisms: {
     effects: [],
     techCore: {
@@ -350,6 +353,9 @@ const DEFAULT_UI_STATE = {
     imageSrc: './map.png',
     imageAlt: 'RoboMaster Map',
     interactive: true,
+    fieldWidthCm: 2800,
+    fieldHeightCm: 1500,
+    protocolCoordinateMax: 1000,
     currentPlayerId: 'red-1',
     players: DEFAULT_MINI_MAP_PLAYERS,
   },
@@ -358,8 +364,8 @@ const DEFAULT_UI_STATE = {
     miniMapTitle: '地图',
     uiSizing: {
       miniMapScale: 1,
-      miniMapWidth: 560,
-      miniMapHeight: 315,
+      miniMapWidth: 980,
+      miniMapHeight: 525,
       miniMapMarkerSize: 28,
       miniMapBottom: 20,
       miniMapRight: 20,

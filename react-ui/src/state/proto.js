@@ -49,6 +49,8 @@ const BUFF_TYPE_META = {
   7: { type: 'terrain', name: '地形跨越' },
 };
 
+const MAP_PROTOCOL_MAX = DEFAULT_UI_STATE.miniMap.protocolCoordinateMax || 1000;
+
 function extractInts(value) {
   const matches = String(value ?? '').match(/-?\d+/g);
   if (!matches) return [];
@@ -91,11 +93,21 @@ function normalizeMechanismEffects(effects) {
 function normalizeRadarTarget(source) {
   return {
     robotId: toNonNegativeInt(source.target_robot_id),
-    x: toFiniteNumber(source.target_pos_x),
-    y: toFiniteNumber(source.target_pos_y),
+    x: (toFiniteNumber(source.target_pos_x) / MAP_PROTOCOL_MAX) * 100,
+    y: (toFiniteNumber(source.target_pos_y) / MAP_PROTOCOL_MAX) * 100,
     angle: toFiniteNumber(source.torward_angle),
     highlighted: toBoolean(source.is_high_light),
     timestamp: toNonNegativeInt(source.last_update_msec, Date.now()),
+  };
+}
+
+function normalizeMapPosition(source) {
+  return {
+    x: (toFiniteNumber(source.x) / MAP_PROTOCOL_MAX) * 100,
+    y: (toFiniteNumber(source.y) / MAP_PROTOCOL_MAX) * 100,
+    z: toFiniteNumber(source.z),
+    yaw: toFiniteNumber(source.yaw),
+    lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
   };
 }
 
@@ -352,15 +364,8 @@ function buildProtoPatch(data) {
   }
 
   if (isPlainObject(data.RobotPosition)) {
-    const source = data.RobotPosition;
     patch.miniMap = {
-      currentPosition: {
-        x: toFiniteNumber(source.x),
-        y: toFiniteNumber(source.y),
-        z: toFiniteNumber(source.z),
-        yaw: toFiniteNumber(source.yaw),
-        lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
-      },
+      currentPosition: normalizeMapPosition(data.RobotPosition),
     };
   }
 

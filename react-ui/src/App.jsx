@@ -18,7 +18,7 @@ import {
 } from './state';
 
 export default function App() {
-  const { uiState } = useHudState();
+  const { uiState, setUiState } = useHudState();
   const { leftRobots, rightRobots } = resolveRobotSides(uiState.robots);
   const miniMapState = resolveMiniMapState(uiState.miniMap);
   const respawnState = resolveRespawnState(uiState.respawn);
@@ -63,16 +63,24 @@ export default function App() {
 
       <MessageCenter messageCenter={uiState.messageCenter} />
       <CommandPanel
+        commandPanel={uiState.commandPanel}
+        onCommandPanelOpenChange={(open) => {
+          setUiState((prev) => ({
+            ...prev,
+            commandPanel: {
+              ...(prev.commandPanel ?? {}),
+              open,
+            },
+          }));
+        }}
         controls={uiState.controls}
         stats={statsState}
         mecha={uiState.mecha}
         respawn={respawnState}
+        timeLeft={uiState.timeLeft}
         performance={uiState.performance}
         heroDeploy={uiState.heroDeploy}
         rune={uiState.rune}
-        sentry={uiState.sentry}
-        dart={uiState.dart}
-        airSupport={uiState.airSupport}
         mechanisms={uiState.mechanisms}
         commandStatus={uiState.commandStatus}
       />
@@ -84,7 +92,12 @@ export default function App() {
         modules={uiState.modules}
         boostBuffs={uiState.boostBuffs}
       />
-      <MiniMapHUD miniMap={miniMapState} uiSizing={uiState.uiSizing} robotHpById={robotHpById} />
+      <MiniMapHUD
+        miniMap={{ ...miniMapState, interactive: false }}
+        uiSizing={uiState.uiSizing}
+        robotHpById={robotHpById}
+        radarTargets={uiState.radarTargets}
+      />
       <ReviveOverlay
         isDead={!!respawnState.isDead}
         countdown={respawnState.countdown}

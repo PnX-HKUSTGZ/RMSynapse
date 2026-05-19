@@ -1,19 +1,23 @@
 import { useMemo } from 'react';
-import MapTopControls from './features/map-controls/MapTopControls';
 import MiniMapHUD from './features/mini-map/MiniMapHUD';
+import { emitGodotOperation } from './bridge/godot';
 import { useMapDebugState } from './hooks/useMapDebugState';
 import {
   buildRobotHpById,
   resolveMiniMapState,
   resolveRobotSides,
-  resolveStatsState,
 } from './state';
 
 export default function MapDebugApp() {
   const state = useMapDebugState();
   const miniMapState = resolveMiniMapState(state.miniMap);
-  const statsState = resolveStatsState(state.stats);
   const { leftRobots, rightRobots } = resolveRobotSides(state.robots);
+  const mapPageSizing = {
+    ...state.uiSizing,
+    miniMapScale: 1,
+    miniMapWidth: 980,
+    miniMapHeight: 525,
+  };
 
   const robotHpById = useMemo(
     () => buildRobotHpById(leftRobots, rightRobots),
@@ -22,11 +26,12 @@ export default function MapDebugApp() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-transparent font-mono text-white">
-      <MapTopControls eco={statsState.eco} controls={state.controls} />
       <MiniMapHUD
-        miniMap={{ ...miniMapState, interactive: false }}
-        uiSizing={state.uiSizing}
+        miniMap={{ ...miniMapState, interactive: true, placement: 'center', showHeader: false }}
+        uiSizing={mapPageSizing}
         robotHpById={robotHpById}
+        radarTargets={state.radarTargets}
+        onMapClick={(payload) => emitGodotOperation({ type: 'mapClick', ...payload }, '[map] click')}
       />
     </div>
   );

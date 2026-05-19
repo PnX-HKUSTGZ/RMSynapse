@@ -25,8 +25,6 @@ class MapClickInfoNotifyData:
 	var enemy_id: int = 0
 	var ascii: int = 0
 	var type: int = 0
-	var screen_x: int = 0
-	var screen_y: int = 0
 	var map_x: float = 0.0
 	var map_y: float = 0.0
 
