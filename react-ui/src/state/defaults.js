@@ -47,6 +47,9 @@ const DEFAULT_UI_STATE = {
   commandPanel: {
     open: false,
   },
+  settingsMenu: {
+    open: false,
+  },
   mechanisms: {
     effects: [],
     techCore: {

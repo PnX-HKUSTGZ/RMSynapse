@@ -34,6 +34,8 @@ var _transport_retry_elapsed := 0.0
 var _link_push_elapsed := 0.0
 var _last_data_update_msec := 0
 var _command_panel_open := false
+var _settings_menu_open := false
+var _mouse_sensitivity := 1.0
 var _map_page_ready := false
 var _control_focus_active := true
 var _mouse_delta := Vector2.ZERO
@@ -96,6 +98,9 @@ const MAP_PROTO_KEYS := {
 	"RobotPathPlanInfo": true,
 	"RadarInfoToClient": true
 }
+
+const MIN_MOUSE_SENSITIVITY := 0.1
+const MAX_MOUSE_SENSITIVITY := 5.0
 
 
 func _ready():
@@ -218,6 +223,16 @@ func _on_web_ipc_message(message, source: String = "hud") -> void:
 			if source == "map":
 				return
 			_set_command_panel_open(bool(operation.get("open", false)))
+			return
+		if operation_type == "setSettingsMenuOpen":
+			if source == "map":
+				return
+			_set_settings_menu_open(bool(operation.get("open", false)))
+			return
+		if operation_type == "setMouseSensitivity":
+			if source == "map":
+				return
+			_set_mouse_sensitivity(float(operation.get("value", operation.get("mouseSensitivity", 1.0))))
 			return
 		if operation_type == "mapClick":
 			if source != "map" or map_web == null or not map_web.visible:
@@ -383,6 +398,11 @@ func _robot_id_to_bytes(value: String) -> PackedByteArray:
 	return out
 
 func _input(input_event):
+	if input_event is InputEventKey and input_event.keycode == KEY_ESCAPE and input_event.pressed and not input_event.echo:
+		_set_settings_menu_open(not _settings_menu_open)
+		get_viewport().set_input_as_handled()
+		return
+
 	if input_event is InputEventKey and input_event.keycode == KEY_TAB and input_event.pressed and not input_event.echo:
 		_toggle_command_panel()
 		get_viewport().set_input_as_handled()
@@ -435,9 +455,25 @@ func _set_command_panel_open(open: bool) -> void:
 	else:
 		_pending_bridge_payloads.append(payload)
 
+func _set_settings_menu_open(open: bool) -> void:
+	_settings_menu_open = open
+	_refresh_control_focus()
+	var payload := {
+		"settingsMenu": {
+			"open": _settings_menu_open
+		}
+	}
+	if page_ready:
+		push_payload(payload)
+	else:
+		_pending_bridge_payloads.append(payload)
+
+func _set_mouse_sensitivity(value: float) -> void:
+	_mouse_sensitivity = clamp(value, MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY)
+
 func _refresh_control_focus() -> void:
 	var map_open: bool = map_web != null and map_web.visible
-	_set_control_focus(not _command_panel_open and not map_open)
+	_set_control_focus(not _command_panel_open and not _settings_menu_open and not map_open)
 
 func _set_control_focus(active: bool) -> void:
 	_control_focus_active = active
@@ -495,8 +531,8 @@ func _keyboard_value() -> int:
 func _update_keyboard_mouse_sender() -> void:
 	var data := AdapterTypes.KeyboardMouseControlData.new()
 	if _control_focus_active:
-		data.mouse_x = int(round(_mouse_delta.x))
-		data.mouse_y = int(round(-_mouse_delta.y))
+		data.mouse_x = int(round(_mouse_delta.x * _mouse_sensitivity))
+		data.mouse_y = int(round(-_mouse_delta.y * _mouse_sensitivity))
 		data.mouse_z = _mouse_wheel_delta
 		data.left_button_down = _left_button_down
 		data.right_button_down = _right_button_down

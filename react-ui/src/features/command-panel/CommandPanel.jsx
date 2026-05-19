@@ -351,6 +351,7 @@ function MechanismControls({ activeRole, heroDeploy, rune, mechanisms }) {
 
 export default function CommandPanel({
   commandPanel,
+  uiScale = 1,
   onCommandPanelOpenChange,
   controls,
   stats,
@@ -364,6 +365,7 @@ export default function CommandPanel({
   commandStatus,
 }) {
   const open = Boolean(commandPanel?.open);
+  const safeUiScale = Number(uiScale) > 0 ? Number(uiScale) : 1;
   const statusState = commandStatus?.state ?? 'idle';
   const robotContext = useMemo(() => resolveRobotContext(mecha, controls), [mecha, controls]);
   const activeRole = robotContext.role;
@@ -377,7 +379,10 @@ export default function CommandPanel({
   };
 
   return (
-    <div className="pointer-events-none fixed right-4 top-1/2 z-50 flex -translate-y-1/2 items-center gap-3 font-sans text-white">
+    <div
+      className="pointer-events-none fixed right-4 top-1/2 z-50 flex -translate-y-1/2 items-center gap-3 font-sans text-white"
+      style={{ transform: `scale(${safeUiScale})`, transformOrigin: 'center right' }}
+    >
       {open && robotContext.supported && (
         <div className="pointer-events-auto max-h-[82vh] w-[390px] overflow-y-auto rounded-lg border border-slate-700 bg-slate-950/94 p-3 shadow-[0_0_34px_rgba(0,0,0,0.72)] backdrop-blur">
           <div className="mb-3 flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
