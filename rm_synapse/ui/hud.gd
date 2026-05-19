@@ -283,11 +283,14 @@ func _on_operation_status(status: Dictionary) -> void:
 	})
 
 func _try_bind_transport_signals() -> void:
-	if _transport != null and is_instance_valid(_transport):
-		return
 	var transport := adapter_getter.get_transport()
 	if transport == null:
+		_transport = null
+		_mqtt_connected = false
 		return
+	var adapter := adapter_getter.get_adapter_silent()
+	if adapter != null and adapter.has_method("is_transport_bound") and not adapter.is_transport_bound(transport):
+		adapter.bind_transport(transport)
 	_transport = transport
 	_mqtt_connected = transport.is_broker_connected()
 	if not transport.connected.is_connected(_on_transport_connected):
@@ -416,8 +419,11 @@ func _input(input_event):
 	if input_event is InputEventKey and input_event.keycode == KEY_Q and input_event.pressed and not input_event.echo:
 		_spawn_mock_message()
 
-	if keyboard_mouse_transport_enabled and _control_focus_active:
-		_capture_keyboard_mouse_input(input_event)
+	if keyboard_mouse_transport_enabled:
+		if _control_focus_active:
+			_capture_keyboard_mouse_input(input_event)
+		else:
+			_capture_keyboard_input(input_event)
 
 func _is_map_toggle_event(input_event) -> bool:
 	if input_event.is_action_pressed("map"):
@@ -484,7 +490,6 @@ func _set_control_focus(active: bool) -> void:
 		_left_button_down = false
 		_right_button_down = false
 		_mid_button_down = false
-		_pressed_key_bits.clear()
 
 func _capture_keyboard_mouse_input(input_event) -> void:
 	if input_event is InputEventMouseMotion:
@@ -506,12 +511,18 @@ func _capture_keyboard_mouse_input(input_event) -> void:
 					_mouse_wheel_delta -= 1
 		return
 	if input_event is InputEventKey and not input_event.echo:
-		var bit := _keyboard_bit_for_event(input_event)
-		if bit >= 0:
-			if input_event.pressed:
-				_pressed_key_bits[bit] = true
-			else:
-				_pressed_key_bits.erase(bit)
+		_capture_keyboard_input(input_event)
+
+func _capture_keyboard_input(input_event) -> void:
+	if not (input_event is InputEventKey) or input_event.echo:
+		return
+	var bit := _keyboard_bit_for_event(input_event)
+	if bit < 0:
+		return
+	if input_event.pressed:
+		_pressed_key_bits[bit] = true
+	else:
+		_pressed_key_bits.erase(bit)
 
 func _keyboard_bit_for_event(input_event: InputEventKey) -> int:
 	var physical := input_event.physical_keycode
@@ -537,7 +548,7 @@ func _update_keyboard_mouse_sender() -> void:
 		data.left_button_down = _left_button_down
 		data.right_button_down = _right_button_down
 		data.mid_button_down = _mid_button_down
-		data.keyboard_value = _keyboard_value()
+	data.keyboard_value = _keyboard_value()
 	keyboard_mouse_sender.update_data(data)
 	_mouse_delta = Vector2.ZERO
 	_mouse_wheel_delta = 0

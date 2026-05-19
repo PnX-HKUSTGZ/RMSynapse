@@ -96,6 +96,9 @@ func unsubscribe(topic: String) -> void:
 		_mqtt.unsubscribe(topic)
 
 func publish_bytes(topic: String, payload: PackedByteArray, retain: bool = false, qos: int = 0) -> int:
+	if not _connected or _mqtt == null:
+		Log.warn("[NetworkTransport] Drop bytes publish while broker is disconnected: %s" % topic)
+		return -1
 	if not binary_messages:
 		binary_messages = true
 		_mqtt.binarymessages = true
@@ -103,11 +106,17 @@ func publish_bytes(topic: String, payload: PackedByteArray, retain: bool = false
 	return _mqtt.publish(topic, payload, retain, qos)
 
 func publish_text(topic: String, text: String, retain: bool = false, qos: int = 0) -> int:
-	if binary_messages:
-		binary_messages = false
-		_mqtt.binarymessages = false
+	if not _connected or _mqtt == null:
+		Log.warn("[NetworkTransport] Drop text publish while broker is disconnected: %s" % topic)
+		return -1
+	var previous_binary_messages := binary_messages
+	binary_messages = false
+	_mqtt.binarymessages = false
 	Log.debug("[NetworkTransport] Publish text topic=%s len=%d qos=%d retain=%s" % [topic, text.length(), qos, str(retain)])
-	return _mqtt.publish(topic, text, retain, qos)
+	var result := int(_mqtt.publish(topic, text, retain, qos))
+	binary_messages = previous_binary_messages
+	_mqtt.binarymessages = previous_binary_messages
+	return result
 
 func clear_subscriptions() -> void:
 	_desired_subscriptions.clear()
