@@ -83,10 +83,13 @@ function normalizeModules(modules) {
   };
 }
 
-export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuffs }) {
+export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuffs, isEngineer = false }) {
   const mergedMecha = resolveMechaState(mecha);
   const mergedSizing = resolveUiSizing(uiSizing);
-  const mergedBoostBuffs = resolveBoostBuffs(boostBuffs);
+  const mergedBoostBuffs = resolveBoostBuffs(boostBuffs).filter((buff) => {
+    if (!isEngineer) return true;
+    return buff?.type !== 'attack' && buff?.type !== 'cooling';
+  });
   const mechaHudScale = mergedSizing.mechaHudScale > 0 ? mergedSizing.mechaHudScale : 1;
 
   const robotId = mergedMecha.robotId ?? mergedMecha.robot_id ?? mergedMecha.pilotId;
@@ -127,7 +130,7 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
   const displayId = translateRobotId(robotId, robotType);
 
   const moduleConfigs = [
-    { key: 'rfid', label: 'RFID', status: normalizedModules.rfid, icon: Radio },
+    ...(!isEngineer ? [{ key: 'rfid', label: 'RFID', status: normalizedModules.rfid, icon: Radio }] : []),
     { key: 'uwb', label: 'UWB', status: normalizedModules.uwb, icon: Signal },
     { key: 'armor', label: 'ARMOR', status: normalizedModules.armor, icon: ShieldAlert },
     { key: 'videoTransmission', label: 'VIDEO', status: normalizedModules.videoTransmission, icon: Video },
@@ -146,16 +149,18 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
             <span className="shrink-0 whitespace-nowrap text-[20px] font-black italic leading-none tracking-wide text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]">
               {displayId}
             </span>
-            <div className="flex shrink-0 items-center gap-1 border-l-2 border-emerald-500 bg-emerald-900/60 px-2 py-0.5 skew-x-[-15deg] backdrop-blur-sm">
-              <span className="flex items-center gap-0.5 whitespace-nowrap text-[13px] font-bold leading-none text-emerald-300 skew-x-[15deg]">
-                Lv.{displayLevel}
-                {levelUnlocked ? (
-                  <Unlock size={10} className="text-amber-400 drop-shadow-[0_0_3px_rgba(251,191,36,0.8)]" />
-                ) : (
-                  <Lock size={10} className="text-emerald-500/60" />
-                )}
-              </span>
-            </div>
+            {!isEngineer && (
+              <div className="flex shrink-0 items-center gap-1 border-l-2 border-emerald-500 bg-emerald-900/60 px-2 py-0.5 skew-x-[-15deg] backdrop-blur-sm">
+                <span className="flex items-center gap-0.5 whitespace-nowrap text-[13px] font-bold leading-none text-emerald-300 skew-x-[15deg]">
+                  Lv.{displayLevel}
+                  {levelUnlocked ? (
+                    <Unlock size={10} className="text-amber-400 drop-shadow-[0_0_3px_rgba(251,191,36,0.8)]" />
+                  ) : (
+                    <Lock size={10} className="text-emerald-500/60" />
+                  )}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex shrink-0 flex-nowrap items-center gap-1.5 whitespace-nowrap text-[11px] font-bold leading-none tracking-wider">
@@ -211,17 +216,19 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
         </div>
 
         <div className="mt-0.5 flex items-stretch gap-1.5 drop-shadow-[0_2px_5px_rgba(0,0,0,0.5)]">
-          <div className="relative flex flex-[1.4] items-center overflow-hidden border-l-2 border-purple-500 bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
-            <div className="absolute bottom-0 left-0 top-0 bg-purple-500/30 transition-all duration-300" style={{ width: `${expPercent}%` }} />
-            <div className="pointer-events-none absolute bottom-0 left-[25%] top-0 z-0 w-px bg-slate-900/80" />
-            <div className="pointer-events-none absolute bottom-0 left-[50%] top-0 z-0 w-[2px] bg-slate-900/80" />
-            <div className="pointer-events-none absolute bottom-0 left-[75%] top-0 z-0 w-px bg-slate-900/80" />
+          {!isEngineer && (
+            <div className="relative flex flex-[1.4] items-center overflow-hidden border-l-2 border-purple-500 bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
+              <div className="absolute bottom-0 left-0 top-0 bg-purple-500/30 transition-all duration-300" style={{ width: `${expPercent}%` }} />
+              <div className="pointer-events-none absolute bottom-0 left-[25%] top-0 z-0 w-px bg-slate-900/80" />
+              <div className="pointer-events-none absolute bottom-0 left-[50%] top-0 z-0 w-[2px] bg-slate-900/80" />
+              <div className="pointer-events-none absolute bottom-0 left-[75%] top-0 z-0 w-px bg-slate-900/80" />
 
-            <div className="relative z-10 flex w-full items-center justify-between text-[10px] skew-x-[15deg]">
-              <span className="font-bold text-purple-300">EXP</span>
-              <span className="font-bold text-white">{Math.round(currentExperience)}</span>
+              <div className="relative z-10 flex w-full items-center justify-between text-[10px] skew-x-[15deg]">
+                <span className="font-bold text-purple-300">EXP</span>
+                <span className="font-bold text-white">{Math.round(currentExperience)}</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex flex-[1] items-center justify-between bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
             <div className="flex w-full items-center justify-between skew-x-[15deg]">
@@ -235,25 +242,29 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
                 </span>
               )}
 
-              <div className="flex gap-2">
-                <Heart size={12} className={canRemoteHeal ? 'text-emerald-400 drop-shadow-[0_0_3px_rgba(52,211,153,0.8)]' : 'text-slate-600'} />
-                <Box size={12} className={canRemoteAmmo ? 'text-amber-400 drop-shadow-[0_0_3px_rgba(251,191,36,0.8)]' : 'text-slate-600'} />
-              </div>
+              {!isEngineer && (
+                <div className="flex gap-2">
+                  <Heart size={12} className={canRemoteHeal ? 'text-emerald-400 drop-shadow-[0_0_3px_rgba(52,211,153,0.8)]' : 'text-slate-600'} />
+                  <Box size={12} className={canRemoteAmmo ? 'text-amber-400 drop-shadow-[0_0_3px_rgba(251,191,36,0.8)]' : 'text-slate-600'} />
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex w-[92px] items-center justify-center border-r-2 border-slate-500 bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
-            <div className="flex w-full items-center justify-between text-[10px] font-bold text-slate-300 skew-x-[15deg]">
-              <span className="flex items-center gap-0.5" title="累计发弹量">
-                <Crosshair size={10} className="text-cyan-400" />
-                {Math.round(totalProjectilesFired)}
-              </span>
-              <span className="flex items-center gap-0.5" title="上一次射速">
-                <Activity size={10} className="text-amber-400" />
-                {lastProjectileFireRate.toFixed(1)}
-              </span>
+          {!isEngineer && (
+            <div className="flex w-[92px] items-center justify-center border-r-2 border-slate-500 bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
+              <div className="flex w-full items-center justify-between text-[10px] font-bold text-slate-300 skew-x-[15deg]">
+                <span className="flex items-center gap-0.5" title="累计发弹量">
+                  <Crosshair size={10} className="text-cyan-400" />
+                  {Math.round(totalProjectilesFired)}
+                </span>
+                <span className="flex items-center gap-0.5" title="上一次射速">
+                  <Activity size={10} className="text-amber-400" />
+                  {lastProjectileFireRate.toFixed(1)}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="relative">

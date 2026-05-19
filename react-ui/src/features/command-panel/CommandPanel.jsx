@@ -108,7 +108,7 @@ function resolveRobotContext(mecha, controls) {
   }
 
   const displayName = (Number.isFinite(numericId) && ROBOT_ID_NAME[numericId]) || upperName || String(rawId ?? 'UNKNOWN').toUpperCase();
-  return { role, displayName, supported: role === 'hero' || role === 'infantry' };
+  return { role, displayName, supported: role === 'hero' || role === 'infantry' || role === 'engineer' };
 }
 
 function FieldValue({ label, value, accent = 'text-cyan-200' }) {
@@ -317,6 +317,93 @@ function ResourceControls({ activeRole, stats, mecha, respawn, timeLeft }) {
   );
 }
 
+function RespawnControls({ stats, mecha, respawn, timeLeft }) {
+  const eco = toInt(stats?.eco);
+  const dead = isRobotDead(mecha, respawn);
+  const elapsedSec = Math.max(0, 420 - toNumber(timeLeft, 420));
+  const reviveCost = Math.ceil(elapsedSec / 60) * 80 + parseRobotLevel(mecha) * 20;
+  const canRevive = dead && reviveCost <= eco;
+
+  const sendCommon = (command, param = 0) => {
+    sendOperation({ type: 'commonCommand', command, param }, command, param);
+  };
+
+  return (
+    <PanelSection title="复活" icon={RotateCw}>
+      <div className="grid grid-cols-3 gap-2">
+        <FieldValue label="ECO" value={eco} accent="text-yellow-300" />
+        <FieldValue label="STATE" value={dead ? '待复活' : '存活'} accent={dead ? 'text-red-300' : 'text-emerald-300'} />
+        <FieldValue label="REVIVE" value={respawn?.countdown ?? 0} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <IconButton disabled={!dead} onClick={() => sendCommon('confirmRespawn')} icon={RotateCw}>确认复活</IconButton>
+        <IconButton disabled={!canRevive} onClick={() => sendCommon('buyRespawn', reviveCost)} icon={Zap}>
+          立即复活 · {formatCost(reviveCost)}
+        </IconButton>
+      </div>
+    </PanelSection>
+  );
+}
+
+function EngineerControls({ stats, mecha, respawn, timeLeft, mechanisms }) {
+  const techCore = mechanisms?.techCore ?? {};
+  const maxDifficulty = Math.max(0, Math.min(4, toInt(techCore.maximumDifficultyLevel)));
+  const [difficulty, setDifficulty] = useState(1);
+  const selectedAvailable = difficulty > 0 && difficulty <= maxDifficulty;
+
+  const startAssembly = () => {
+    if (!selectedAvailable) return;
+    sendOperation({ type: 'assembly', operation: 0, difficulty }, 'assembly', difficulty);
+  };
+
+  return (
+    <>
+      <RespawnControls stats={stats} mecha={mecha} respawn={respawn} timeLeft={timeLeft} />
+
+      <PanelSection title="工程装配" icon={Box}>
+        <div className="grid grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map((level) => {
+            const available = level <= maxDifficulty;
+            const selected = difficulty === level;
+            return (
+              <button
+                type="button"
+                key={level}
+                disabled={!available}
+                onClick={() => setDifficulty(level)}
+                className={`flex min-h-10 items-center justify-center rounded border px-2 text-xs font-black transition-colors ${
+                  !available
+                    ? 'cursor-not-allowed border-slate-800 bg-slate-950/60 text-slate-600'
+                    : selected
+                      ? 'border-cyan-300 bg-cyan-500/24 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.18)]'
+                      : 'border-cyan-500/45 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/18'
+                }`}
+              >
+                {level}级
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          disabled={!selectedAvailable}
+          onClick={startAssembly}
+          className={`mt-3 flex w-full items-center justify-center gap-2 rounded border py-2 text-xs font-black transition-colors ${
+            selectedAvailable
+              ? 'border-cyan-400/60 bg-cyan-500/18 text-cyan-100 hover:bg-cyan-500/28'
+              : 'cursor-not-allowed border-slate-700 bg-slate-900/70 text-slate-500'
+          }`}
+        >
+          <Send size={14} />
+          确定开始装配
+        </button>
+      </PanelSection>
+    </>
+  );
+}
+
 function MechanismControls({ activeRole, heroDeploy, rune, mechanisms }) {
   const deployActive = Boolean(heroDeploy?.status);
   return (
@@ -402,11 +489,17 @@ export default function CommandPanel({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <PerformanceControls activeRole={activeRole} controls={controls} performance={performance} />
-            <ResourceControls activeRole={activeRole} stats={stats} mecha={mecha} respawn={respawn} timeLeft={timeLeft} />
-            <MechanismControls activeRole={activeRole} heroDeploy={heroDeploy} rune={rune} mechanisms={mechanisms} />
-          </div>
+          {activeRole === 'engineer' ? (
+            <div className="space-y-3">
+              <EngineerControls stats={stats} mecha={mecha} respawn={respawn} timeLeft={timeLeft} mechanisms={mechanisms} />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <PerformanceControls activeRole={activeRole} controls={controls} performance={performance} />
+              <ResourceControls activeRole={activeRole} stats={stats} mecha={mecha} respawn={respawn} timeLeft={timeLeft} />
+              <MechanismControls activeRole={activeRole} heroDeploy={heroDeploy} rune={rune} mechanisms={mechanisms} />
+            </div>
+          )}
         </div>
       )}
 

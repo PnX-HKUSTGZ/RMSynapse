@@ -23,6 +23,21 @@ import {
   saveHudSettings,
 } from './state/settings';
 
+function resolveRoleFromMecha(mecha, controls) {
+  const robotId = Number(mecha?.robotId ?? mecha?.robot_id);
+  if (robotId === 2 || robotId === 102) return 'engineer';
+  if (robotId === 1 || robotId === 101) return 'hero';
+  if ([3, 4, 5, 103, 104, 105].includes(robotId)) return 'infantry';
+  if (robotId === 7 || robotId === 107) return 'sentry';
+
+  const name = String(mecha?.pilotId ?? mecha?.name ?? mecha?.robotName ?? '').toUpperCase();
+  if (name.includes('ENGINEER') || name.includes('工程')) return 'engineer';
+  if (name.includes('HERO') || name.includes('英雄')) return 'hero';
+  if (name.includes('INFANTRY') || name.includes('步兵')) return 'infantry';
+  if (name.includes('SENTRY') || name.includes('哨兵')) return 'sentry';
+  return controls?.activeRole ?? 'unknown';
+}
+
 export default function App() {
   const { uiState, setUiState } = useHudState();
   const [hudSettings, setHudSettings] = useState(() => loadHudSettings());
@@ -32,6 +47,8 @@ export default function App() {
   const respawnState = resolveRespawnState(uiState.respawn);
   const statsState = resolveStatsState(uiState.stats);
   const settingsMenuOpen = Boolean(uiState.settingsMenu?.open);
+  const activeRole = resolveRoleFromMecha(uiState.mecha, uiState.controls);
+  const isEngineer = activeRole === 'engineer';
 
   useEffect(() => {
     const background = uiState.forceBlackBg ? '#3939395b' : 'transparent';
@@ -146,13 +163,14 @@ export default function App() {
           mechanisms={uiState.mechanisms}
           commandStatus={uiState.commandStatus}
         />
-        <CenterCombatHUD centerHud={uiState.centerHud} uiSizing={effectiveUiSizing} />
+        {!isEngineer && <CenterCombatHUD centerHud={uiState.centerHud} uiSizing={effectiveUiSizing} />}
         <MechaHUD
           mecha={uiState.mecha}
           maxValues={uiState.maxValues}
           uiSizing={effectiveUiSizing}
           modules={uiState.modules}
           boostBuffs={uiState.boostBuffs}
+          isEngineer={isEngineer}
         />
         <MiniMapHUD
           miniMap={{ ...miniMapState, interactive: false }}
