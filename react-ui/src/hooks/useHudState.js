@@ -23,10 +23,6 @@ export function useHudState() {
     };
 
     window.godotPush = handler;
-
-    return () => {
-      delete window.godotPush;
-    };
   }, []);
 
   return { uiState, setUiState };

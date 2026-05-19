@@ -144,6 +144,14 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
         className="absolute bottom-12 left-12 z-10 flex w-[432px] flex-col gap-1.5 drop-shadow-xl"
         style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom left' }}
       >
+        {isEngineer && (
+          <StatusBuffList
+            buffs={mergedBoostBuffs}
+            size="sm"
+            className="mb-0.5 w-full justify-start px-2"
+          />
+        )}
+
         <div className="flex flex-nowrap items-end justify-between gap-2 px-2 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
           <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
             <span className="shrink-0 whitespace-nowrap text-[20px] font-black italic leading-none tracking-wide text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]">
@@ -230,26 +238,50 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
             </div>
           )}
 
-          <div className="flex flex-[1] items-center justify-between bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
-            <div className="flex w-full items-center justify-between skew-x-[15deg]">
-              {!isOutOfCombat ? (
-                <span className="flex animate-pulse items-center gap-0.5 text-[11px] font-black text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]">
-                  <AlertTriangle size={10} /> COMBAT
+          {isEngineer ? (
+            <div className="flex flex-[1] items-center gap-2 bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
+              <div className="flex min-w-0 flex-1 items-center gap-2 skew-x-[15deg]">
+                <span className="flex shrink-0 items-center gap-1 text-[10px] font-black tracking-wider text-cyan-300">
+                  <Zap size={11} />
+                  BOOST
                 </span>
-              ) : (
-                <span className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400">
-                  <Check size={10} /> SAFE
+                <div className="h-2.5 min-w-0 flex-1 border border-cyan-500/60 bg-slate-950/70 p-px">
+                  <div
+                    className="h-full bg-cyan-400 transition-all duration-100 ease-out"
+                    style={{ width: `${toPercent(currentBoost, maxBoost)}%` }}
+                  />
+                </div>
+                <span className="shrink-0 whitespace-nowrap text-[10px] font-black text-white">
+                  {Math.round(currentBoost)}
+                  <span className="text-cyan-500/90">/{maxBoost}</span>
                 </span>
-              )}
+              </div>
 
-              {!isEngineer && (
+              <div className="flex shrink-0 items-baseline gap-1 border-l border-amber-500/50 pl-2 text-[10px] font-black tracking-wider skew-x-[15deg]">
+                <span className="text-amber-300">PWR</span>
+                <span className="text-white">{Math.round(maxPower)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-[1] items-center justify-between bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
+              <div className="flex w-full items-center justify-between skew-x-[15deg]">
+                {!isOutOfCombat ? (
+                  <span className="flex animate-pulse items-center gap-0.5 text-[11px] font-black text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]">
+                    <AlertTriangle size={10} /> COMBAT
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-0.5 text-[11px] font-bold text-slate-400">
+                    <Check size={10} /> SAFE
+                  </span>
+                )}
+
                 <div className="flex gap-2">
                   <Heart size={12} className={canRemoteHeal ? 'text-emerald-400 drop-shadow-[0_0_3px_rgba(52,211,153,0.8)]' : 'text-slate-600'} />
                   <Box size={12} className={canRemoteAmmo ? 'text-amber-400 drop-shadow-[0_0_3px_rgba(251,191,36,0.8)]' : 'text-slate-600'} />
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
           {!isEngineer && (
             <div className="flex w-[92px] items-center justify-center border-r-2 border-slate-500 bg-slate-900/80 px-2 py-1 skew-x-[-15deg] backdrop-blur-md">
@@ -322,49 +354,51 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
         </div>
       </div>
 
-      <div className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 drop-shadow-lg">
-        <div
-          className="flex w-[388px] flex-col items-center"
-          style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom center' }}
-        >
-          <div className="relative w-full">
-            <StatusBuffList
-              buffs={mergedBoostBuffs}
-              size="md"
-              className="absolute bottom-full left-1/2 mb-5 w-max max-w-none -translate-x-1/2 px-2"
-            />
+      {!isEngineer && (
+        <div className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 drop-shadow-lg">
+          <div
+            className="flex w-[388px] flex-col items-center"
+            style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom center' }}
+          >
+            <div className="relative w-full">
+              <StatusBuffList
+                buffs={mergedBoostBuffs}
+                size="md"
+                className="absolute bottom-full left-1/2 mb-5 w-max max-w-none -translate-x-1/2 px-2"
+              />
 
-            <div className="absolute -top-5 flex w-full justify-between px-2 text-xs font-bold text-cyan-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              <span className="flex items-center gap-1 drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">
-                <Zap size={14} />
-                BOOST
-              </span>
-              <span className="text-white drop-shadow-[0_0_2px_#fff]">
-                {Math.round(currentBoost)}
-                <span className="text-cyan-500/90"> / {maxBoost}</span>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="h-4 flex-1 filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
-                <div className="h-full w-full border border-cyan-500/60 bg-slate-900/60 p-0.5 skew-x-[-15deg] backdrop-blur-md">
-                  <div
-                    className="h-full bg-cyan-400 transition-all duration-100 ease-out"
-                    style={{ width: `${toPercent(currentBoost, maxBoost)}%` }}
-                  />
-                </div>
+              <div className="absolute -top-5 flex w-full justify-between px-2 text-xs font-bold text-cyan-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                <span className="flex items-center gap-1 drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">
+                  <Zap size={14} />
+                  BOOST
+                </span>
+                <span className="text-white drop-shadow-[0_0_2px_#fff]">
+                  {Math.round(currentBoost)}
+                  <span className="text-cyan-500/90"> / {maxBoost}</span>
+                </span>
               </div>
 
-              <div className="flex h-6 items-center border-r-2 border-amber-500 bg-slate-900/75 px-2 skew-x-[-15deg] backdrop-blur-md">
-                <div className="flex items-baseline gap-1 text-[10px] font-black tracking-wider skew-x-[15deg]">
-                  <span className="text-amber-300">PWR</span>
-                  <span className="text-white">{Math.round(maxPower)}</span>
+              <div className="flex items-center gap-2">
+                <div className="h-4 flex-1 filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+                  <div className="h-full w-full border border-cyan-500/60 bg-slate-900/60 p-0.5 skew-x-[-15deg] backdrop-blur-md">
+                    <div
+                      className="h-full bg-cyan-400 transition-all duration-100 ease-out"
+                      style={{ width: `${toPercent(currentBoost, maxBoost)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex h-6 items-center border-r-2 border-amber-500 bg-slate-900/75 px-2 skew-x-[-15deg] backdrop-blur-md">
+                  <div className="flex items-baseline gap-1 text-[10px] font-black tracking-wider skew-x-[15deg]">
+                    <span className="text-amber-300">PWR</span>
+                    <span className="text-white">{Math.round(maxPower)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
