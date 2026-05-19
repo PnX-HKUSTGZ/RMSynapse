@@ -27,7 +27,7 @@ var _pending: Dictionary = {}
 var _last_error_code: int = ErrorCode.OK
 var _logged_missing: bool = false
 var _motion_seq: int = 0
-var _last_sync_status: int = 0
+var _last_sync_status: String = ""
 var _has_last_sync_status: bool = false
 
 func _ready() -> void:
@@ -82,7 +82,7 @@ func _on_tech_core_motion_state_sync(message) -> void:
 	_motion_seq += 1
 	if message == null:
 		return
-	var current_status = int(message.get_status())
+	var current_status := _get_tech_core_signature(message)
 	_last_sync_status = current_status
 	_has_last_sync_status = true
 	if not _has_pending():
@@ -91,7 +91,7 @@ func _on_tech_core_motion_state_sync(message) -> void:
 	if _motion_seq <= begin_seq:
 		return
 	var start_known = bool(_pending.get("start_status_known", false))
-	var start_status = int(_pending.get("start_status", 0))
+	var start_status = str(_pending.get("start_status", ""))
 	if start_known and current_status == start_status:
 		return
 	_finish_pending(ErrorCode.OK)
@@ -197,3 +197,22 @@ func _log_error(message: String) -> void:
 		logger.error(message)
 		return
 	push_error(message)
+
+func _get_message_int(message, method: String, fallback_method: String) -> int:
+	if method != "" and message.has_method(method):
+		return int(message.call(method))
+	if fallback_method != "" and message.has_method(fallback_method):
+		return int(message.call(fallback_method))
+	return 0
+
+func _get_tech_core_signature(message) -> String:
+	return "%d:%d:%d:%d:%d:%d:%d:%d" % [
+		_get_message_int(message, "get_maximum_difficulty_level", ""),
+		_get_message_int(message, "get_basic_state", "get_status"),
+		_get_message_int(message, "get_putin_state", ""),
+		_get_message_int(message, "get_move_state", ""),
+		_get_message_int(message, "get_rotate_state", ""),
+		_get_message_int(message, "get_enemy_core_status", ""),
+		_get_message_int(message, "get_remain_time_all", ""),
+		_get_message_int(message, "get_remain_time_step", ""),
+	]

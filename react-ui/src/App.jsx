@@ -49,6 +49,7 @@ export default function App() {
   const settingsMenuOpen = Boolean(uiState.settingsMenu?.open);
   const activeRole = resolveRoleFromMecha(uiState.mecha, uiState.controls);
   const isEngineer = activeRole === 'engineer';
+  const [assemblyTask, setAssemblyTask] = useState({ active: false, activeLevel: null, startedAt: 0 });
 
   useEffect(() => {
     const background = uiState.forceBlackBg ? '#3939395b' : 'transparent';
@@ -71,6 +72,33 @@ export default function App() {
       normalizedHudSettings.mouseSensitivity,
     );
   }, [normalizedHudSettings.mouseSensitivity]);
+
+  const startAssemblyTask = useCallback((difficulty) => {
+    setAssemblyTask({ active: true, activeLevel: difficulty, startedAt: Date.now() });
+    emitGodotOperation({ type: 'assembly', operation: 0, difficulty }, '[hudOperate] assembly', difficulty);
+  }, []);
+
+  const confirmAssemblyTask = useCallback(() => {
+    const difficulty = assemblyTask.activeLevel;
+    if (!difficulty) return;
+    emitGodotOperation({ type: 'assembly', operation: 1, difficulty }, '[hudOperate] assemblyConfirm', difficulty);
+  }, [assemblyTask.activeLevel]);
+
+  const cancelAssemblyTask = useCallback(() => {
+    const difficulty = assemblyTask.activeLevel;
+    if (!difficulty) return;
+    emitGodotOperation({ type: 'assembly', operation: 2, difficulty }, '[hudOperate] assemblyCancel', difficulty);
+    setAssemblyTask({ active: false, activeLevel: null, startedAt: 0 });
+  }, [assemblyTask.activeLevel]);
+
+  const visibleAssemblyTask = useMemo(() => {
+    const resultTimestamp = uiState.assembly?.result ? Number(uiState.assembly?.timestamp) : 0;
+    const resultAfterStart = Number.isFinite(resultTimestamp) && resultTimestamp >= assemblyTask.startedAt;
+    return {
+      ...assemblyTask,
+      active: Boolean(assemblyTask.active && !resultAfterStart),
+    };
+  }, [assemblyTask, uiState.assembly?.result, uiState.assembly?.timestamp]);
 
   const setSettingsMenuOpen = useCallback((open) => {
     setUiState((prev) => ({
@@ -162,6 +190,7 @@ export default function App() {
           rune={uiState.rune}
           mechanisms={uiState.mechanisms}
           commandStatus={uiState.commandStatus}
+          onAssemblyStart={startAssemblyTask}
         />
         {!isEngineer && <CenterCombatHUD centerHud={uiState.centerHud} uiSizing={effectiveUiSizing} />}
         <MechaHUD
@@ -171,6 +200,12 @@ export default function App() {
           modules={uiState.modules}
           boostBuffs={uiState.boostBuffs}
           isEngineer={isEngineer}
+          mechanisms={uiState.mechanisms}
+          assembly={uiState.assembly}
+          commandStatus={uiState.commandStatus}
+          assemblyTask={visibleAssemblyTask}
+          onAssemblyConfirm={confirmAssemblyTask}
+          onAssemblyCancel={cancelAssemblyTask}
         />
         <MiniMapHUD
           miniMap={{ ...miniMapState, interactive: false }}

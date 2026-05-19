@@ -3471,22 +3471,37 @@ class TechCoreMotionStateSync:
 		service.field = __maximum_difficulty_level
 		data[__maximum_difficulty_level.tag] = service
 		
-		__status = PBField.new("status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__basic_state = PBField.new("basic_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
-		service.field = __status
-		data[__status.tag] = service
+		service.field = __basic_state
+		data[__basic_state.tag] = service
+
+		__putin_state = PBField.new("putin_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __putin_state
+		data[__putin_state.tag] = service
+
+		__move_state = PBField.new("move_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __move_state
+		data[__move_state.tag] = service
 		
-		__enemy_core_status = PBField.new("enemy_core_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		__rotate_state = PBField.new("rotate_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __rotate_state
+		data[__rotate_state.tag] = service
+
+		__enemy_core_status = PBField.new("enemy_core_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_core_status
 		data[__enemy_core_status.tag] = service
-		
-		__remain_time_all = PBField.new("remain_time_all", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+
+		__remain_time_all = PBField.new("remain_time_all", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __remain_time_all
 		data[__remain_time_all.tag] = service
-		
-		__remain_time_step = PBField.new("remain_time_step", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+
+		__remain_time_step = PBField.new("remain_time_step", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __remain_time_step
 		data[__remain_time_step.tag] = service
@@ -3506,18 +3521,65 @@ class TechCoreMotionStateSync:
 	func set_maximum_difficulty_level(value : int) -> void:
 		__maximum_difficulty_level.value = value
 	
-	var __status: PBField
-	func has_status() -> bool:
-		if __status.value != null:
+	var __basic_state: PBField
+	func has_basic_state() -> bool:
+		if __basic_state.value != null:
 			return true
 		return false
-	func get_status() -> int:
-		return __status.value
-	func clear_status() -> void:
+	func get_basic_state() -> int:
+		return __basic_state.value
+	func clear_basic_state() -> void:
 		data[2].state = PB_SERVICE_STATE.UNFILLED
-		__status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+		__basic_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_basic_state(value : int) -> void:
+		__basic_state.value = value
+	func has_status() -> bool:
+		return has_basic_state()
+	func get_status() -> int:
+		return get_basic_state()
+	func clear_status() -> void:
+		clear_basic_state()
 	func set_status(value : int) -> void:
-		__status.value = value
+		set_basic_state(value)
+
+	var __putin_state: PBField
+	func has_putin_state() -> bool:
+		if __putin_state.value != null:
+			return true
+		return false
+	func get_putin_state() -> int:
+		return __putin_state.value
+	func clear_putin_state() -> void:
+		data[3].state = PB_SERVICE_STATE.UNFILLED
+		__putin_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_putin_state(value : int) -> void:
+		__putin_state.value = value
+
+	var __move_state: PBField
+	func has_move_state() -> bool:
+		if __move_state.value != null:
+			return true
+		return false
+	func get_move_state() -> int:
+		return __move_state.value
+	func clear_move_state() -> void:
+		data[4].state = PB_SERVICE_STATE.UNFILLED
+		__move_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_move_state(value : int) -> void:
+		__move_state.value = value
+
+	var __rotate_state: PBField
+	func has_rotate_state() -> bool:
+		if __rotate_state.value != null:
+			return true
+		return false
+	func get_rotate_state() -> int:
+		return __rotate_state.value
+	func clear_rotate_state() -> void:
+		data[5].state = PB_SERVICE_STATE.UNFILLED
+		__rotate_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_rotate_state(value : int) -> void:
+		__rotate_state.value = value
 	
 	var __enemy_core_status: PBField
 	func has_enemy_core_status() -> bool:
@@ -3527,7 +3589,7 @@ class TechCoreMotionStateSync:
 	func get_enemy_core_status() -> int:
 		return __enemy_core_status.value
 	func clear_enemy_core_status() -> void:
-		data[3].state = PB_SERVICE_STATE.UNFILLED
+		data[6].state = PB_SERVICE_STATE.UNFILLED
 		__enemy_core_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_core_status(value : int) -> void:
 		__enemy_core_status.value = value
@@ -3540,7 +3602,7 @@ class TechCoreMotionStateSync:
 	func get_remain_time_all() -> int:
 		return __remain_time_all.value
 	func clear_remain_time_all() -> void:
-		data[4].state = PB_SERVICE_STATE.UNFILLED
+		data[7].state = PB_SERVICE_STATE.UNFILLED
 		__remain_time_all.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remain_time_all(value : int) -> void:
 		__remain_time_all.value = value
@@ -3553,7 +3615,7 @@ class TechCoreMotionStateSync:
 	func get_remain_time_step() -> int:
 		return __remain_time_step.value
 	func clear_remain_time_step() -> void:
-		data[5].state = PB_SERVICE_STATE.UNFILLED
+		data[8].state = PB_SERVICE_STATE.UNFILLED
 		__remain_time_step.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remain_time_step(value : int) -> void:
 		__remain_time_step.value = value

@@ -54,11 +54,22 @@ const DEFAULT_UI_STATE = {
     effects: [],
     techCore: {
       maximumDifficultyLevel: 0,
+      basicState: 0,
       status: 0,
+      putinState: 0,
+      moveState: 0,
+      rotateState: 0,
       enemyCoreStatus: 0,
       remainTimeAll: 0,
       remainTimeStep: 0,
     },
+  },
+  assembly: {
+    warning: '',
+    result: null,
+    lastEventId: 0,
+    lastEventParam: '',
+    timestamp: 0,
   },
   performance: {
     shooter: 0,

@@ -49,6 +49,18 @@ const BUFF_TYPE_META = {
   7: { type: 'terrain', name: '地形跨越' },
 };
 
+const ASSEMBLY_RESULT_META = {
+  0: { text: '装配成功', type: 'success' },
+  1: { text: '装配失败：能量单元被拔出', type: 'error' },
+  2: { text: '装配失败：超时', type: 'error' },
+  3: { text: '装配失败：离开装配区过久', type: 'error' },
+  4: { text: '装配失败：工程战亡', type: 'error' },
+  5: { text: '装配失败：四级难度未满足完成协作时限', type: 'error' },
+  6: { text: '装配取消：主动退出', type: 'cancel' },
+  7: { text: '装配失败：结算时未检测到能量单元', type: 'error' },
+  8: { text: '装配失败：缓冲期到期强制结束', type: 'error' },
+};
+
 const MAP_PROTOCOL_MAX = DEFAULT_UI_STATE.miniMap.protocolCoordinateMax || 1000;
 
 function extractInts(value) {
@@ -109,23 +121,6 @@ function normalizeMapPosition(source) {
     yaw: toFiniteNumber(source.yaw),
     lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
   };
-}
-
-function getDartTargetLabel(targetId) {
-  switch (targetId) {
-    case 1:
-      return '前哨站';
-    case 2:
-      return '基地固定目标';
-    case 3:
-      return '基地随机固定目标';
-    case 4:
-      return '基地随机移动目标';
-    case 5:
-      return '基地末端移动目标';
-    default:
-      return `未知目标(${targetId})`;
-  }
 }
 
 function getSideLabel(side) {
@@ -190,13 +185,11 @@ function buildEventMessageText(eventId, param) {
       const remaining = ints[0] ?? 0;
       return `对方空中支援被打断：己方剩余可打断次数 ${remaining}`;
     }
-    case 14: {
-      const target = ints[0] ?? 0;
-      return `飞镖命中：${getDartTargetLabel(target)}`;
-    }
+    case 14:
+      return '装配警告：对方请求四级装配，进入强制退出缓冲期';
     case 15: {
-      const side = ints[0] ?? 0;
-      return `飞镖闸门开启：${getSideLabel(side)}`;
+      const resultCode = ints[0] ?? 0;
+      return ASSEMBLY_RESULT_META[resultCode]?.text ?? `装配结果：${resultCode}`;
     }
     case 16:
       return '己方基地遭到攻击';
@@ -435,10 +428,15 @@ function buildProtoPatch(data) {
 
   if (isPlainObject(data.TechCoreMotionStateSync)) {
     const source = data.TechCoreMotionStateSync;
+    const basicState = toNonNegativeInt(source.basic_state ?? source.status);
     patch.mechanisms = {
       techCore: {
         maximumDifficultyLevel: toNonNegativeInt(source.maximum_difficulty_level),
-        status: toNonNegativeInt(source.status),
+        basicState,
+        status: basicState,
+        putinState: toNonNegativeInt(source.putin_state),
+        moveState: toNonNegativeInt(source.move_state),
+        rotateState: toNonNegativeInt(source.rotate_state),
         enemyCoreStatus: toNonNegativeInt(source.enemy_core_status),
         remainTimeAll: toNonNegativeInt(source.remain_time_all),
         remainTimeStep: toNonNegativeInt(source.remain_time_step),
@@ -569,6 +567,32 @@ function buildProtoPatch(data) {
         },
       ],
     };
+    if (eventId === 14) {
+      patch.assembly = {
+        warning: '对方请求四级装配，当前装配进入强制退出缓冲期',
+        result: null,
+        lastEventId: eventId,
+        lastEventParam: param,
+        timestamp,
+      };
+    } else if (eventId === 15) {
+      const resultCode = extractInts(param)[0] ?? 0;
+      const result = ASSEMBLY_RESULT_META[resultCode] ?? {
+        text: `装配结果：${resultCode}`,
+        type: 'error',
+      };
+      patch.assembly = {
+        warning: '',
+        result: {
+          code: resultCode,
+          text: result.text,
+          type: result.type,
+        },
+        lastEventId: eventId,
+        lastEventParam: param,
+        timestamp,
+      };
+    }
   }
 
   return patch;

@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { resolveBoostBuffs, resolveMechaState, resolveUiSizing, toPercent } from '../../state';
+import EngineeringAssemblyTaskCard from '../assembly/EngineeringAssemblyTaskCard';
 import StatusBuffList from '../buffs/StatusBuffList';
 
 const ROBOT_ID_LABELS = {
@@ -83,7 +84,20 @@ function normalizeModules(modules) {
   };
 }
 
-export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuffs, isEngineer = false }) {
+export default function MechaHUD({
+  mecha,
+  maxValues,
+  uiSizing,
+  modules,
+  boostBuffs,
+  isEngineer = false,
+  mechanisms,
+  assembly,
+  commandStatus,
+  assemblyTask,
+  onAssemblyConfirm,
+  onAssemblyCancel,
+}) {
   const mergedMecha = resolveMechaState(mecha);
   const mergedSizing = resolveUiSizing(uiSizing);
   const mergedBoostBuffs = resolveBoostBuffs(boostBuffs).filter((buff) => {
@@ -354,8 +368,20 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
         </div>
       </div>
 
-      {!isEngineer && (
-        <div className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 drop-shadow-lg">
+      <div className="absolute bottom-12 left-1/2 z-10 -translate-x-1/2 drop-shadow-lg">
+        {isEngineer ? (
+          <div style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom center' }}>
+            <EngineeringAssemblyTaskCard
+              active={Boolean(assemblyTask?.active)}
+              activeLevel={assemblyTask?.activeLevel}
+              techCore={mechanisms?.techCore}
+              commandStatus={commandStatus}
+              assembly={assembly}
+              onConfirm={onAssemblyConfirm}
+              onCancel={onAssemblyCancel}
+            />
+          </div>
+        ) : (
           <div
             className="flex w-[388px] flex-col items-center"
             style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom center' }}
@@ -397,8 +423,8 @@ export default function MechaHUD({ mecha, maxValues, uiSizing, modules, boostBuf
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

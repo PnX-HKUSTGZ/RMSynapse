@@ -165,6 +165,10 @@ function PanelSection({ title, icon: Icon, children }) {
   );
 }
 
+function getTechCoreNumber(techCore, camelKey, snakeKey, fallback = 0) {
+  return toInt(techCore?.[camelKey] ?? techCore?.[snakeKey], fallback);
+}
+
 function usePerformanceDefaults(controls) {
   return useMemo(() => ({
     infantry: {
@@ -346,15 +350,15 @@ function RespawnControls({ stats, mecha, respawn, timeLeft }) {
   );
 }
 
-function EngineerControls({ stats, mecha, respawn, timeLeft, mechanisms }) {
+function EngineerControls({ stats, mecha, respawn, timeLeft, mechanisms, onAssemblyStart }) {
   const techCore = mechanisms?.techCore ?? {};
-  const maxDifficulty = Math.max(0, Math.min(4, toInt(techCore.maximumDifficultyLevel)));
+  const maxDifficulty = Math.max(0, Math.min(4, getTechCoreNumber(techCore, 'maximumDifficultyLevel', 'maximum_difficulty_level')));
   const [difficulty, setDifficulty] = useState(1);
   const selectedAvailable = difficulty > 0 && difficulty <= maxDifficulty;
 
   const startAssembly = () => {
     if (!selectedAvailable) return;
-    sendOperation({ type: 'assembly', operation: 0, difficulty }, 'assembly', difficulty);
+    onAssemblyStart?.(difficulty);
   };
 
   return (
@@ -450,6 +454,7 @@ export default function CommandPanel({
   rune,
   mechanisms,
   commandStatus,
+  onAssemblyStart,
 }) {
   const open = Boolean(commandPanel?.open);
   const safeUiScale = Number(uiScale) > 0 ? Number(uiScale) : 1;
@@ -491,7 +496,14 @@ export default function CommandPanel({
 
           {activeRole === 'engineer' ? (
             <div className="space-y-3">
-              <EngineerControls stats={stats} mecha={mecha} respawn={respawn} timeLeft={timeLeft} mechanisms={mechanisms} />
+              <EngineerControls
+                stats={stats}
+                mecha={mecha}
+                respawn={respawn}
+                timeLeft={timeLeft}
+                mechanisms={mechanisms}
+                onAssemblyStart={onAssemblyStart}
+              />
             </div>
           ) : (
             <div className="space-y-3">
