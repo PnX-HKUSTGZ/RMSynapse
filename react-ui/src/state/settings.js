@@ -8,6 +8,24 @@ export const DEFAULT_HUD_SETTINGS = {
     scale: 1,
     opacity: 1,
   },
+  hotkeys: {
+    enabled: true,
+    doubleTapMs: 420,
+    heal: 'KeyH',
+    directAmmo: 'KeyJ',
+    remoteAmmo: 'KeyK',
+    revive: 'KeyL',
+  },
+  network: {
+    mqtt: {
+      host: '127.0.0.1',
+      port: 3333,
+      clientId: '',
+    },
+    video: {
+      port: 3334,
+    },
+  },
 };
 
 function toNumber(value, fallback) {
@@ -21,6 +39,38 @@ export function normalizeHudSettings(source) {
     ui: {
       scale: clamp(toNumber(source?.ui?.scale, 1), 0.5, 1.8),
       opacity: clamp(toNumber(source?.ui?.opacity, 1), 0.15, 1),
+    },
+    hotkeys: {
+      enabled: source?.hotkeys?.enabled !== false,
+      doubleTapMs: clamp(toNumber(source?.hotkeys?.doubleTapMs, DEFAULT_HUD_SETTINGS.hotkeys.doubleTapMs), 250, 800),
+      heal: normalizeKeyCode(source?.hotkeys?.heal, DEFAULT_HUD_SETTINGS.hotkeys.heal),
+      directAmmo: normalizeKeyCode(source?.hotkeys?.directAmmo, DEFAULT_HUD_SETTINGS.hotkeys.directAmmo),
+      remoteAmmo: normalizeKeyCode(source?.hotkeys?.remoteAmmo, DEFAULT_HUD_SETTINGS.hotkeys.remoteAmmo),
+      revive: normalizeKeyCode(source?.hotkeys?.revive, DEFAULT_HUD_SETTINGS.hotkeys.revive),
+    },
+    network: normalizeNetworkSettings(source?.network),
+  };
+}
+
+function normalizeKeyCode(value, fallback) {
+  return typeof value === 'string' && value.trim() ? value : fallback;
+}
+
+function normalizeString(value, fallback = '') {
+  return typeof value === 'string' ? value.trim() : fallback;
+}
+
+function normalizeNetworkSettings(source) {
+  const defaults = DEFAULT_HUD_SETTINGS.network;
+
+  return {
+    mqtt: {
+      host: normalizeString(source?.mqtt?.host, defaults.mqtt.host) || defaults.mqtt.host,
+      port: Math.trunc(clamp(toNumber(source?.mqtt?.port, defaults.mqtt.port), 1, 65535)),
+      clientId: normalizeString(source?.mqtt?.clientId, defaults.mqtt.clientId),
+    },
+    video: {
+      port: Math.trunc(clamp(toNumber(source?.video?.port, defaults.video.port), 1, 65535)),
     },
   };
 }

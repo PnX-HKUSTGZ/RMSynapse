@@ -12,7 +12,7 @@ enum MessagePriority {
 
 @export var message_default_duration := 3.5
 @export var message_max_count := 6
-@export var keyboard_mouse_transport_enabled := true
+@export var keyboard_mouse_transport_enabled := false
 
 var _pending_message_items: Array[Dictionary] = []
 var _pending_bridge_payloads: Array[Dictionary] = []
@@ -101,6 +101,8 @@ const MAP_PROTO_KEYS := {
 
 const MIN_MOUSE_SENSITIVITY := 0.1
 const MAX_MOUSE_SENSITIVITY := 5.0
+const MIN_PORT := 1
+const MAX_PORT := 65535
 
 
 func _ready():
@@ -233,6 +235,11 @@ func _on_web_ipc_message(message, source: String = "hud") -> void:
 			if source == "map":
 				return
 			_set_mouse_sensitivity(float(operation.get("value", operation.get("mouseSensitivity", 1.0))))
+			return
+		if operation_type == "setConnectionSettings":
+			if source == "map":
+				return
+			_apply_connection_settings(operation.get("settings", {}))
 			return
 		if operation_type == "mapClick":
 			if source != "map" or map_web == null or not map_web.visible:
@@ -476,6 +483,137 @@ func _set_settings_menu_open(open: bool) -> void:
 
 func _set_mouse_sensitivity(value: float) -> void:
 	_mouse_sensitivity = clamp(value, MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY)
+
+func _apply_connection_settings(settings) -> void:
+	if not (settings is Dictionary):
+		return
+	if settings.has("mqtt"):
+		_apply_mqtt_settings(settings.get("mqtt", {}))
+	if settings.has("video"):
+		_apply_video_settings(settings.get("video", {}))
+	if settings.has("input"):
+		_apply_input_settings(settings.get("input", {}))
+	if settings.has("debug"):
+		_apply_debug_settings(settings.get("debug", {}))
+
+func _apply_mqtt_settings(mqtt_settings) -> void:
+	if not (mqtt_settings is Dictionary):
+		return
+	var transport := adapter_getter.get_transport()
+	if transport == null:
+		push_warning("Cannot apply MQTT settings: transport not found.")
+		return
+	var broker_url := _build_endpoint_url(mqtt_settings, "tcp")
+	transport.broker_url = broker_url
+	transport.auto_reconnect = bool(mqtt_settings.get("autoReconnect", true))
+	transport.reconnect_delay_ms = int(mqtt_settings.get("reconnectDelayMs", transport.reconnect_delay_ms))
+	transport.ping_interval_sec = int(mqtt_settings.get("pingIntervalSec", transport.ping_interval_sec))
+	transport.client_id = str(mqtt_settings.get("clientId", ""))
+	transport.username = str(mqtt_settings.get("username", ""))
+	transport.password = str(mqtt_settings.get("password", ""))
+	transport.binary_messages = true
+	var client_setter := get_tree().root.get_node_or_null("/root/Mqtt/ClientSetter")
+	if client_setter != null:
+		_set_object_property_if_exists(client_setter, "broker_url", broker_url)
+		_set_object_property_if_exists(client_setter, "auto_reconnect", transport.auto_reconnect)
+		_set_object_property_if_exists(client_setter, "reconnect_delay_ms", transport.reconnect_delay_ms)
+		_set_object_property_if_exists(client_setter, "ping_interval_sec", transport.ping_interval_sec)
+		_set_object_property_if_exists(client_setter, "client_id", transport.client_id)
+		_set_object_property_if_exists(client_setter, "username", transport.username)
+		_set_object_property_if_exists(client_setter, "password", transport.password)
+	transport.restart_connection()
+	_try_bind_transport_signals()
+
+func _apply_video_settings(video_settings) -> void:
+	if not (video_settings is Dictionary):
+		return
+	var enabled := bool(video_settings.get("enabled", true))
+	var root := get_tree().root
+	var transfer_node := _find_first_node_by_name(root, "TransferImage")
+	if transfer_node is CanvasItem:
+		transfer_node.visible = enabled
+	var video_node := _find_first_node_by_name(root, "RMVideoCanvas")
+	if video_node == null:
+		push_warning("Cannot apply video settings: RMVideoCanvas not found.")
+		return
+	if video_node is CanvasItem:
+		video_node.visible = enabled
+	var port := int(clamp(float(video_settings.get("port", 3334)), MIN_PORT, MAX_PORT))
+	var host := str(video_settings.get("host", "0.0.0.0")).strip_edges()
+	var source_url := _build_endpoint_url(video_settings, "udp")
+	_set_first_existing_property(video_node, ["enabled", "active", "auto_start"], enabled)
+	_set_first_existing_property(video_node, ["host", "bind_host", "listen_host", "ip", "address"], host)
+	_set_first_existing_property(video_node, ["port", "udp_port", "listen_port", "server_port"], port)
+	_set_first_existing_property(video_node, ["url", "source", "source_url", "stream_url", "endpoint"], source_url)
+	if video_node.has_method("configure"):
+		video_node.call("configure", host, port)
+	elif video_node.has_method("set_endpoint"):
+		video_node.call("set_endpoint", source_url)
+	elif video_node.has_method("set_source"):
+		video_node.call("set_source", source_url)
+	if video_node.has_method("restart"):
+		video_node.call("restart")
+	elif enabled and video_node.has_method("start"):
+		video_node.call("start")
+	elif not enabled and video_node.has_method("stop"):
+		video_node.call("stop")
+
+func _apply_input_settings(input_settings) -> void:
+	if not (input_settings is Dictionary):
+		return
+	keyboard_mouse_transport_enabled = bool(input_settings.get("keyboardMouseTransport", keyboard_mouse_transport_enabled))
+	if keyboard_mouse_sender != null:
+		keyboard_mouse_sender.auto_start = keyboard_mouse_transport_enabled
+		if keyboard_mouse_transport_enabled:
+			keyboard_mouse_sender.start_sending()
+		else:
+			keyboard_mouse_sender.stop_sending()
+
+func _apply_debug_settings(debug_settings) -> void:
+	if not (debug_settings is Dictionary):
+		return
+	var endpoint := str(debug_settings.get("logEndpoint", "")).strip_edges()
+	_set_object_property_if_exists(Log, "remote_endpoint", endpoint)
+	_set_object_property_if_exists(Log, "remote_enabled", not endpoint.is_empty())
+
+func _build_endpoint_url(settings: Dictionary, fallback_protocol: String) -> String:
+	var protocol := str(settings.get("protocol", fallback_protocol)).strip_edges().replace("://", "").replace(":/", "")
+	if protocol.is_empty():
+		protocol = fallback_protocol
+	var host := str(settings.get("host", "127.0.0.1")).strip_edges()
+	if host.is_empty():
+		host = "127.0.0.1"
+	var port := int(clamp(float(settings.get("port", 3333)), MIN_PORT, MAX_PORT))
+	var path := str(settings.get("path", "")).strip_edges()
+	if not path.is_empty() and not path.begins_with("/"):
+		path = "/" + path
+	return "%s://%s:%d%s" % [protocol, host, port, path]
+
+func _find_first_node_by_name(root: Node, node_name: String) -> Node:
+	if root == null:
+		return null
+	if root.name == node_name:
+		return root
+	for child in root.get_children():
+		var found := _find_first_node_by_name(child, node_name)
+		if found != null:
+			return found
+	return null
+
+func _set_first_existing_property(target: Object, property_names: Array, value) -> bool:
+	for property_name in property_names:
+		if _set_object_property_if_exists(target, str(property_name), value):
+			return true
+	return false
+
+func _set_object_property_if_exists(target: Object, property_name: String, value) -> bool:
+	if target == null:
+		return false
+	for property_info in target.get_property_list():
+		if str(property_info.get("name", "")) == property_name:
+			target.set(property_name, value)
+			return true
+	return false
 
 func _refresh_control_focus() -> void:
 	var map_open: bool = map_web != null and map_web.visible

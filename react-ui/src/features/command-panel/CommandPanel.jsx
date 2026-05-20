@@ -12,6 +12,16 @@ import {
   Zap,
 } from 'lucide-react';
 import { emitGodotOperation } from '../../bridge/godot';
+import {
+  DEFAULT_RESOURCE_QUANTITIES,
+  buildResourceActionState,
+  floorToStep,
+  formatCost,
+  isRobotDead,
+  parseRobotLevel,
+  toInt,
+  toNumber,
+} from './resourceActions';
 
 const ROLE_META = {
   hero: { label: '英雄', icon: Zap },
@@ -55,40 +65,22 @@ function sendOperation(operation, label, value) {
   emitGodotOperation(operation, `[hudOperate] ${label}`, value);
 }
 
-function toNumber(value, fallback = 0) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : fallback;
+function formatHotkeyCode(code) {
+  if (code?.startsWith('Key')) return code.slice(3);
+  if (code?.startsWith('Digit')) return code.slice(5);
+  if (code?.startsWith('Numpad')) return `N${code.slice(6)}`;
+  return String(code ?? '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\s+/g, '') || '';
 }
 
-function toInt(value, fallback = 0) {
-  return Math.max(0, Math.trunc(toNumber(value, fallback)));
+function formatDoubleTapHint(hotkeys, action) {
+  if (!hotkeys?.enabled) return '';
+  const key = formatHotkeyCode(hotkeys?.[action]);
+  if (!key) return '';
+  return key.length === 1 ? `${key}${key}` : `${key}x2`;
 }
 
-function floorToStep(value, step) {
-  const safeStep = Math.max(1, step);
-  return Math.max(0, Math.floor(toInt(value) / safeStep) * safeStep);
-}
-
-function ceilByUnit(value, unit) {
-  const safeUnit = Math.max(1, unit);
-  return Math.ceil(Math.max(0, value) / safeUnit);
-}
-
-function parseRobotLevel(mecha) {
-  const direct = Number(mecha?.level);
-  if (Number.isFinite(direct)) return Math.max(0, Math.trunc(direct));
-  const match = String(mecha?.pilotLevel ?? '').match(/\d+/);
-  return match ? Number(match[0]) : 0;
-}
-
-function isRobotDead(mecha, respawn) {
-  const aliveState = toInt(mecha?.aliveState ?? mecha?.alive_state, 1);
-  const health = toNumber(mecha?.currentHealth ?? mecha?.current_health ?? mecha?.hp, 1);
-  return Boolean(respawn?.isDead) || aliveState === 2 || health <= 0;
-}
-
-function formatCost(cost) {
-  return `${Math.max(0, Math.trunc(cost))} 金币`;
+function labelWithHotkey(label, hotkeyHint) {
+  return hotkeyHint ? `${label} · ${hotkeyHint}` : label;
 }
 
 function resolveRobotContext(mecha, controls) {
@@ -242,41 +234,74 @@ function PerformanceControls({ activeRole, controls, performance }) {
   );
 }
 
-function ResourceControls({ activeRole, stats, mecha, respawn, timeLeft }) {
-  const [qty17, setQty17] = useState(10);
-  const [qty42, setQty42] = useState(5);
-  const eco = toInt(stats?.eco);
-  const normalized17 = floorToStep(qty17, 10);
-  const normalized42 = floorToStep(qty42, 5);
-  const activeQty = activeRole === 'hero' ? normalized42 : normalized17;
-  const isHero = activeRole === 'hero';
-  const remoteMin = isHero ? 10 : 100;
-  const directCost = isHero ? activeQty * 10 : activeQty;
-  const remoteCost = ceilByUnit(activeQty, remoteMin) * 150;
-  const dead = isRobotDead(mecha, respawn);
-  const elapsedSec = Math.max(0, 420 - toNumber(timeLeft, 420));
-  const healCost = 50 + Math.ceil((elapsedSec / 60) * 20);
-  const reviveCost = Math.ceil(elapsedSec / 60) * 80 + parseRobotLevel(mecha) * 20;
-  const canDirectAmmo = activeQty > 0 && directCost <= eco;
-  const canRemoteAmmo = activeQty >= remoteMin && remoteCost <= eco;
-  const canHeal = !dead && healCost <= eco;
-  const canRevive = dead && reviveCost <= eco;
+function ResourceControls({
+  activeRole,
+  stats,
+  mecha,
+  respawn,
+  timeLeft,
+  resourceQuantities,
+  onResourceQuantitiesChange,
+  hotkeys,
+}) {
+  const quantities = resourceQuantities ?? DEFAULT_RESOURCE_QUANTITIES;
+  const {
+    directCost,
+    remoteCost,
+    dead,
+    healCost,
+    reviveCost,
+    canDirectAmmo,
+    canRemoteAmmo,
+    canHeal,
+    canRevive,
+    directAmmoOperation,
+    remoteAmmoOperation,
+    healOperation,
+    reviveOperation,
+  } = buildResourceActionState({
+    activeRole,
+    stats,
+    mecha,
+    respawn,
+    timeLeft,
+    quantities,
+  });
+
+  const updateQuantity = (key, fallback, nextValueOrUpdater) => {
+    onResourceQuantitiesChange?.((prev) => {
+      const source = prev ?? DEFAULT_RESOURCE_QUANTITIES;
+      const previousValue = source[key] ?? fallback;
+      const nextValue = typeof nextValueOrUpdater === 'function'
+        ? nextValueOrUpdater(previousValue)
+        : nextValueOrUpdater;
+      return {
+        ...source,
+        [key]: nextValue,
+      };
+    });
+  };
+
+  const qty17 = quantities.qty17 ?? DEFAULT_RESOURCE_QUANTITIES.qty17;
+  const qty42 = quantities.qty42 ?? DEFAULT_RESOURCE_QUANTITIES.qty42;
+  const setQty17 = (value) => updateQuantity('qty17', DEFAULT_RESOURCE_QUANTITIES.qty17, value);
+  const setQty42 = (value) => updateQuantity('qty42', DEFAULT_RESOURCE_QUANTITIES.qty42, value);
 
   const normalizeQty17 = () => setQty17((prev) => floorToStep(prev, 10));
   const normalizeQty42 = () => setQty42((prev) => floorToStep(prev, 5));
-
-  const sendCommon = (command, param = 0) => {
-    sendOperation({ type: 'commonCommand', command, param }, command, param);
-  };
+  const directAmmoHint = formatDoubleTapHint(hotkeys, 'directAmmo');
+  const remoteAmmoHint = formatDoubleTapHint(hotkeys, 'remoteAmmo');
+  const healHint = formatDoubleTapHint(hotkeys, 'heal');
+  const reviveHint = formatDoubleTapHint(hotkeys, 'revive');
 
   const sendDirectAmmo = () => {
     if (!canDirectAmmo) return;
-    sendCommon(isHero ? 'exchange42mm' : 'exchange17mm', activeQty);
+    sendOperation(directAmmoOperation, directAmmoOperation.command, directAmmoOperation.param);
   };
 
   const sendRemoteAmmo = () => {
     if (!canRemoteAmmo) return;
-    sendCommon('remoteBuyAmmo', activeQty);
+    sendOperation(remoteAmmoOperation, remoteAmmoOperation.command, remoteAmmoOperation.param);
   };
 
   return (
@@ -291,14 +316,14 @@ function ResourceControls({ activeRole, stats, mecha, respawn, timeLeft }) {
         {activeRole === 'infantry' ? (
           <>
             <IconButton disabled={!canDirectAmmo} onClick={sendDirectAmmo} icon={Crosshair}>
-              17mm兑换 · {formatCost(directCost)}
+              {labelWithHotkey(`17mm兑换 · ${formatCost(directCost)}`, directAmmoHint)}
             </IconButton>
             <NumberInput value={qty17} min={10} step={10} onChange={setQty17} onBlur={normalizeQty17} />
           </>
         ) : (
           <>
             <IconButton disabled={!canDirectAmmo} onClick={sendDirectAmmo} icon={Crosshair}>
-              42mm兑换 · {formatCost(directCost)}
+              {labelWithHotkey(`42mm兑换 · ${formatCost(directCost)}`, directAmmoHint)}
             </IconButton>
             <NumberInput value={qty42} min={5} step={5} onChange={setQty42} onBlur={normalizeQty42} />
           </>
@@ -307,14 +332,14 @@ function ResourceControls({ activeRole, stats, mecha, respawn, timeLeft }) {
 
       <div className="mt-2 grid grid-cols-2 gap-2">
         <IconButton disabled={!canRemoteAmmo} onClick={sendRemoteAmmo} icon={Send}>
-          远程补弹 · {formatCost(remoteCost)}
+          {labelWithHotkey(`远程补弹 · ${formatCost(remoteCost)}`, remoteAmmoHint)}
         </IconButton>
-        <IconButton disabled={!canHeal} onClick={() => sendCommon('remoteBuyHp')} icon={Shield}>
-          买血 · {formatCost(healCost)}
+        <IconButton disabled={!canHeal} onClick={() => sendOperation(healOperation, healOperation.command)} icon={Shield}>
+          {labelWithHotkey(`买血 · ${formatCost(healCost)}`, healHint)}
         </IconButton>
-        <IconButton disabled={!dead} onClick={() => sendCommon('confirmRespawn')} icon={RotateCw}>确认复活</IconButton>
-        <IconButton disabled={!canRevive} onClick={() => sendCommon('buyRespawn', reviveCost)} icon={Zap}>
-          立即复活 · {formatCost(reviveCost)}
+        <IconButton disabled={!dead} onClick={() => sendOperation({ type: 'commonCommand', command: 'confirmRespawn', param: 0 }, 'confirmRespawn')} icon={RotateCw}>确认复活</IconButton>
+        <IconButton disabled={!canRevive} onClick={() => sendOperation(reviveOperation, reviveOperation.command, reviveOperation.param)} icon={Zap}>
+          {labelWithHotkey(`立即复活 · ${formatCost(reviveCost)}`, reviveHint)}
         </IconButton>
       </div>
     </PanelSection>
@@ -455,6 +480,9 @@ export default function CommandPanel({
   mechanisms,
   commandStatus,
   onAssemblyStart,
+  resourceQuantities,
+  onResourceQuantitiesChange,
+  hotkeys,
 }) {
   const open = Boolean(commandPanel?.open);
   const safeUiScale = Number(uiScale) > 0 ? Number(uiScale) : 1;
@@ -508,7 +536,16 @@ export default function CommandPanel({
           ) : (
             <div className="space-y-3">
               <PerformanceControls activeRole={activeRole} controls={controls} performance={performance} />
-              <ResourceControls activeRole={activeRole} stats={stats} mecha={mecha} respawn={respawn} timeLeft={timeLeft} />
+              <ResourceControls
+                activeRole={activeRole}
+                stats={stats}
+                mecha={mecha}
+                respawn={respawn}
+                timeLeft={timeLeft}
+                resourceQuantities={resourceQuantities}
+                onResourceQuantitiesChange={onResourceQuantitiesChange}
+                hotkeys={hotkeys}
+              />
               <MechanismControls activeRole={activeRole} heroDeploy={heroDeploy} rune={rune} mechanisms={mechanisms} />
             </div>
           )}

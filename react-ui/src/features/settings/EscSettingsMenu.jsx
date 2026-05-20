@@ -1,5 +1,54 @@
-import { Eye, Maximize2, MousePointer2, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Crosshair,
+  Eye,
+  HeartPulse,
+  Keyboard,
+  Maximize2,
+  MousePointer2,
+  Radio,
+  RotateCcw,
+  Server,
+  SlidersHorizontal,
+  Video,
+  X,
+  Zap,
+} from 'lucide-react';
 import { DEFAULT_HUD_SETTINGS, normalizeHudSettings } from '../../state/settings';
+
+const HOTKEY_ROWS = [
+  { key: 'heal', label: '买血', icon: HeartPulse },
+  { key: 'directAmmo', label: '买弹', icon: Crosshair },
+  { key: 'remoteAmmo', label: '远程买弹', icon: Radio },
+  { key: 'revive', label: '立即复活', icon: Zap },
+];
+
+const MODIFIER_CODES = new Set([
+  'AltLeft',
+  'AltRight',
+  'ControlLeft',
+  'ControlRight',
+  'MetaLeft',
+  'MetaRight',
+  'ShiftLeft',
+  'ShiftRight',
+]);
+
+const CLIENT_ID_OPTIONS = [
+  { value: '', label: '未指定' },
+  { value: '1', label: '红方英雄 1' },
+  { value: '2', label: '红方工程 2' },
+  { value: '3', label: '红方步兵 3' },
+  { value: '4', label: '红方步兵 4' },
+  { value: '6', label: '红方空中 6' },
+  { value: '7', label: '红方哨兵 7' },
+  { value: '101', label: '蓝方英雄 101' },
+  { value: '102', label: '蓝方工程 102' },
+  { value: '103', label: '蓝方步兵 103' },
+  { value: '104', label: '蓝方步兵 104' },
+  { value: '106', label: '蓝方空中 106' },
+  { value: '107', label: '蓝方哨兵 107' },
+];
 
 function formatScale(value) {
   return `${Math.round(Number(value) * 100)}%`;
@@ -7,6 +56,17 @@ function formatScale(value) {
 
 function formatSensitivity(value) {
   return `${Number(value).toFixed(2)}x`;
+}
+
+function formatMilliseconds(value) {
+  return `${Math.round(Number(value))}ms`;
+}
+
+function formatKeyCode(code) {
+  if (code?.startsWith('Key')) return code.slice(3);
+  if (code?.startsWith('Digit')) return code.slice(5);
+  if (code?.startsWith('Numpad')) return `Num ${code.slice(6)}`;
+  return String(code ?? '').replace(/([a-z])([A-Z])/g, '$1 $2') || '-';
 }
 
 function SliderRow({ label, icon: Icon, value, min, max, step, onChange, format = formatScale }) {
@@ -32,7 +92,47 @@ function SliderRow({ label, icon: Icon, value, min, max, step, onChange, format 
   );
 }
 
+function TextInputRow({ label, icon: Icon, value, onChange, type = 'text', placeholder = '', monospace = true }) {
+  return (
+    <label className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 text-xs text-slate-200">
+      <span className="flex min-w-0 items-center gap-2 font-bold">
+        {Icon && <Icon size={14} className="shrink-0 text-cyan-300" />}
+        <span className="truncate">{label}</span>
+      </span>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className={`min-w-0 rounded border border-slate-700 bg-slate-950/90 px-2 py-1.5 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-400/70 ${monospace ? 'font-mono' : ''}`}
+      />
+    </label>
+  );
+}
+
+function SelectRow({ label, icon: Icon, value, options, onChange }) {
+  return (
+    <label className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 text-xs text-slate-200">
+      <span className="flex min-w-0 items-center gap-2 font-bold">
+        {Icon && <Icon size={14} className="shrink-0 text-cyan-300" />}
+        <span className="truncate">{label}</span>
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 rounded border border-slate-700 bg-slate-950/90 px-2 py-1.5 font-mono text-xs text-slate-100 outline-none transition-colors focus:border-cyan-400/70"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export default function EscSettingsMenu({ open, settings, onSettingsChange, onOpenChange }) {
+  const [capturingAction, setCapturingAction] = useState(null);
+
   if (!open) return null;
 
   const normalized = normalizeHudSettings(settings);
@@ -44,6 +144,22 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
       ui: {
         ...normalized.ui,
         ...(patch.ui ?? {}),
+      },
+      hotkeys: {
+        ...normalized.hotkeys,
+        ...(patch.hotkeys ?? {}),
+      },
+      network: {
+        ...normalized.network,
+        ...(patch.network ?? {}),
+        mqtt: {
+          ...normalized.network.mqtt,
+          ...(patch.network?.mqtt ?? {}),
+        },
+        video: {
+          ...normalized.network.video,
+          ...(patch.network?.video ?? {}),
+        },
       },
     }));
   };
@@ -57,9 +173,45 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
     });
   };
 
+  const updateHotkeys = (patch) => {
+    updateSettings({
+      hotkeys: {
+        ...normalized.hotkeys,
+        ...patch,
+      },
+    });
+  };
+
+  const updateNetwork = (section, patch) => {
+    updateSettings({
+      network: {
+        ...normalized.network,
+        [section]: {
+          ...normalized.network[section],
+          ...patch,
+        },
+      },
+    });
+  };
+
+  const captureHotkey = (action, event) => {
+    if (capturingAction !== action) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.code === 'Escape') {
+      setCapturingAction(null);
+      return;
+    }
+
+    if (MODIFIER_CODES.has(event.code)) return;
+    updateHotkeys({ [action]: event.code });
+    setCapturingAction(null);
+  };
+
   return (
     <div className="pointer-events-auto fixed inset-0 z-[90] flex items-center justify-center bg-black/42 p-6 font-sans text-white backdrop-blur-[2px]">
-      <div className="w-[min(520px,94vw)] overflow-hidden rounded-lg border border-slate-700 bg-slate-950/95 shadow-[0_0_44px_rgba(0,0,0,0.78)]">
+      <div className="max-h-[90vh] w-[min(640px,94vw)] overflow-hidden rounded-lg border border-slate-700 bg-slate-950/95 shadow-[0_0_44px_rgba(0,0,0,0.78)]">
         <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded border border-cyan-400/45 bg-cyan-500/12 text-cyan-200">
@@ -93,7 +245,7 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
           </div>
         </div>
 
-        <div className="space-y-5 p-5">
+        <div className="max-h-[calc(90vh-66px)] space-y-5 overflow-y-auto p-5">
           <section className="space-y-3">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Mouse</div>
             <SliderRow
@@ -128,6 +280,100 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
               step={0.05}
               onChange={(opacity) => updateUi({ opacity })}
             />
+          </section>
+
+          <section className="space-y-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">MQTT</div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <TextInputRow
+                label="Broker"
+                icon={Server}
+                value={normalized.network.mqtt.host}
+                onChange={(host) => updateNetwork('mqtt', { host })}
+                placeholder="192.168.12.1"
+              />
+              <TextInputRow
+                label="Port"
+                icon={Server}
+                type="number"
+                value={normalized.network.mqtt.port}
+                onChange={(port) => updateNetwork('mqtt', { port })}
+                placeholder="3333"
+              />
+              <SelectRow
+                label="Client ID"
+                icon={Server}
+                value={normalized.network.mqtt.clientId}
+                options={CLIENT_ID_OPTIONS}
+                onChange={(clientId) => updateNetwork('mqtt', { clientId })}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Video</div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <TextInputRow
+                label="UDP Port"
+                icon={Video}
+                type="number"
+                value={normalized.network.video.port}
+                onChange={(port) => updateNetwork('video', { port })}
+                placeholder="3334"
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Action Hotkeys</div>
+            <label className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-200">
+              <span className="flex items-center gap-2 font-bold">
+                <Keyboard size={14} className="text-cyan-300" />
+                双击快捷键
+              </span>
+              <input
+                type="checkbox"
+                checked={normalized.hotkeys.enabled}
+                onChange={(event) => updateHotkeys({ enabled: event.target.checked })}
+                className="h-4 w-4 accent-cyan-400"
+              />
+            </label>
+            <SliderRow
+              label="双击间隔"
+              icon={Keyboard}
+              value={normalized.hotkeys.doubleTapMs}
+              min={250}
+              max={800}
+              step={10}
+              onChange={(doubleTapMs) => updateHotkeys({ doubleTapMs })}
+              format={formatMilliseconds}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              {HOTKEY_ROWS.map((row) => {
+                const RowIcon = row.icon;
+                return (
+                  <button
+                    key={row.key}
+                    type="button"
+                    onClick={() => setCapturingAction(row.key)}
+                    onKeyDown={(event) => captureHotkey(row.key, event)}
+                    className={`flex min-h-10 items-center justify-between gap-2 rounded border px-3 text-left text-xs font-bold transition-colors ${
+                      capturingAction === row.key
+                        ? 'border-cyan-300 bg-cyan-500/18 text-cyan-50'
+                        : 'border-slate-700 bg-slate-900 text-slate-200 hover:border-slate-500 hover:bg-slate-800'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <RowIcon size={14} className="shrink-0 text-cyan-300" />
+                      <span className="truncate">{row.label}</span>
+                    </span>
+                    <span className="shrink-0 rounded border border-slate-700 bg-slate-950/80 px-2 py-1 font-mono text-[10px] font-black text-cyan-100">
+                      {capturingAction === row.key ? '按键' : formatKeyCode(normalized.hotkeys[row.key])}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </section>
         </div>
       </div>

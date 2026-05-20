@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emitGodotOperation } from './bridge/godot';
 import CenterCombatHUD from './features/center-hud/CenterCombatHUD';
 import CommandPanel from './features/command-panel/CommandPanel';
@@ -7,6 +7,10 @@ import MechaHUD from './features/mecha-hud/MechaHUD';
 import MiniMapHUD from './features/mini-map/MiniMapHUD';
 import EscSettingsMenu from './features/settings/EscSettingsMenu';
 import TopCoreLayout from './features/top-core/TopCoreLayout';
+import {
+  DEFAULT_RESOURCE_QUANTITIES,
+  buildResourceActionState,
+} from './features/command-panel/resourceActions';
 import { useHudState } from './hooks/useHudState';
 import {
   DEFAULT_UI_STATE,
@@ -38,9 +42,28 @@ function resolveRoleFromMecha(mecha, controls) {
   return controls?.activeRole ?? 'unknown';
 }
 
+function isEditableTarget(target) {
+  if (!target) return false;
+  const tagName = target.tagName?.toLowerCase();
+  return tagName === 'input'
+    || tagName === 'textarea'
+    || tagName === 'select'
+    || target.isContentEditable;
+}
+
+function resolveHotkeyAction(code, hotkeys) {
+  if (code === hotkeys.heal) return 'heal';
+  if (code === hotkeys.directAmmo) return 'directAmmo';
+  if (code === hotkeys.remoteAmmo) return 'remoteAmmo';
+  if (code === hotkeys.revive) return 'revive';
+  return null;
+}
+
 export default function App() {
   const { uiState, setUiState } = useHudState();
   const [hudSettings, setHudSettings] = useState(() => loadHudSettings());
+  const [resourceQuantities, setResourceQuantities] = useState(DEFAULT_RESOURCE_QUANTITIES);
+  const hotkeyTapRef = useRef({});
   const normalizedHudSettings = useMemo(() => normalizeHudSettings(hudSettings), [hudSettings]);
   const { leftRobots, rightRobots } = resolveRobotSides(uiState.robots);
   const miniMapState = resolveMiniMapState(uiState.miniMap);
@@ -50,6 +73,14 @@ export default function App() {
   const activeRole = resolveRoleFromMecha(uiState.mecha, uiState.controls);
   const isEngineer = activeRole === 'engineer';
   const [assemblyTask, setAssemblyTask] = useState({ active: false, activeLevel: null, startedAt: 0 });
+  const resourceActions = useMemo(() => buildResourceActionState({
+    activeRole,
+    stats: statsState,
+    mecha: uiState.mecha,
+    respawn: respawnState,
+    timeLeft: uiState.timeLeft,
+    quantities: resourceQuantities,
+  }), [activeRole, statsState, uiState.mecha, respawnState, uiState.timeLeft, resourceQuantities]);
 
   useEffect(() => {
     const background = uiState.forceBlackBg ? '#3939395b' : 'transparent';
@@ -72,6 +103,13 @@ export default function App() {
       normalizedHudSettings.mouseSensitivity,
     );
   }, [normalizedHudSettings.mouseSensitivity]);
+
+  useEffect(() => {
+    emitGodotOperation(
+      { type: 'setConnectionSettings', settings: normalizedHudSettings.network },
+      '[settings] connectionSettings',
+    );
+  }, [normalizedHudSettings.network]);
 
   const startAssemblyTask = useCallback((difficulty) => {
     setAssemblyTask({ active: true, activeLevel: difficulty, startedAt: Date.now() });
@@ -113,6 +151,7 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      if (event.defaultPrevented) return;
       if (event.key !== 'Escape' || event.repeat) return;
       event.preventDefault();
       setSettingsMenuOpen(!settingsMenuOpen);
@@ -121,6 +160,66 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setSettingsMenuOpen, settingsMenuOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const hotkeys = normalizedHudSettings.hotkeys;
+      if (
+        event.defaultPrevented
+        || event.repeat
+        || settingsMenuOpen
+        || !hotkeys.enabled
+        || isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      const action = resolveHotkeyAction(event.code, hotkeys);
+      if (!action || !resourceActions.supported) return;
+
+      const now = Date.now();
+      const lastTapAt = hotkeyTapRef.current[action] ?? 0;
+      if (now - lastTapAt > hotkeys.doubleTapMs) {
+        hotkeyTapRef.current[action] = now;
+        return;
+      }
+
+      hotkeyTapRef.current[action] = 0;
+
+      const config = {
+        heal: {
+          enabled: resourceActions.canHeal,
+          operation: resourceActions.healOperation,
+          label: 'remoteBuyHp',
+        },
+        directAmmo: {
+          enabled: resourceActions.canDirectAmmo,
+          operation: resourceActions.directAmmoOperation,
+          label: resourceActions.directAmmoOperation.command,
+          value: resourceActions.directAmmoOperation.param,
+        },
+        remoteAmmo: {
+          enabled: resourceActions.canRemoteAmmo,
+          operation: resourceActions.remoteAmmoOperation,
+          label: 'remoteBuyAmmo',
+          value: resourceActions.remoteAmmoOperation.param,
+        },
+        revive: {
+          enabled: resourceActions.canRevive,
+          operation: resourceActions.reviveOperation,
+          label: 'buyRespawn',
+          value: resourceActions.reviveOperation.param,
+        },
+      }[action];
+
+      if (!config?.enabled) return;
+      event.preventDefault();
+      emitGodotOperation(config.operation, `[hotkey] ${config.label}`, config.value);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [normalizedHudSettings.hotkeys, resourceActions, settingsMenuOpen]);
 
   const robotHpById = useMemo(
     () => buildRobotHpById(leftRobots, rightRobots),
@@ -191,6 +290,9 @@ export default function App() {
           mechanisms={uiState.mechanisms}
           commandStatus={uiState.commandStatus}
           onAssemblyStart={startAssemblyTask}
+          resourceQuantities={resourceQuantities}
+          onResourceQuantitiesChange={setResourceQuantities}
+          hotkeys={normalizedHudSettings.hotkeys}
         />
         {!isEngineer && <CenterCombatHUD centerHud={uiState.centerHud} uiSizing={effectiveUiSizing} />}
         <MechaHUD

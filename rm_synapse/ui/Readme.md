@@ -8,6 +8,9 @@
   - 坐标当前按协议侧 `0~1000` 归一化范围映射到 `28m x 15m` 地图显示比例；`MapClickInfoNotify.map_x/map_y` 也按 `0~1000` 输出。
 - [ ] 详细buff绘制
 - [ ] 裁判系统等debug界面绘制
+- [ ] ESC 网络设置后续确认
+  - MQTT：ESC 中仅保留 Broker、Port、Client ID，下发到 `/root/Mqtt/Transport` 并重启连接。
+  - Video：ESC 中仅保留图传 UDP Port，下发到 `RMVideoCanvas.port`。
 
 # 快速配置(下载插件)
 
