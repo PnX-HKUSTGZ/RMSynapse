@@ -17,6 +17,9 @@ export function useHudState() {
     const handler = (payload) => {
       const data = parseGodotPayload(payload, 'godotPush');
       if (!data) return;
+      if (data.settingsPatch && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('hudSettingsPatch', { detail: data.settingsPatch }));
+      }
 
       const normalizedData = normalizeIncomingData(data);
       setUiState((prev) => mergeHudState(prev, normalizedData));

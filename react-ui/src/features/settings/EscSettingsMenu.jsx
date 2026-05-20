@@ -2,6 +2,8 @@ import { useState } from 'react';
 import {
   Crosshair,
   Eye,
+  FileText,
+  FolderOpen,
   HeartPulse,
   Keyboard,
   Maximize2,
@@ -14,6 +16,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { emitGodotOperation } from '../../bridge/godot';
 import { DEFAULT_HUD_SETTINGS, normalizeHudSettings } from '../../state/settings';
 
 const HOTKEY_ROWS = [
@@ -92,7 +95,7 @@ function SliderRow({ label, icon: Icon, value, min, max, step, onChange, format 
   );
 }
 
-function TextInputRow({ label, icon: Icon, value, onChange, type = 'text', placeholder = '', monospace = true }) {
+function TextInputRow({ label, icon: Icon, value, onChange, type = 'text', placeholder = '', monospace = true, readOnly = false }) {
   return (
     <label className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 text-xs text-slate-200">
       <span className="flex min-w-0 items-center gap-2 font-bold">
@@ -103,8 +106,9 @@ function TextInputRow({ label, icon: Icon, value, onChange, type = 'text', place
         type={type}
         value={value}
         placeholder={placeholder}
+        readOnly={readOnly}
         onChange={(event) => onChange(event.target.value)}
-        className={`min-w-0 rounded border border-slate-700 bg-slate-950/90 px-2 py-1.5 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-400/70 ${monospace ? 'font-mono' : ''}`}
+        className={`min-w-0 rounded border border-slate-700 bg-slate-950/90 px-2 py-1.5 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-400/70 ${readOnly ? 'cursor-default text-slate-300' : ''} ${monospace ? 'font-mono' : ''}`}
       />
     </label>
   );
@@ -130,6 +134,23 @@ function SelectRow({ label, icon: Icon, value, options, onChange }) {
   );
 }
 
+function CheckboxRow({ label, icon: Icon, checked, onChange }) {
+  return (
+    <label className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs text-slate-200">
+      <span className="flex min-w-0 items-center gap-2 font-bold">
+        {Icon && <Icon size={14} className="shrink-0 text-cyan-300" />}
+        <span className="truncate">{label}</span>
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 accent-cyan-400"
+      />
+    </label>
+  );
+}
+
 export default function EscSettingsMenu({ open, settings, onSettingsChange, onOpenChange }) {
   const [capturingAction, setCapturingAction] = useState(null);
 
@@ -148,6 +169,10 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
       hotkeys: {
         ...normalized.hotkeys,
         ...(patch.hotkeys ?? {}),
+      },
+      logging: {
+        ...normalized.logging,
+        ...(patch.logging ?? {}),
       },
       network: {
         ...normalized.network,
@@ -192,6 +217,23 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
         },
       },
     });
+  };
+
+  const updateLogging = (patch) => {
+    updateSettings({
+      logging: {
+        ...normalized.logging,
+        ...patch,
+      },
+    });
+  };
+
+  const chooseDebugLogPath = () => {
+    emitGodotOperation(
+      { type: 'chooseDebugLogPath', currentPath: normalized.logging.path },
+      '[settings] chooseDebugLogPath',
+      normalized.logging.path,
+    );
   };
 
   const captureHotkey = (action, event) => {
@@ -321,6 +363,47 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
                 onChange={(port) => updateNetwork('video', { port })}
                 placeholder="3334"
               />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Debug Log</div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <CheckboxRow
+                label="记录日志"
+                icon={FileText}
+                checked={normalized.logging.enabled}
+                onChange={(enabled) => updateLogging({ enabled })}
+              />
+              <SelectRow
+                label="记录范围"
+                icon={FileText}
+                value={normalized.logging.mode}
+                options={[
+                  { value: 'receive', label: '只记录接收' },
+                  { value: 'all', label: '全部记录' },
+                ]}
+                onChange={(mode) => updateLogging({ mode })}
+              />
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-2">
+              <TextInputRow
+                label="保存地址"
+                icon={FileText}
+                value={normalized.logging.path}
+                onChange={() => {}}
+                placeholder="user://logs/rm_synapse_debug.jsonl"
+                monospace={false}
+                readOnly
+              />
+              <button
+                type="button"
+                onClick={chooseDebugLogPath}
+                className="flex min-h-9 items-center justify-center gap-1 rounded border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
+              >
+                <FolderOpen size={14} className="text-cyan-300" />
+                选择
+              </button>
             </div>
           </section>
 

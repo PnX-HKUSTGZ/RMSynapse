@@ -4,6 +4,7 @@ class_name ProtocolAdapter
 signal decoded_message(topic, message)
 signal decode_failed(topic, error_code)
 signal unmapped_message(topic, payload)
+signal message_sent(topic, size, result, qos)
 signal keyboard_mouse_control(message)
 signal custom_control(message)
 signal game_status(message)
@@ -237,6 +238,7 @@ func send_message(topic: String, message) -> int:
 	var qos = _get_publish_qos(topic)
 	Log.debug("[ProtocolAdapter] Send message topic=%s size=%d qos=%d" % [topic, payload.size(), qos])
 	var publish_result = _transport.publish_bytes(topic, payload, false, qos)
+	emit_signal("message_sent", topic, payload.size(), publish_result, qos)
 	if publish_result >= 0:
 		_last_sent_msec_by_topic[topic] = Time.get_ticks_msec()
 	return publish_result

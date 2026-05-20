@@ -36,6 +36,13 @@ var _last_data_update_msec := 0
 var _command_panel_open := false
 var _settings_menu_open := false
 var _mouse_sensitivity := 1.0
+var _debug_log_enabled := false
+var _debug_log_mode := "receive"
+var _debug_log_path := "user://logs/rm_synapse_debug.jsonl"
+var _debug_log_file_dialog: FileDialog = null
+var _debug_log_seq := 0
+var _debug_log_seq_by_key: Dictionary = {}
+var _debug_log_last_ticks_by_key: Dictionary = {}
 var _map_page_ready := false
 var _control_focus_active := true
 var _mouse_delta := Vector2.ZERO
@@ -110,6 +117,7 @@ func _ready():
 	print("HUD ready. Press A to send DEFAULT_UI_STATE, B for 100Hz test, C to stop.")
 	set_process(true)
 	set_process_input(true)
+	_setup_debug_log_file_dialog()
 
 	if web and web.has_signal("load_finished"):
 		web.load_finished.connect(func(_url: String, status: int) -> void:
@@ -241,6 +249,16 @@ func _on_web_ipc_message(message, source: String = "hud") -> void:
 				return
 			_apply_connection_settings(operation.get("settings", {}))
 			return
+		if operation_type == "setDebugLogSettings":
+			if source == "map":
+				return
+			_apply_debug_log_settings(operation.get("settings", {}))
+			return
+		if operation_type == "chooseDebugLogPath":
+			if source == "map":
+				return
+			_open_debug_log_file_dialog(str(operation.get("currentPath", _debug_log_path)))
+			return
 		if operation_type == "mapClick":
 			if source != "map" or map_web == null or not map_web.visible:
 				push_warning("Ignore mapClick from inactive source: %s" % source)
@@ -250,6 +268,11 @@ func _on_web_ipc_message(message, source: String = "hud") -> void:
 		if source == "map":
 			push_warning("Ignore non-map operation from map page: %s" % operation_type)
 			return
+		_write_debug_log("ui_operation", {
+			"source": source,
+			"operationType": operation_type,
+			"operation": operation
+		})
 	hud_operation_bridge.handle_operation(operation)
 
 func _parse_ipc_payload(message):
@@ -269,6 +292,7 @@ func _parse_ipc_payload(message):
 	return json.data
 
 func _on_operation_status(status: Dictionary) -> void:
+	_write_debug_log("operation_status", status)
 	var level := "normal"
 	if str(status.get("state", "")) == "failed":
 		level = "critical"
@@ -298,6 +322,8 @@ func _try_bind_transport_signals() -> void:
 	var adapter := adapter_getter.get_adapter_silent()
 	if adapter != null and adapter.has_method("is_transport_bound") and not adapter.is_transport_bound(transport):
 		adapter.bind_transport(transport)
+	if adapter != null and adapter.has_signal("message_sent") and not adapter.message_sent.is_connected(_on_debug_message_sent):
+		adapter.message_sent.connect(_on_debug_message_sent)
 	_transport = transport
 	_mqtt_connected = transport.is_broker_connected()
 	if not transport.connected.is_connected(_on_transport_connected):
@@ -306,18 +332,25 @@ func _try_bind_transport_signals() -> void:
 		transport.disconnected.connect(_on_transport_disconnected)
 	if not transport.connection_failed.is_connected(_on_transport_failed):
 		transport.connection_failed.connect(_on_transport_failed)
+	if not transport.raw_message.is_connected(_on_debug_raw_message):
+		transport.raw_message.connect(_on_debug_raw_message)
+	if not transport.text_message.is_connected(_on_debug_text_message):
+		transport.text_message.connect(_on_debug_text_message)
 	_push_link_status()
 
 func _on_transport_connected() -> void:
 	_mqtt_connected = true
+	_write_debug_log("link", {"state": "connected"})
 	_push_link_status()
 
 func _on_transport_disconnected(_reason = "") -> void:
 	_mqtt_connected = false
+	_write_debug_log("link", {"state": "disconnected", "reason": str(_reason)})
 	_push_link_status()
 
 func _on_transport_failed(_reason = "") -> void:
 	_mqtt_connected = false
+	_write_debug_log("link", {"state": "failed", "reason": str(_reason)})
 	_push_link_status()
 
 func _push_link_status() -> void:
@@ -483,6 +516,152 @@ func _set_settings_menu_open(open: bool) -> void:
 
 func _set_mouse_sensitivity(value: float) -> void:
 	_mouse_sensitivity = clamp(value, MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY)
+
+func _setup_debug_log_file_dialog() -> void:
+	if _debug_log_file_dialog != null:
+		return
+	_debug_log_file_dialog = FileDialog.new()
+	_debug_log_file_dialog.title = "选择调试日志保存位置"
+	_debug_log_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_debug_log_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_debug_log_file_dialog.use_native_dialog = true
+	_debug_log_file_dialog.filters = PackedStringArray(["*.jsonl ; JSON Lines", "*.log ; Log", "*.txt ; Text"])
+	_debug_log_file_dialog.size = Vector2i(900, 560)
+	add_child(_debug_log_file_dialog)
+	if not _debug_log_file_dialog.file_selected.is_connected(_on_debug_log_file_selected):
+		_debug_log_file_dialog.file_selected.connect(_on_debug_log_file_selected)
+
+func _open_debug_log_file_dialog(current_path: String) -> void:
+	_setup_debug_log_file_dialog()
+	if _debug_log_file_dialog == null:
+		return
+	var resolved_path := current_path.strip_edges()
+	if resolved_path.is_empty():
+		resolved_path = _debug_log_path
+	_debug_log_file_dialog.current_path = _resolve_debug_log_dialog_path(resolved_path)
+	_debug_log_file_dialog.popup_centered()
+
+func _on_debug_log_file_selected(path: String) -> void:
+	var selected_path := path.strip_edges()
+	if selected_path.is_empty():
+		return
+	_debug_log_path = selected_path
+	var payload := {
+		"settingsPatch": {
+			"logging": {
+				"path": selected_path
+			}
+		}
+	}
+	if page_ready:
+		push_payload(payload)
+	else:
+		_pending_bridge_payloads.append(payload)
+	if _debug_log_enabled:
+		_write_debug_log("config", {
+			"path": _debug_log_path,
+			"selectedFromDialog": true
+		}, true)
+
+func _resolve_debug_log_dialog_path(path: String) -> String:
+	if path.begins_with("user://") or path.begins_with("res://"):
+		return ProjectSettings.globalize_path(path)
+	return path
+
+func _apply_debug_log_settings(settings) -> void:
+	if not (settings is Dictionary):
+		return
+	_debug_log_enabled = bool(settings.get("enabled", false))
+	var mode := str(settings.get("mode", "receive")).strip_edges()
+	_debug_log_mode = "all" if mode == "all" else "receive"
+	var path := str(settings.get("path", _debug_log_path)).strip_edges()
+	_debug_log_path = path if not path.is_empty() else "user://logs/rm_synapse_debug.jsonl"
+	if _debug_log_enabled:
+		_write_debug_log("config", {
+			"enabled": _debug_log_enabled,
+			"mode": _debug_log_mode,
+			"path": _debug_log_path
+		}, true)
+
+func _on_debug_raw_message(topic, payload) -> void:
+	var bytes := PackedByteArray()
+	if payload is PackedByteArray:
+		bytes = payload
+	_write_debug_log("rx", {
+		"topic": str(topic),
+		"payloadType": "bytes",
+		"size": bytes.size(),
+		"sampleHex": _bytes_to_hex_sample(bytes, 48)
+	})
+
+func _on_debug_text_message(topic, text) -> void:
+	var text_value := str(text)
+	_write_debug_log("rx", {
+		"topic": str(topic),
+		"payloadType": "text",
+		"size": text_value.length(),
+		"sample": text_value.substr(0, 240)
+	})
+
+func _on_debug_message_sent(topic, size, result, qos) -> void:
+	_write_debug_log("tx", {
+		"topic": str(topic),
+		"size": int(size),
+		"result": int(result),
+		"qos": int(qos)
+	})
+
+func _write_debug_log(kind: String, data: Dictionary, force: bool = false) -> void:
+	if not force and not _debug_log_enabled:
+		return
+	if not force and _debug_log_mode != "all" and kind != "rx":
+		return
+	var now_ticks: int = Time.get_ticks_msec()
+	var unix_msec: float = Time.get_unix_time_from_system() * 1000.0
+	var topic: String = str(data.get("topic", ""))
+	var key: String = kind
+	if not topic.is_empty():
+		key += ":%s" % topic
+	_debug_log_seq += 1
+	var key_seq: int = int(_debug_log_seq_by_key.get(key, 0)) + 1
+	_debug_log_seq_by_key[key] = key_seq
+	var previous_ticks: int = int(_debug_log_last_ticks_by_key.get(key, -1))
+	_debug_log_last_ticks_by_key[key] = now_ticks
+	var interval_msec = null if previous_ticks < 0 else now_ticks - previous_ticks
+	var path := _debug_log_path.strip_edges()
+	if path.is_empty():
+		path = "user://logs/rm_synapse_debug.jsonl"
+	var dir_path := path.get_base_dir()
+	if not dir_path.is_empty():
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir_path))
+	var file := FileAccess.open(path, FileAccess.READ_WRITE)
+	if file == null:
+		file = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Cannot open debug log file: %s" % path)
+		return
+	file.seek_end()
+	file.store_string(JSON.stringify({
+		"time": Time.get_datetime_string_from_system(true),
+		"unixMsec": int(unix_msec),
+		"unixUsecApprox": int(unix_msec * 1000.0),
+		"ticksMsec": now_ticks,
+		"deltaMsec": interval_msec,
+		"intervalMsec": interval_msec,
+		"seq": _debug_log_seq,
+		"seqInKey": key_seq,
+		"kind": kind,
+		"key": key,
+		"data": data
+	}) + "\n")
+	file.close()
+
+func _bytes_to_hex_sample(bytes: PackedByteArray, max_count: int) -> String:
+	var parts: Array[String] = []
+	var count: int = min(bytes.size(), max_count)
+	for i in range(count):
+		parts.append("%02x" % int(bytes[i]))
+	return " ".join(parts)
 
 func _apply_connection_settings(settings) -> void:
 	if not (settings is Dictionary):

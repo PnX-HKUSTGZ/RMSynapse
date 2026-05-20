@@ -11,6 +11,11 @@
 - [ ] ESC 网络设置后续确认
   - MQTT：ESC 中仅保留 Broker、Port、Client ID，下发到 `/root/Mqtt/Transport` 并重启连接。
   - Video：ESC 中仅保留图传 UDP Port，下发到 `RMVideoCanvas.port`。
+- [ ] ESC 调试日志
+  - 可开关日志、通过 GUI 修改保存地址，默认 `user://logs/rm_synapse_debug.jsonl`，由 Godot 映射到 macOS/Windows/Linux 各自用户数据目录。
+  - 写入使用追加模式；已有日志不会被覆盖，新记录会接在文件末尾。
+  - `只记录接收`：记录 MQTT 收包 topic、大小和样本；`全部记录`：额外记录 MQTT 发包、UI 操作、操作回执和连接状态。
+  - 每条 JSONL 带 `unixMsec`、`unixUsecApprox`、`ticksMsec`、全局 `seq`、按 `kind:topic` 细分的 `seqInKey`，以及同一 `kind:topic` 距离上一条的 `deltaMsec`/`intervalMsec`，用于排查高于 1Hz 的 topic。
 
 # 快速配置(下载插件)
 

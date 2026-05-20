@@ -97,6 +97,23 @@ export default function App() {
   }, [normalizedHudSettings]);
 
   useEffect(() => {
+    const handleSettingsPatch = (event) => {
+      const patch = event.detail;
+      if (!patch?.logging?.path) return;
+      setHudSettings((prev) => normalizeHudSettings({
+        ...prev,
+        logging: {
+          ...(prev.logging ?? {}),
+          path: patch.logging.path,
+        },
+      }));
+    };
+
+    window.addEventListener('hudSettingsPatch', handleSettingsPatch);
+    return () => window.removeEventListener('hudSettingsPatch', handleSettingsPatch);
+  }, []);
+
+  useEffect(() => {
     emitGodotOperation(
       { type: 'setMouseSensitivity', value: normalizedHudSettings.mouseSensitivity },
       '[settings] mouseSensitivity',
@@ -110,6 +127,13 @@ export default function App() {
       '[settings] connectionSettings',
     );
   }, [normalizedHudSettings.network]);
+
+  useEffect(() => {
+    emitGodotOperation(
+      { type: 'setDebugLogSettings', settings: normalizedHudSettings.logging },
+      '[settings] debugLogSettings',
+    );
+  }, [normalizedHudSettings.logging]);
 
   const startAssemblyTask = useCallback((difficulty) => {
     setAssemblyTask({ active: true, activeLevel: difficulty, startedAt: Date.now() });

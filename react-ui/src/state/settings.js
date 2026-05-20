@@ -26,6 +26,11 @@ export const DEFAULT_HUD_SETTINGS = {
       port: 3334,
     },
   },
+  logging: {
+    enabled: false,
+    mode: 'receive',
+    path: 'user://logs/rm_synapse_debug.jsonl',
+  },
 };
 
 function toNumber(value, fallback) {
@@ -49,6 +54,7 @@ export function normalizeHudSettings(source) {
       revive: normalizeKeyCode(source?.hotkeys?.revive, DEFAULT_HUD_SETTINGS.hotkeys.revive),
     },
     network: normalizeNetworkSettings(source?.network),
+    logging: normalizeLoggingSettings(source?.logging),
   };
 }
 
@@ -72,6 +78,17 @@ function normalizeNetworkSettings(source) {
     video: {
       port: Math.trunc(clamp(toNumber(source?.video?.port, defaults.video.port), 1, 65535)),
     },
+  };
+}
+
+function normalizeLoggingSettings(source) {
+  const defaults = DEFAULT_HUD_SETTINGS.logging;
+  const mode = normalizeString(source?.mode, defaults.mode);
+
+  return {
+    enabled: source?.enabled === true,
+    mode: mode === 'all' ? 'all' : 'receive',
+    path: normalizeString(source?.path, defaults.path) || defaults.path,
   };
 }
 
