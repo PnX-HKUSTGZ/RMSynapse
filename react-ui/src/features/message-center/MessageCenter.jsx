@@ -90,7 +90,16 @@ export default function MessageCenter({ messageCenter }) {
           setMessages((prev) => prev.map((msg) => (
             msg.id !== activeMessageId
               ? msg
-              : { ...msg, level, text, duration, isLeaving: false, rev: (msg.rev ?? 0) + 1 }
+              : {
+                ...msg,
+                level,
+                title: item?.title,
+                category: item?.category,
+                text,
+                duration,
+                isLeaving: false,
+                rev: (msg.rev ?? 0) + 1,
+              }
           )));
           scheduleLifecycle(activeMessageId, duration);
           return;
@@ -99,7 +108,18 @@ export default function MessageCenter({ messageCenter }) {
 
       setMessages((prev) => [
         ...prev,
-        { id, level, text, duration, timestamp, isLeaving: false, tag, rev: 0 },
+        {
+          id,
+          level,
+          title: item?.title,
+          category: item?.category,
+          text,
+          duration,
+          timestamp,
+          isLeaving: false,
+          tag,
+          rev: 0,
+        },
       ]);
 
       if (tag) {

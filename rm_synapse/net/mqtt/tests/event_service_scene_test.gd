@@ -1,9 +1,7 @@
 extends Node
 
 const DART_TARGET_BASE_RANDOM_MOVING := 4
-const RELATIVE_SIDE_ALLY := 1
-const RELATIVE_SIDE_ENEMY := 2
-const RELATIVE_SIDE_UNKNOWN := 0
+const SIDE_BLUE := 2
 
 class DummyEventMessage:
 	extends RefCounted
@@ -44,58 +42,67 @@ func _ready() -> void:
 		errors.append("kill_events size")
 	else:
 		var k = kills[0]
-		if k.killer_id != 1 or k.victim_id != 101:
+		if k.victim_id != 1 or k.killer_id != 101:
 			ok = false
 			errors.append("kill_events values")
 
-	svc.ingest_event(EventService.EventId.BASE_OR_OUTPOST_DESTROYED, "110")
+	svc.ingest_event(EventService.EventId.OUTPOST_DESTROYED, "110")
 	var destroys = svc.get_destroy_events()
 	if destroys.size() != 1 or destroys[0].target_id != 110:
 		ok = false
 		errors.append("destroy_events")
 
-	svc.ingest_event(EventService.EventId.ENERGY_MECH_ACTIVATION_COUNT_CHANGED, "5")
-	if svc.get_energy_activation_count() != 5:
+	svc.ingest_event(EventService.EventId.ENERGY_MECH_ACTIVE_ARMS_CHANGED, "10,9.6")
+	if svc.get_energy_active_arms_count() != 10 or absf(svc.get_energy_average_rings() - 9.6) > 0.001:
 		ok = false
-		errors.append("energy_activation_count")
+		errors.append("energy_active_arms")
 
-	svc.ingest_event(EventService.EventId.ALLY_AIR_SUPPORT_INTERRUPTED, "2")
-	if svc.get_ally_air_support_interrupts_left() != 2:
+	svc.ingest_event(EventService.EventId.ENEMY_AIR_SUPPORT_COUNTERED, "2")
+	if svc.get_enemy_air_support_interrupts_left() != 2:
 		ok = false
-		errors.append("ally_air_support_interrupts_left")
+		errors.append("enemy_air_support_interrupts_left")
 
-	svc.ingest_event(EventService.EventId.DART_HIT, "4")
+	svc.ingest_event(EventService.EventId.DART_HIT, "2,4")
 	var hits = svc.get_dart_hit_events()
-	if hits.size() != 1 or int(hits[0].target) != DART_TARGET_BASE_RANDOM_MOVING:
+	if hits.size() != 1 or int(hits[0].hit_side) != SIDE_BLUE or int(hits[0].target) != DART_TARGET_BASE_RANDOM_MOVING:
 		ok = false
 		errors.append("dart_hit")
 
-	var gate_side := [0]
-	svc.dart_gate_opened.connect(func(side):
-		gate_side[0] = int(side)
+	var gate_opened := [false]
+	svc.enemy_dart_gate_opened.connect(func():
+		gate_opened[0] = true
 	)
-	svc.ingest_event(EventService.EventId.BOTH_DART_GATE_OPENED, "1")
-	if gate_side[0] != RELATIVE_SIDE_ALLY:
+	svc.ingest_event(EventService.EventId.ENEMY_DART_GATE_OPENED, "")
+	if not gate_opened[0]:
 		ok = false
-		errors.append("dart_gate_opened side")
+		errors.append("enemy_dart_gate_opened")
 
-	var outpost_side := [0]
-	svc.outpost_stopped.connect(func(side):
-		outpost_side[0] = int(side)
+	var outpost_stopped := [false]
+	svc.enemy_outpost_stopped.connect(func():
+		outpost_stopped[0] = true
 	)
-	svc.ingest_event(EventService.EventId.BOTH_OUTPOST_STOPPED, "2")
-	if outpost_side[0] != RELATIVE_SIDE_ENEMY:
+	svc.ingest_event(EventService.EventId.ENEMY_OUTPOST_STOPPED, "")
+	if not outpost_stopped[0]:
 		ok = false
-		errors.append("outpost_stopped side")
+		errors.append("enemy_outpost_stopped")
 
-	var base_armor_side := [RELATIVE_SIDE_ALLY]
-	svc.base_armor_deployed.connect(func(side):
-		base_armor_side[0] = int(side)
+	var base_armor_deployed := [false]
+	svc.enemy_base_armor_deployed.connect(func():
+		base_armor_deployed[0] = true
 	)
-	svc.ingest_event(EventService.EventId.BOTH_BASE_ARMOR_DEPLOYED, "3")
-	if base_armor_side[0] != RELATIVE_SIDE_UNKNOWN:
+	svc.ingest_event(EventService.EventId.ENEMY_BASE_ARMOR_DEPLOYED, "")
+	if not base_armor_deployed[0]:
 		ok = false
-		errors.append("base_armor_deployed side strict")
+		errors.append("enemy_base_armor_deployed")
+
+	var assembly_result := [-1]
+	svc.assembly_result.connect(func(result_code):
+		assembly_result[0] = int(result_code)
+	)
+	svc.ingest_event(EventService.EventId.ASSEMBLY_RESULT, "8")
+	if assembly_result[0] != 8:
+		ok = false
+		errors.append("assembly_result")
 
 	svc.clear_cache()
 	if svc.get_kill_events().size() != 0:
@@ -107,12 +114,12 @@ func _ready() -> void:
 	if svc.get_dart_hit_events().size() != 0:
 		ok = false
 		errors.append("clear_cache dart_hit_events")
-	if svc.get_energy_activation_count() != 0:
+	if svc.get_energy_active_arms_count() != 0 or svc.get_energy_average_rings() != 0.0:
 		ok = false
-		errors.append("clear_cache energy_activation_count")
-	if svc.get_ally_air_support_interrupts_left() != 3:
+		errors.append("clear_cache energy_active_arms")
+	if svc.get_enemy_air_support_interrupts_left() != 3:
 		ok = false
-		errors.append("clear_cache ally_air_support_interrupts_left")
+		errors.append("clear_cache enemy_air_support_interrupts_left")
 
 	var delayed_getter = FakeAdapterGetter.new()
 	var delayed_service = EventService.new()

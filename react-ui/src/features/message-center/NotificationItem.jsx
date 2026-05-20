@@ -1,6 +1,8 @@
 import { memo } from 'react';
 
 function NotificationItem({ msg, levelConfig, leaveAnimationMs }) {
+  const title = String(msg.title || levelConfig.title || '').trim();
+
   return (
     <div
       className={`
@@ -17,7 +19,7 @@ function NotificationItem({ msg, levelConfig, leaveAnimationMs }) {
 
       <div className="z-10 flex flex-1 flex-col justify-center px-3 py-2">
         <span className={`text-xs font-black tracking-widest ${levelConfig.colorClass}`}>
-          {levelConfig.title}
+          {title}
         </span>
         <span className="mt-0.5 text-sm font-medium leading-snug text-white drop-shadow-md">
           {msg.text}

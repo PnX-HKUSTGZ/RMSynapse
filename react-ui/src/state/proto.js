@@ -61,7 +61,51 @@ const ASSEMBLY_RESULT_META = {
   8: { text: '装配失败：缓冲期到期强制结束', type: 'error' },
 };
 
+const ROBOT_ID_LABELS = {
+  1: '红方英雄',
+  2: '红方工程',
+  3: '红方步兵3',
+  4: '红方步兵4',
+  5: '红方步兵5',
+  6: '红方空中',
+  7: '红方哨兵',
+  8: '红方飞镖',
+  9: '红方雷达',
+  10: '红方前哨站',
+  11: '红方基地',
+  101: '蓝方英雄',
+  102: '蓝方工程',
+  103: '蓝方步兵103',
+  104: '蓝方步兵104',
+  105: '蓝方步兵105',
+  106: '蓝方空中',
+  107: '蓝方哨兵',
+  108: '蓝方飞镖',
+  109: '蓝方雷达',
+  110: '蓝方前哨站',
+  111: '蓝方基地',
+};
+
+const EVENT_CATEGORY_META = {
+  combat: { title: '战斗事件', level: 'important' },
+  objective: { title: '目标事件', level: 'critical' },
+  mechanism: { title: '机制事件', level: 'normal' },
+  support: { title: '支援事件', level: 'important' },
+  assembly: { title: '工程装配', level: 'important' },
+  system: { title: '系统事件', level: 'normal' },
+};
+
+const DART_TARGET_LABELS = {
+  1: '前哨站',
+  2: '基地固定目标',
+  3: '基地随机固定目标',
+  4: '基地随机移动目标',
+  5: '基地末端移动目标',
+};
+
 const MAP_PROTOCOL_MAX = DEFAULT_UI_STATE.miniMap.protocolCoordinateMax || 1000;
+
+let eventMessageSeq = 0;
 
 function extractInts(value) {
   const matches = String(value ?? '').match(/-?\d+/g);
@@ -69,6 +113,29 @@ function extractInts(value) {
   return matches
     .map((item) => Number.parseInt(item, 10))
     .filter((item) => Number.isFinite(item));
+}
+
+function extractNumbers(value) {
+  const matches = String(value ?? '').match(/-?\d+(?:\.\d+)?/g);
+  if (!matches) return [];
+  return matches
+    .map((item) => Number.parseFloat(item))
+    .filter((item) => Number.isFinite(item));
+}
+
+function robotLabel(id) {
+  return ROBOT_ID_LABELS[id] ?? `机器人${id}`;
+}
+
+function sideLabel(side) {
+  switch (Number(side)) {
+    case 1:
+      return '红方';
+    case 2:
+      return '蓝方';
+    default:
+      return `未知方${side}`;
+  }
 }
 
 function getExistingRobotMax(defaultRobots, id) {
@@ -123,86 +190,84 @@ function normalizeMapPosition(source) {
   };
 }
 
-function getSideLabel(side) {
-  switch (side) {
-    case 1:
-      return '己方';
-    case 2:
-      return '对方';
-    case 3:
-      return '双方';
-    default:
-      return `未知方(${side})`;
-  }
-}
-
-function buildEventMessageText(eventId, param) {
+function buildEventMessageMeta(eventId, param) {
   const textParam = String(param ?? '').trim();
   const ints = extractInts(textParam);
+  const numbers = extractNumbers(textParam);
+
+  const fromCategory = (category, text, overrides = {}) => {
+    const categoryMeta = EVENT_CATEGORY_META[category] ?? EVENT_CATEGORY_META.system;
+    return {
+      category,
+      title: categoryMeta.title,
+      level: categoryMeta.level,
+      text,
+      duration: 4200,
+      tag: null,
+      ...overrides,
+    };
+  };
 
   switch (eventId) {
     case 1: {
-      const killerId = ints[0] ?? -1;
-      const victimId = ints[1] ?? -1;
-      return `击杀事件：机器人 ${killerId} 击毁了机器人 ${victimId}`;
+      const victimId = ints[0] ?? -1;
+      const killerId = ints[1] ?? -1;
+      return fromCategory('combat', `${robotLabel(killerId)} 击毁 ${robotLabel(victimId)}`, { duration: 3600 });
     }
     case 2: {
       const targetId = ints[0] ?? -1;
-      return `基地/前哨站被摧毁：目标 ID ${targetId}`;
+      return fromCategory('objective', `${robotLabel(targetId)} 被摧毁`, { duration: 6500 });
     }
     case 3: {
-      const count = ints[0] ?? 0;
-      return `能量机关可激活次数变化：剩余 ${count} 次`;
-    }
-    case 4:
-      return '能量机关当前可进入激活状态';
-    case 5: {
       const armsCount = ints[0] ?? 0;
-      const avgRings = ints[1] ?? 0;
-      return `能量机关激活进度：成功灯臂 ${armsCount}，平均环数 ${avgRings}`;
+      const avgRings = numbers[1] ?? 0;
+      return fromCategory('mechanism', `大能量机关激活：成功灯臂 ${armsCount}，平均环数 ${avgRings}`, { tag: 'event-rune-arms' });
     }
-    case 6:
-      return `能量机关被激活：类型 ${textParam || '未知'}`;
-    case 7:
-      return '己方英雄进入部署模式';
-    case 8: {
+    case 5: {
       const damage = ints[0] ?? 0;
-      return `己方英雄造成狙击伤害：累计 ${damage}`;
+      return fromCategory('combat', `己方英雄造成狙击伤害：累计 ${damage}`, { tag: 'event-ally-sniper' });
+    }
+    case 6: {
+      const damage = ints[0] ?? 0;
+      return fromCategory('combat', `对方英雄造成狙击伤害：累计 ${damage}`, { level: 'critical', tag: 'event-enemy-sniper' });
+    }
+    case 4: {
+      const activateType = ints[0] ?? 0;
+      const typeLabel = activateType === 1 ? '小能量机关' : activateType === 2 ? '大能量机关' : `未知类型${activateType}`;
+      return fromCategory('mechanism', `能量机关进入已激活状态：${typeLabel}`, { tag: 'event-rune-active' });
+    }
+    case 7:
+      return fromCategory('support', '对方呼叫空中支援', { level: 'critical', duration: 6500, tag: 'event-enemy-air-support' });
+    case 8: {
+      const remaining = ints[0] ?? 0;
+      return fromCategory('support', `对方空中支援被反制：己方剩余反制次数 ${remaining}`, { tag: 'event-enemy-air-countered' });
     }
     case 9: {
-      const damage = ints[0] ?? 0;
-      return `对方英雄造成狙击伤害：累计 ${damage}`;
+      const hitSide = ints[0] ?? 0;
+      const target = ints[1] ?? 0;
+      const targetLabel = DART_TARGET_LABELS[target] ?? `未知目标${target}`;
+      return fromCategory('objective', `${sideLabel(hitSide)}飞镖命中${targetLabel}`, { duration: 5600 });
     }
     case 10:
-      return '己方呼叫空中支援';
-    case 11: {
-      const remaining = ints[0] ?? 0;
-      return `己方空中支援被打断：对方剩余可打断次数 ${remaining}`;
-    }
+      return fromCategory('objective', '对方飞镖闸门开启', { level: 'important', tag: 'event-enemy-dart-gate' });
+    case 11:
+      return fromCategory('objective', '基地遭到攻击', { level: 'critical', duration: 6500, tag: 'event-base-under-attack' });
     case 12:
-      return '对方呼叫空中支援';
-    case 13: {
-      const remaining = ints[0] ?? 0;
-      return `对方空中支援被打断：己方剩余可打断次数 ${remaining}`;
-    }
+      return fromCategory('objective', '对方前哨站停转', { level: 'important', tag: 'event-enemy-outpost-stopped' });
+    case 13:
+      return fromCategory('objective', '对方基地护甲展开', { level: 'critical', tag: 'event-enemy-base-armor' });
     case 14:
-      return '装配警告：对方请求四级装配，进入强制退出缓冲期';
+      return fromCategory('assembly', '对方请求四级装配，进入强制退出缓冲期', { level: 'critical', duration: 6500, tag: 'event-assembly-force-buffer' });
     case 15: {
       const resultCode = ints[0] ?? 0;
-      return ASSEMBLY_RESULT_META[resultCode]?.text ?? `装配结果：${resultCode}`;
-    }
-    case 16:
-      return '己方基地遭到攻击';
-    case 17: {
-      const side = ints[0] ?? 0;
-      return `前哨站停转：${getSideLabel(side)}`;
-    }
-    case 18: {
-      const side = ints[0] ?? 0;
-      return `基地护甲展开：${getSideLabel(side)}`;
+      const result = ASSEMBLY_RESULT_META[resultCode];
+      return fromCategory('assembly', result?.text ?? `装配结果：${resultCode}`, {
+        level: result?.type === 'success' ? 'important' : 'critical',
+        duration: 6500,
+      });
     }
     default:
-      return `Event #${eventId}${textParam ? ` (${textParam})` : ''}`;
+      return fromCategory('system', `Event #${eventId}${textParam ? ` (${textParam})` : ''}`);
   }
 }
 
@@ -555,14 +620,18 @@ function buildProtoPatch(data) {
     const eventId = toFiniteNumber(source.event_id, -1);
     const param = String(source.param ?? '').trim();
     const timestamp = Date.now();
+    eventMessageSeq += 1;
+    const eventMeta = buildEventMessageMeta(eventId, param);
     patch.messageCenter = {
       items: [
         {
-          id: `event-${timestamp}-${eventId}`,
-          tag: `event-${eventId}`,
-          level: eventId === 16 ? 'critical' : 'important',
-          text: buildEventMessageText(eventId, param),
-          duration: 3500,
+          id: `event-${timestamp}-${eventId}-${eventMessageSeq}`,
+          tag: eventMeta.tag,
+          level: eventMeta.level,
+          title: eventMeta.title,
+          category: eventMeta.category,
+          text: eventMeta.text,
+          duration: eventMeta.duration,
           timestamp,
         },
       ],

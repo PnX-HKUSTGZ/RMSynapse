@@ -23,34 +23,31 @@
 ## 对外接口
 - `clear_cache()` 清空所有缓存并重置默认值。
 - `get_kill_events()` 获取击杀事件列表。
-- `get_destroy_events()` 获取基地/前哨站被摧毁事件列表。
+- `get_destroy_events()` 获取前哨站被摧毁事件列表。
 - `get_dart_hit_events()` 获取飞镖命中事件列表。
-- `get_energy_activation_count()` 获取能量机关可激活次数，默认 0。
+- `get_energy_active_arms_count()` 获取大能量机关成功激活灯臂数量，默认 0。
+- `get_energy_average_rings()` 获取大能量机关平均环数，默认 0。
 - `get_ally_sniper_damage_total()` 获取己方英雄累计狙击伤害，默认 0。
 - `get_enemy_sniper_damage_total()` 获取对方英雄累计狙击伤害，默认 0。
-- `get_ally_air_support_interrupts_left()` 获取己方空中支援可被打断次数，默认 3。
-- `get_enemy_air_support_interrupts_left()` 获取对方空中支援可被打断次数，默认 3。
+- `get_enemy_air_support_interrupts_left()` 获取对方空中支援被反制后己方剩余反制次数，默认 3。
 - `get_event_name(event_id)` 获取事件名称。
 
 ## 信号
-- `kill_event(killer_id, victim_id)`
-- `base_or_outpost_destroyed(target_id)`
-- `energy_activation_count_changed(count)`
-- `energy_mech_entered_active_state()`
+- `kill_event(victim_id, killer_id)`
+- `outpost_destroyed(target_id)`
 - `energy_mech_active_arms_changed(arms_count, avg_rings)`
-- `energy_mech_activated(activate_type)`
-- `ally_hero_deploy_mode()`
+- `energy_mech_entered_active_state(activate_type)`，1=小能量机关，2=大能量机关。
 - `ally_hero_sniper_damage(total_damage)`
 - `enemy_hero_sniper_damage(total_damage)`
-- `ally_air_support_called()`
 - `enemy_air_support_called()`
-- `ally_air_support_interrupted(remaining)`
-- `enemy_air_support_interrupted(remaining)`
-- `dart_hit(target)` 目标为 `DartHitTarget` enum（1~5：前哨站/基地固定目标/基地随机固定目标/基地随机移动目标/基地末端移动目标）
-- `dart_gate_opened(side)` side 为 `Side` enum（1=己方，2=对方）
-- `ally_base_under_attack()`
-- `outpost_stopped(side)` side 为 `Side` enum（1=己方，2=对方）
-- `base_armor_deployed(side)` side 为 `Side` enum（1=己方，2=对方）
+- `enemy_air_support_countered(remaining)`
+- `dart_hit(hit_side, target)`，`hit_side` 为 `Side` enum（1=红方，2=蓝方），目标为 `DartHitTarget` enum（1~5：前哨站/基地固定目标/基地随机固定目标/基地随机移动目标/基地末端移动目标）。
+- `enemy_dart_gate_opened()`
+- `base_under_attack()`
+- `enemy_outpost_stopped()`
+- `enemy_base_armor_deployed()`
+- `assembly_force_exit_buffer()`
+- `assembly_result(result_code)`
 
 ## 事件 ID 枚举
-`EventId` 枚举名称使用事件英文翻译大写，值等于 `event_id`。
+`EventId` 枚举名称使用事件英文翻译大写，值等于 V1.3.0 协议 `Event.event_id` 的 1~15。

@@ -1,51 +1,44 @@
 extends Node
 class_name EventService
 
-signal kill_event(killer_id, victim_id)
-signal base_or_outpost_destroyed(target_id)
-signal energy_activation_count_changed(count)
-signal energy_mech_entered_active_state()
+signal kill_event(victim_id, killer_id)
+signal outpost_destroyed(target_id)
 signal energy_mech_active_arms_changed(arms_count, avg_rings)
-signal energy_mech_activated(activate_type)
-signal ally_hero_deploy_mode()
+signal energy_mech_entered_active_state(activate_type)
 signal ally_hero_sniper_damage(total_damage)
 signal enemy_hero_sniper_damage(total_damage)
-signal ally_air_support_called()
 signal enemy_air_support_called()
-signal ally_air_support_interrupted(remaining)
-signal enemy_air_support_interrupted(remaining)
-signal dart_hit(target)
-signal dart_gate_opened(side)
-signal ally_base_under_attack()
-signal outpost_stopped(side)
-signal base_armor_deployed(side)
+signal enemy_air_support_countered(remaining)
+signal dart_hit(hit_side, target)
+signal enemy_dart_gate_opened()
+signal base_under_attack()
+signal enemy_outpost_stopped()
+signal enemy_base_armor_deployed()
+signal assembly_force_exit_buffer()
+signal assembly_result(result_code)
 
 enum EventId {
 	KILL_EVENT = 1,
-	BASE_OR_OUTPOST_DESTROYED = 2,
-	ENERGY_MECH_ACTIVATION_COUNT_CHANGED = 3,
+	OUTPOST_DESTROYED = 2,
+	ENERGY_MECH_ACTIVE_ARMS_CHANGED = 3,
 	ENERGY_MECH_ENTERED_ACTIVE_STATE = 4,
-	ENERGY_MECH_ACTIVE_ARMS_CHANGED = 5,
-	ENERGY_MECH_ACTIVATED = 6,
-	ALLY_HERO_DEPLOY_MODE = 7,
-	ALLY_HERO_SNIPER_DAMAGE = 8,
-	ENEMY_HERO_SNIPER_DAMAGE = 9,
-	ALLY_AIR_SUPPORT_CALLED = 10,
-	ALLY_AIR_SUPPORT_INTERRUPTED = 11,
-	ENEMY_AIR_SUPPORT_CALLED = 12,
-	ENEMY_AIR_SUPPORT_INTERRUPTED = 13,
-	DART_HIT = 14,
-	BOTH_DART_GATE_OPENED = 15,
-	ALLY_BASE_UNDER_ATTACK = 16,
-	BOTH_OUTPOST_STOPPED = 17,
-	BOTH_BASE_ARMOR_DEPLOYED = 18
+	ALLY_HERO_SNIPER_DAMAGE = 5,
+	ENEMY_HERO_SNIPER_DAMAGE = 6,
+	ENEMY_AIR_SUPPORT_CALLED = 7,
+	ENEMY_AIR_SUPPORT_COUNTERED = 8,
+	DART_HIT = 9,
+	ENEMY_DART_GATE_OPENED = 10,
+	BASE_UNDER_ATTACK = 11,
+	ENEMY_OUTPOST_STOPPED = 12,
+	ENEMY_BASE_ARMOR_DEPLOYED = 13,
+	ASSEMBLY_FORCE_EXIT_BUFFER = 14,
+	ASSEMBLY_RESULT = 15
 }
 
 enum Side {
 	UNKNOWN = 0,
-	ALLY = 1,
-	ENEMY = 2,
-	BOTH = 3
+	RED = 1,
+	BLUE = 2
 }
 
 enum DartHitTarget {
@@ -60,23 +53,20 @@ enum DartHitTarget {
 const EVENT_NAMES := [
 	"Unknown",
 	"Kill Event",
-	"Base/Outpost Destroyed",
-	"Energy Activation Count Changed",
-	"Energy Mechanism Entered Active State",
+	"Outpost Destroyed",
 	"Energy Mechanism Active Arms Changed",
-	"Energy Mechanism Activated",
-	"Ally Hero Deploy Mode",
+	"Energy Mechanism Entered Active State",
 	"Ally Hero Sniper Damage",
 	"Enemy Hero Sniper Damage",
-	"Ally Air Support Called",
-	"Ally Air Support Interrupted",
 	"Enemy Air Support Called",
-	"Enemy Air Support Interrupted",
+	"Enemy Air Support Countered",
 	"Dart Hit",
-	"Dart Gate Opened",
-	"Ally Base Under Attack",
-	"Both Outpost Stopped",
-	"Both Base Armor Deployed"
+	"Enemy Dart Gate Opened",
+	"Base Under Attack",
+	"Enemy Outpost Stopped",
+	"Enemy Base Armor Deployed",
+	"Assembly Force Exit Buffer",
+	"Assembly Result"
 ]
 
 const DART_TARGET_IDS := [
@@ -87,7 +77,6 @@ const DART_TARGET_IDS := [
 	DartHitTarget.BASE_TERMINAL_MOVING_TARGET
 ]
 
-const DEFAULT_ENERGY_ACTIVATION_COUNT := 0
 const DEFAULT_SNIPER_DAMAGE_TOTAL := 0
 const DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT := 3
 
@@ -97,8 +86,8 @@ var adapter_getter: MQTTProtocolAdapterGetter = MQTTProtocolAdapterGetter.new()
 
 class KillEventInfo:
 	extends RefCounted
-	var killer_id: int = -1
 	var victim_id: int = -1
+	var killer_id: int = -1
 
 class DestroyEventInfo:
 	extends RefCounted
@@ -106,22 +95,24 @@ class DestroyEventInfo:
 
 class DartHitEventInfo:
 	extends RefCounted
+	var hit_side: int = Side.UNKNOWN
 	var target: int = DartHitTarget.UNKNOWN
 
 var _kill_events: Array = []
 var _destroy_events: Array = []
 var _dart_hit_events: Array = []
 
-var _energy_activation_count: int = DEFAULT_ENERGY_ACTIVATION_COUNT
+var _energy_active_arms_count: int = 0
+var _energy_average_rings: float = 0.0
 var _ally_sniper_damage_total: int = DEFAULT_SNIPER_DAMAGE_TOTAL
 var _enemy_sniper_damage_total: int = DEFAULT_SNIPER_DAMAGE_TOTAL
-var _ally_air_support_interrupts_left: int = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 var _enemy_air_support_interrupts_left: int = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 
 var _adapter_bound: bool = false
 var _bound_adapter = null
 var _logged_missing: bool = false
 var _int_regex: RegEx = null
+var _number_regex: RegEx = null
 var _bind_retry_elapsed: float = 0.0
 
 func _ready() -> void:
@@ -146,10 +137,10 @@ func clear_cache() -> void:
 	_kill_events.clear()
 	_destroy_events.clear()
 	_dart_hit_events.clear()
-	_energy_activation_count = DEFAULT_ENERGY_ACTIVATION_COUNT
+	_energy_active_arms_count = 0
+	_energy_average_rings = 0.0
 	_ally_sniper_damage_total = DEFAULT_SNIPER_DAMAGE_TOTAL
 	_enemy_sniper_damage_total = DEFAULT_SNIPER_DAMAGE_TOTAL
-	_ally_air_support_interrupts_left = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 	_enemy_air_support_interrupts_left = DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT
 
 func get_kill_events() -> Array:
@@ -161,17 +152,17 @@ func get_destroy_events() -> Array:
 func get_dart_hit_events() -> Array:
 	return _dart_hit_events.duplicate()
 
-func get_energy_activation_count() -> int:
-	return _energy_activation_count
+func get_energy_active_arms_count() -> int:
+	return _energy_active_arms_count
+
+func get_energy_average_rings() -> float:
+	return _energy_average_rings
 
 func get_ally_sniper_damage_total() -> int:
 	return _ally_sniper_damage_total
 
 func get_enemy_sniper_damage_total() -> int:
 	return _enemy_sniper_damage_total
-
-func get_ally_air_support_interrupts_left() -> int:
-	return _ally_air_support_interrupts_left
 
 func get_enemy_air_support_interrupts_left() -> int:
 	return _enemy_air_support_interrupts_left
@@ -192,88 +183,87 @@ func _handle_event(event_id: int, param: String) -> void:
 	match event_id:
 		EventId.KILL_EVENT:
 			_handle_kill_event(param)
-		EventId.BASE_OR_OUTPOST_DESTROYED:
+		EventId.OUTPOST_DESTROYED:
 			_handle_destroy_event(param)
-		EventId.ENERGY_MECH_ACTIVATION_COUNT_CHANGED:
-			_energy_activation_count = _first_int(param, DEFAULT_ENERGY_ACTIVATION_COUNT)
-			emit_signal("energy_activation_count_changed", _energy_activation_count)
-		EventId.ENERGY_MECH_ENTERED_ACTIVE_STATE:
-			emit_signal("energy_mech_entered_active_state")
 		EventId.ENERGY_MECH_ACTIVE_ARMS_CHANGED:
-			var vals = _extract_ints(param)
-			var arms = 0
-			var rings = 0
+			var vals = _extract_numbers(param)
+			var arms := 0
+			var rings := 0.0
 			if vals.size() > 0:
 				arms = int(vals[0])
 			if vals.size() > 1:
-				rings = int(vals[1])
+				rings = float(vals[1])
+			_energy_active_arms_count = arms
+			_energy_average_rings = rings
 			emit_signal("energy_mech_active_arms_changed", arms, rings)
-		EventId.ENERGY_MECH_ACTIVATED:
-			emit_signal("energy_mech_activated", param)
-		EventId.ALLY_HERO_DEPLOY_MODE:
-			emit_signal("ally_hero_deploy_mode")
+		EventId.ENERGY_MECH_ENTERED_ACTIVE_STATE:
+			emit_signal("energy_mech_entered_active_state", _first_int(param, 0))
 		EventId.ALLY_HERO_SNIPER_DAMAGE:
 			_ally_sniper_damage_total = _first_int(param, DEFAULT_SNIPER_DAMAGE_TOTAL)
 			emit_signal("ally_hero_sniper_damage", _ally_sniper_damage_total)
 		EventId.ENEMY_HERO_SNIPER_DAMAGE:
 			_enemy_sniper_damage_total = _first_int(param, DEFAULT_SNIPER_DAMAGE_TOTAL)
 			emit_signal("enemy_hero_sniper_damage", _enemy_sniper_damage_total)
-		EventId.ALLY_AIR_SUPPORT_CALLED:
-			emit_signal("ally_air_support_called")
 		EventId.ENEMY_AIR_SUPPORT_CALLED:
 			emit_signal("enemy_air_support_called")
-		EventId.ALLY_AIR_SUPPORT_INTERRUPTED:
-			_ally_air_support_interrupts_left = _first_int(param, DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT)
-			emit_signal("ally_air_support_interrupted", _ally_air_support_interrupts_left)
-		EventId.ENEMY_AIR_SUPPORT_INTERRUPTED:
+		EventId.ENEMY_AIR_SUPPORT_COUNTERED:
 			_enemy_air_support_interrupts_left = _first_int(param, DEFAULT_AIR_SUPPORT_INTERRUPTS_LEFT)
-			emit_signal("enemy_air_support_interrupted", _enemy_air_support_interrupts_left)
+			emit_signal("enemy_air_support_countered", _enemy_air_support_interrupts_left)
 		EventId.DART_HIT:
 			_handle_dart_hit(param)
-		EventId.BOTH_DART_GATE_OPENED:
-			emit_signal("dart_gate_opened", _parse_side(param))
-		EventId.ALLY_BASE_UNDER_ATTACK:
-			emit_signal("ally_base_under_attack")
-		EventId.BOTH_OUTPOST_STOPPED:
-			emit_signal("outpost_stopped", _parse_side(param))
-		EventId.BOTH_BASE_ARMOR_DEPLOYED:
-			emit_signal("base_armor_deployed", _parse_side(param))
+		EventId.ENEMY_DART_GATE_OPENED:
+			emit_signal("enemy_dart_gate_opened")
+		EventId.BASE_UNDER_ATTACK:
+			emit_signal("base_under_attack")
+		EventId.ENEMY_OUTPOST_STOPPED:
+			emit_signal("enemy_outpost_stopped")
+		EventId.ENEMY_BASE_ARMOR_DEPLOYED:
+			emit_signal("enemy_base_armor_deployed")
+		EventId.ASSEMBLY_FORCE_EXIT_BUFFER:
+			emit_signal("assembly_force_exit_buffer")
+		EventId.ASSEMBLY_RESULT:
+			emit_signal("assembly_result", _first_int(param, -1))
 		_:
 			pass
 
 func _handle_kill_event(param: String) -> void:
 	var ids = _extract_ints(param)
-	var killer_id = -1
 	var victim_id = -1
+	var killer_id = -1
 	if ids.size() > 0:
-		killer_id = int(ids[0])
+		victim_id = int(ids[0])
 	if ids.size() > 1:
-		victim_id = int(ids[1])
+		killer_id = int(ids[1])
 	var info = KillEventInfo.new()
-	info.killer_id = killer_id
 	info.victim_id = victim_id
+	info.killer_id = killer_id
 	_kill_events.append(info)
-	emit_signal("kill_event", killer_id, victim_id)
+	emit_signal("kill_event", victim_id, killer_id)
 
 func _handle_destroy_event(param: String) -> void:
 	var target_id = _first_int(param, -1)
 	var info = DestroyEventInfo.new()
 	info.target_id = target_id
 	_destroy_events.append(info)
-	emit_signal("base_or_outpost_destroyed", target_id)
+	emit_signal("outpost_destroyed", target_id)
 
 func _handle_dart_hit(param: String) -> void:
+	var ids = _extract_ints(param)
+	var hit_side = Side.UNKNOWN
+	if ids.size() > 0:
+		hit_side = _parse_side_id(int(ids[0]))
 	var target = _parse_dart_target(param)
 	var info = DartHitEventInfo.new()
+	info.hit_side = hit_side
 	info.target = target
 	_dart_hit_events.append(info)
-	emit_signal("dart_hit", target)
+	emit_signal("dart_hit", hit_side, target)
 
 func _parse_dart_target(param: String) -> int:
 	var ids = _extract_ints(param)
-	if ids.size() <= 0:
+	if ids.size() <= 1:
 		return DartHitTarget.UNKNOWN
-	var id = int(ids[0])
+	var id = int(ids[1])
 	if _is_known_dart_target(id):
 		return id
 	return DartHitTarget.UNKNOWN
@@ -284,14 +274,11 @@ func _is_known_dart_target(target_id: int) -> bool:
 			return true
 	return false
 
-func _parse_side(param: String) -> int:
-	var ids = _extract_ints(param)
-	if ids.size() > 0:
-		var v = int(ids[0])
-		if v == 1:
-			return Side.ALLY
-		if v == 2:
-			return Side.ENEMY
+func _parse_side_id(value: int) -> int:
+	if value == 1:
+		return Side.RED
+	if value == 2:
+		return Side.BLUE
 	return Side.UNKNOWN
 
 func _first_int(param: String, default_val: int) -> int:
@@ -314,11 +301,31 @@ func _extract_ints(param: String) -> Array:
 		result.append(int(m.get_string()))
 	return result
 
+func _extract_numbers(param: String) -> Array:
+	var result: Array = []
+	if param == null:
+		return result
+	var text = str(param)
+	if text == "":
+		return result
+	_ensure_number_regex()
+	var matches = _number_regex.search_all(text)
+	for i in range(matches.size()):
+		var m = matches[i]
+		result.append(float(m.get_string()))
+	return result
+
 func _ensure_regex() -> void:
 	if _int_regex != null:
 		return
 	_int_regex = RegEx.new()
 	_int_regex.compile("-?\\d+")
+
+func _ensure_number_regex() -> void:
+	if _number_regex != null:
+		return
+	_number_regex = RegEx.new()
+	_number_regex.compile("-?\\d+(?:\\.\\d+)?")
 
 func _try_bind_adapter() -> void:
 	if adapter_getter == null:
