@@ -22,7 +22,15 @@ build/
 *.uid
 *.import
 .DS_Store
-rm_synapse/Export/
+rm_synapse/Export/**
+!rm_synapse/Export/
+!rm_synapse/Export/.gitkeep
+!rm_synapse/Export/linux/
+!rm_synapse/Export/linux/.gitkeep
+!rm_synapse/Export/windows/
+!rm_synapse/Export/windows/.gitkeep
+!rm_synapse/Export/macos/
+!rm_synapse/Export/macos/.gitkeep
 *.log
 
 .sisyphus

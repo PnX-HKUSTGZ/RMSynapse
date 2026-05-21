@@ -43,6 +43,10 @@ var _debug_log_file_dialog: FileDialog = null
 var _debug_log_seq := 0
 var _debug_log_seq_by_key: Dictionary = {}
 var _debug_log_last_ticks_by_key: Dictionary = {}
+var _web_runtime_ready := false
+var _web_server: TCPServer = null
+var _web_server_port := 0
+var _web_clients: Array = []
 var _map_page_ready := false
 var _control_focus_active := true
 var _mouse_delta := Vector2.ZERO
@@ -110,7 +114,18 @@ const MIN_MOUSE_SENSITIVITY := 0.1
 const MAX_MOUSE_SENSITIVITY := 5.0
 const MIN_PORT := 1
 const MAX_PORT := 65535
+const WEB_SOURCE_DIR := "res://ui/web"
+const WEB_RUNTIME_DIR := "user://web"
+const WEB_INDEX_FILE := "index.html"
+const WEB_MAP_FILE := "map.html"
+const WEB_MAP_IMAGE_FILE := "map.png"
+const WEB_FAVICON_FILE := "vite.svg"
+const WEB_SERVER_HOST := "127.0.0.1"
+const WEB_SERVER_PORT_START := 18180
+const WEB_SERVER_PORT_END := 18220
 
+func _enter_tree() -> void:
+	_initialize_webview_urls()
 
 func _ready():
 	randomize()
@@ -129,6 +144,7 @@ func _ready():
 				_flush_pending_messages()
 		)
 	_connect_cef_ipc_signals(web, "hud")
+	_connect_cef_debug_signals(web, "hud")
 	if map_web and map_web.has_signal("load_finished"):
 		map_web.load_finished.connect(func(_url: String, status: int) -> void:
 			_map_page_ready = _is_successful_cef_load(status)
@@ -138,6 +154,8 @@ func _ready():
 				_flush_pending_map_payloads()
 		)
 	_connect_cef_ipc_signals(map_web, "map")
+	_connect_cef_debug_signals(map_web, "map")
+	_navigate_webview_urls()
 
 	hud_data_bridge.adapter_getter = adapter_getter
 	if hud_data_bridge.get_parent() == null:
@@ -161,6 +179,284 @@ func _ready():
 func _is_successful_cef_load(status: int) -> bool:
 	return status == 0 or (status >= 200 and status < 400)
 
+func _initialize_webview_urls() -> void:
+	if not _prepare_web_runtime_dir():
+		push_error("Cannot prepare CEF web runtime directory.")
+		return
+	_log_web_runtime_state()
+	if not _ensure_web_server():
+		push_error("Cannot start CEF web runtime server.")
+		return
+	_web_runtime_ready = true
+	_assign_initial_webview_urls()
+
+func _assign_initial_webview_urls() -> void:
+	var index_url := _web_runtime_url(WEB_INDEX_FILE)
+	var map_url := _web_runtime_url(WEB_MAP_FILE)
+	var web_node := get_node_or_null("CefTexture")
+	var map_node := get_node_or_null("CefMap")
+	if web_node != null:
+		web_node.set("url", index_url)
+	if map_node != null:
+		map_node.set("url", map_url)
+
+func _navigate_webview_urls() -> void:
+	if not _web_runtime_ready:
+		_initialize_webview_urls()
+		return
+	var index_url := _web_runtime_url(WEB_INDEX_FILE)
+	var map_url := _web_runtime_url(WEB_MAP_FILE)
+	if web != null:
+		_load_cef_url(web, index_url)
+	if map_web != null:
+		_load_cef_url(map_web, map_url)
+
+func _load_cef_url(target: Object, url: String) -> void:
+	print("CEF load url: ", url)
+	target.set("url", url)
+	if target.has_method("set_url_property"):
+		target.call("set_url_property", url)
+		target.call_deferred("set_url_property", url)
+	if target.has_method("_deferred_create_browser"):
+		target.call_deferred("_deferred_create_browser")
+	if target.has_method("reload_ignore_cache"):
+		target.call_deferred("reload_ignore_cache")
+
+func _prepare_web_runtime_dir() -> bool:
+	if not _ensure_dir(WEB_RUNTIME_DIR):
+		return false
+	if not _copy_dir_recursive(WEB_SOURCE_DIR, WEB_RUNTIME_DIR):
+		return false
+	if not _write_imported_texture_png(WEB_SOURCE_DIR.path_join(WEB_MAP_IMAGE_FILE), WEB_RUNTIME_DIR.path_join(WEB_MAP_IMAGE_FILE)):
+		return false
+	_ensure_favicon_svg(WEB_RUNTIME_DIR.path_join(WEB_FAVICON_FILE))
+	return true
+
+func _copy_dir_recursive(source_dir: String, target_dir: String) -> bool:
+	var dir := DirAccess.open(source_dir)
+	if dir == null:
+		push_error("Cannot open web source directory: %s (error=%s)" % [source_dir, str(DirAccess.get_open_error())])
+		return false
+	if not _ensure_dir(target_dir):
+		return false
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while not file_name.is_empty():
+		if file_name == "." or file_name == "..":
+			file_name = dir.get_next()
+			continue
+		var source_path := source_dir.path_join(file_name)
+		var target_path := target_dir.path_join(file_name)
+		if dir.current_is_dir():
+			if not _copy_dir_recursive(source_path, target_path):
+				dir.list_dir_end()
+				return false
+		elif not _copy_file(source_path, target_path):
+			dir.list_dir_end()
+			return false
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	return true
+
+func _copy_file(source_path: String, target_path: String) -> bool:
+	if not _ensure_dir(target_path.get_base_dir()):
+		return false
+	var source_file := FileAccess.open(source_path, FileAccess.READ)
+	if source_file == null:
+		push_error("Cannot open web source file: %s (error=%s)" % [source_path, str(FileAccess.get_open_error())])
+		return false
+	var bytes := source_file.get_buffer(source_file.get_length())
+	var target_file := FileAccess.open(target_path, FileAccess.WRITE)
+	if target_file == null:
+		push_error("Cannot write web runtime file: %s (error=%s)" % [target_path, str(FileAccess.get_open_error())])
+		return false
+	target_file.store_buffer(bytes)
+	return true
+
+func _write_imported_texture_png(source_path: String, target_path: String) -> bool:
+	var texture := ResourceLoader.load(source_path) as Texture2D
+	if texture != null:
+		var image: Image = texture.get_image()
+		if image != null:
+			var err: int = image.save_png(target_path)
+			if err == OK:
+				return true
+			push_error("Cannot write web PNG asset: %s (error=%s)" % [target_path, str(err)])
+	if FileAccess.file_exists(target_path):
+		return true
+	push_error("Cannot prepare web PNG asset: %s" % source_path)
+	return false
+
+func _ensure_favicon_svg(target_path: String) -> void:
+	if FileAccess.file_exists(target_path):
+		return
+	if not _ensure_dir(target_path.get_base_dir()):
+		return
+	var file := FileAccess.open(target_path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Cannot write fallback favicon: %s" % target_path)
+		return
+	file.store_string('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#020617"/><path d="M14 42V22h16c6 0 10 4 10 9s-4 9-10 9h-8v2H14Zm8-10h7c2 0 3-1 3-3s-1-3-3-3h-7v6Zm22 10V22h8v20h-8Z" fill="#67e8f9"/></svg>')
+
+func _ensure_web_server() -> bool:
+	if _web_server != null and _web_server.is_listening():
+		return true
+	for port in range(WEB_SERVER_PORT_START, WEB_SERVER_PORT_END + 1):
+		var server := TCPServer.new()
+		var err := server.listen(port, WEB_SERVER_HOST)
+		if err == OK:
+			_web_server = server
+			_web_server_port = port
+			print("CEF web server listening: http://%s:%s/" % [WEB_SERVER_HOST, str(_web_server_port)])
+			return true
+	_web_server = null
+	_web_server_port = 0
+	return false
+
+func _web_runtime_url(file_name: String) -> String:
+	return "http://%s:%s/%s" % [WEB_SERVER_HOST, str(_web_server_port), file_name]
+
+func _poll_web_server() -> void:
+	if _web_server == null or not _web_server.is_listening():
+		return
+	while _web_server.is_connection_available():
+		var peer := _web_server.take_connection()
+		if peer != null:
+			_web_clients.append({
+				"peer": peer,
+				"request": ""
+			})
+	for index in range(_web_clients.size() - 1, -1, -1):
+		var item: Dictionary = _web_clients[index]
+		var peer: StreamPeerTCP = item.get("peer")
+		if peer == null or peer.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			_web_clients.remove_at(index)
+			continue
+		var available := peer.get_available_bytes()
+		if available <= 0:
+			continue
+		item.request = str(item.get("request", "")) + peer.get_utf8_string(available)
+		_web_clients[index] = item
+		if not str(item.request).contains("\r\n\r\n"):
+			continue
+		_serve_web_request(peer, str(item.request))
+		peer.disconnect_from_host()
+		_web_clients.remove_at(index)
+
+func _serve_web_request(peer: StreamPeerTCP, request: String) -> void:
+	var first_line := request.split("\r\n", false, 1)[0]
+	var parts := first_line.split(" ", false)
+	if parts.size() < 2:
+		_send_http_response(peer, 400, "Bad Request", "text/plain; charset=utf-8", "Bad Request".to_utf8_buffer())
+		return
+	var method := parts[0].to_upper()
+	if method != "GET" and method != "HEAD":
+		_send_http_response(peer, 405, "Method Not Allowed", "text/plain; charset=utf-8", "Method Not Allowed".to_utf8_buffer(), method == "HEAD")
+		return
+	var relative_path := _normalize_web_request_path(parts[1])
+	if relative_path.is_empty():
+		_send_http_response(peer, 403, "Forbidden", "text/plain; charset=utf-8", "Forbidden".to_utf8_buffer(), method == "HEAD")
+		return
+	var file_path := WEB_RUNTIME_DIR.path_join(relative_path)
+	if not FileAccess.file_exists(file_path):
+		push_warning("CEF web 404: request='%s' relative='%s' file='%s' absolute='%s' index_exists=%s map_exists=%s" % [
+			parts[1],
+			relative_path,
+			file_path,
+			ProjectSettings.globalize_path(file_path),
+			str(FileAccess.file_exists(WEB_RUNTIME_DIR.path_join(WEB_INDEX_FILE))),
+			str(FileAccess.file_exists(WEB_RUNTIME_DIR.path_join(WEB_MAP_FILE)))
+		])
+		_send_http_response(peer, 404, "Not Found", "text/plain; charset=utf-8", "Not Found".to_utf8_buffer(), method == "HEAD")
+		return
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		_send_http_response(peer, 500, "Internal Server Error", "text/plain; charset=utf-8", "Internal Server Error".to_utf8_buffer(), method == "HEAD")
+		return
+	_send_http_response(peer, 200, "OK", _mime_type_for_path(relative_path), file.get_buffer(file.get_length()), method == "HEAD")
+
+func _normalize_web_request_path(path: String) -> String:
+	var clean_path := path.strip_edges()
+	var scheme_index := clean_path.find("://")
+	if scheme_index >= 0:
+		var path_start := clean_path.find("/", scheme_index + 3)
+		clean_path = "/" if path_start < 0 else clean_path.substr(path_start)
+	clean_path = clean_path.split("?", false, 1)[0].split("#", false, 1)[0].uri_decode()
+	if clean_path == "/" or clean_path.is_empty():
+		return WEB_INDEX_FILE
+	clean_path = clean_path.trim_prefix("/")
+	if clean_path == "favicon.ico":
+		return WEB_FAVICON_FILE
+	var parts := PackedStringArray()
+	for part in clean_path.split("/", false):
+		if part == "." or part.is_empty():
+			continue
+		if part == "..":
+			return ""
+		parts.append(part)
+	return "/".join(parts)
+
+func _log_web_runtime_state() -> void:
+	var index_path := WEB_RUNTIME_DIR.path_join(WEB_INDEX_FILE)
+	var map_path := WEB_RUNTIME_DIR.path_join(WEB_MAP_FILE)
+	print("CEF web runtime root: ", ProjectSettings.globalize_path(WEB_RUNTIME_DIR))
+	print("CEF web runtime index exists: ", FileAccess.file_exists(index_path), " path=", index_path, " absolute=", ProjectSettings.globalize_path(index_path))
+	print("CEF web runtime map exists: ", FileAccess.file_exists(map_path), " path=", map_path, " absolute=", ProjectSettings.globalize_path(map_path))
+
+func _send_http_response(peer: StreamPeerTCP, status_code: int, status_text: String, content_type: String, body: PackedByteArray, head_only: bool = false) -> void:
+	var header := "HTTP/1.1 %s %s\r\nContent-Type: %s\r\nContent-Length: %s\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n" % [
+		str(status_code),
+		status_text,
+		content_type,
+		str(body.size())
+	]
+	peer.put_data(header.to_utf8_buffer())
+	if not head_only:
+		peer.put_data(body)
+
+func _mime_type_for_path(path: String) -> String:
+	match path.get_extension().to_lower():
+		"html":
+			return "text/html; charset=utf-8"
+		"js", "mjs":
+			return "text/javascript; charset=utf-8"
+		"css":
+			return "text/css; charset=utf-8"
+		"png":
+			return "image/png"
+		"svg":
+			return "image/svg+xml"
+		"json":
+			return "application/json; charset=utf-8"
+		"wasm":
+			return "application/wasm"
+		_:
+			return "application/octet-stream"
+
+func _ensure_dir(path: String) -> bool:
+	var absolute_path := ProjectSettings.globalize_path(path)
+	var err := DirAccess.make_dir_recursive_absolute(absolute_path)
+	if err != OK:
+		push_error("Cannot create directory: %s (error=%s)" % [path, str(err)])
+		return false
+	return true
+
+func _to_file_url(path: String) -> String:
+	var absolute_path := ProjectSettings.globalize_path(path).replace("\\", "/")
+	return "file:///" + _encode_file_url_path(absolute_path.trim_prefix("/"))
+
+func _encode_file_url_path(path: String) -> String:
+	var encoded := ""
+	for index in path.length():
+		var character := path.substr(index, 1)
+		if character == "/" or character == ":":
+			encoded += character
+		elif character.is_valid_identifier() or character in ["-", ".", "_", "~"]:
+			encoded += character
+		else:
+			encoded += character.uri_encode()
+	return encoded
+
 func _connect_cef_ipc_signals(target: Object, source: String) -> void:
 	if target == null:
 		return
@@ -171,7 +467,37 @@ func _connect_cef_ipc_signals(target: Object, source: String) -> void:
 		if not target.is_connected(signal_name, callback):
 			target.connect(signal_name, callback)
 
+func _connect_cef_debug_signals(target: Object, source: String) -> void:
+	if target == null:
+		return
+	if target.has_signal("load_started"):
+		var load_started := Callable(self, "_on_cef_load_started").bind(source)
+		if not target.is_connected("load_started", load_started):
+			target.connect("load_started", load_started)
+	if target.has_signal("load_error"):
+		var load_error := Callable(self, "_on_cef_load_error").bind(source)
+		if not target.is_connected("load_error", load_error):
+			target.connect("load_error", load_error)
+	if target.has_signal("console_message"):
+		var console_message := Callable(self, "_on_cef_console_message").bind(source)
+		if not target.is_connected("console_message", console_message):
+			target.connect("console_message", console_message)
+
+func _on_cef_load_started(url: String, source: String) -> void:
+	print("CEF ", source, " load_started url=", url)
+
+func _on_cef_load_error(url: String, error_code: int, error_text: String, source: String) -> void:
+	if error_code == -3:
+		print("CEF ", source, " load aborted during navigation: ", url)
+		return
+	push_error("CEF %s load_error url=%s code=%s text=%s" % [source, url, str(error_code), error_text])
+
+func _on_cef_console_message(level: int, message: String, source_url: String, line: int, source: String) -> void:
+	print("CEF ", source, " console[", level, "] ", source_url, ":", line, " ", message)
+
 func _process(delta: float) -> void:
+	_poll_web_server()
+
 	if keyboard_mouse_transport_enabled:
 		_update_keyboard_mouse_sender()
 
@@ -535,14 +861,14 @@ func _open_debug_log_file_dialog(current_path: String) -> void:
 	_setup_debug_log_file_dialog()
 	if _debug_log_file_dialog == null:
 		return
-	var resolved_path := current_path.strip_edges()
+	var resolved_path := _normalize_storage_path(current_path)
 	if resolved_path.is_empty():
 		resolved_path = _debug_log_path
 	_debug_log_file_dialog.current_path = _resolve_debug_log_dialog_path(resolved_path)
 	_debug_log_file_dialog.popup_centered()
 
 func _on_debug_log_file_selected(path: String) -> void:
-	var selected_path := path.strip_edges()
+	var selected_path := _normalize_storage_path(path)
 	if selected_path.is_empty():
 		return
 	_debug_log_path = selected_path
@@ -568,13 +894,28 @@ func _resolve_debug_log_dialog_path(path: String) -> String:
 		return ProjectSettings.globalize_path(path)
 	return path
 
+func _normalize_storage_path(path: String) -> String:
+	var normalized := path.strip_edges().replace("\\", "/")
+	if normalized.is_empty():
+		return ""
+	if normalized.begins_with("user://") or normalized.begins_with("res://"):
+		return normalized
+	if normalized.begins_with("/") or normalized.contains(":/"):
+		return normalized
+	return "user://" + normalized.trim_prefix("./")
+
+func _globalize_storage_path(path: String) -> String:
+	if path.begins_with("user://") or path.begins_with("res://"):
+		return ProjectSettings.globalize_path(path)
+	return path
+
 func _apply_debug_log_settings(settings) -> void:
 	if not (settings is Dictionary):
 		return
 	_debug_log_enabled = bool(settings.get("enabled", false))
 	var mode := str(settings.get("mode", "receive")).strip_edges()
 	_debug_log_mode = "all" if mode == "all" else "receive"
-	var path := str(settings.get("path", _debug_log_path)).strip_edges()
+	var path := _normalize_storage_path(str(settings.get("path", _debug_log_path)))
 	_debug_log_path = path if not path.is_empty() else "user://logs/rm_synapse_debug.jsonl"
 	if _debug_log_enabled:
 		_write_debug_log("config", {
@@ -628,12 +969,12 @@ func _write_debug_log(kind: String, data: Dictionary, force: bool = false) -> vo
 	var previous_ticks: int = int(_debug_log_last_ticks_by_key.get(key, -1))
 	_debug_log_last_ticks_by_key[key] = now_ticks
 	var interval_msec = null if previous_ticks < 0 else now_ticks - previous_ticks
-	var path := _debug_log_path.strip_edges()
+	var path := _normalize_storage_path(_debug_log_path)
 	if path.is_empty():
 		path = "user://logs/rm_synapse_debug.jsonl"
 	var dir_path := path.get_base_dir()
 	if not dir_path.is_empty():
-		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir_path))
+		DirAccess.make_dir_recursive_absolute(_globalize_storage_path(dir_path))
 	var file := FileAccess.open(path, FileAccess.READ_WRITE)
 	if file == null:
 		file = FileAccess.open(path, FileAccess.WRITE)

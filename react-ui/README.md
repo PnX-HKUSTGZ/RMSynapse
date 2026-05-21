@@ -84,7 +84,7 @@ src/
 
 ### 主 HUD 页面
 
-由 [App.jsx](/Users/sato/Projects/RM/RMSynapse/react-ui/src/App.jsx) 装配，主要 feature 包括：
+由 `src/App.jsx` 装配，主要 feature 包括：
 
 - `top-core`：顶部比分、基地/前哨站状态、机器人条、科技/雷达等级
 - `center-hud`：中心准星、热量、弹量、攻击/防御 Buff 提示
@@ -96,7 +96,7 @@ src/
 
 ### 地图调试页面
 
-由 [MapDebugApp.jsx](/Users/sato/Projects/RM/RMSynapse/react-ui/src/MapDebugApp.jsx) 装配，目标是：
+由 `src/MapDebugApp.jsx` 装配，目标是：
 
 - 单独联调小地图与控制面板
 - 在不渲染整套 HUD 的情况下验证位置与地图 patch
@@ -104,7 +104,7 @@ src/
 
 ## 默认状态与调试数据
 
-默认展示数据集中定义在 [defaults.js](/Users/sato/Projects/RM/RMSynapse/react-ui/src/state/defaults.js) 的 `DEFAULT_UI_STATE` 中。  
+默认展示数据集中定义在 `src/state/defaults.js` 的 `DEFAULT_UI_STATE` 中。  
 当 Godot 还没有推送任何数据时，页面会使用这里的默认状态渲染。
 
 可直接在浏览器控制台中测试，例如：

@@ -6,13 +6,13 @@
 script = ExtResource("1_1x8ju")
 
 [node name="CefTexture" type="CefTexture" parent="."]
-url = "res://ui/web/index.html"
+url = "about:blank"
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 
 [node name="CefMap" type="CefTexture" parent="."]
-url = "res://ui/web/map.html"
+url = "about:blank"
 visible = false
 anchors_preset = 15
 anchor_right = 1.0
