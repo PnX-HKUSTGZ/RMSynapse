@@ -34,3 +34,7 @@ rm_synapse/Export/**
 *.log
 
 .sisyphus
+
+!/rm_synapse/addons/godot_cef/
+!/rm_synapse/addons/godot_cef/**/
+!/rm_synapse/addons/godot_cef/**
