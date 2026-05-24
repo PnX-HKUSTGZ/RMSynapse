@@ -10,6 +10,7 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <cstdint>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -17,6 +18,14 @@ extern "C" {
 }
 
 namespace RMVideoDecoder {
+
+#ifdef _WIN32
+using SocketHandle = std::uintptr_t;
+inline constexpr SocketHandle kInvalidSocket = static_cast<SocketHandle>(~static_cast<std::uintptr_t>(0));
+#else
+using SocketHandle = int;
+inline constexpr SocketHandle kInvalidSocket = -1;
+#endif
 
 #pragma pack(push, 1)
 // 自定义视频包头结构体
@@ -71,6 +80,7 @@ public:
     bool restartUdp();
 
     std::pair<AVFrame*, bool> getReadFrame() {
+        if (!triple_buffer_) return {nullptr, false};
         return triple_buffer_->getReadBuffer();
     }
 
@@ -201,7 +211,8 @@ private:
     };
 
     // UDP 套接字
-    int sockfd_ = -1;
+    SocketHandle sockfd_ = kInvalidSocket;
+    bool winsock_started_ = false;
     // FFmpeg 解码上下文
     std::unique_ptr<FFmpegContext> ffmpeg_ctx_ = nullptr;
 
