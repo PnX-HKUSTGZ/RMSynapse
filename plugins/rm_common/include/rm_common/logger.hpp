@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <sstream>
 #include <string>

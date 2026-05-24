@@ -1,73 +1,431 @@
 #!/usr/bin/env python3
 import os
+import platform as host_platform
+import re
+import shutil
+import subprocess
 from pathlib import Path
-from SCons.Script import Dir, ARGUMENTS
+
+from SCons.Errors import UserError
+from SCons.Script import ARGUMENTS, Action, Copy, Default, Dir, File, SConscript
+
+PLUGIN_ARGUMENT_KEYS = {
+    "copy_ffmpeg_runtime",
+    "ffmpeg_include",
+    "ffmpeg_libpath",
+    "ffmpeg_root",
+    "ffmpeg_runtime_dir",
+    "opencv_root",
+    "use_pkg_config",
+    "with_test",
+}
+PLUGIN_ARGUMENTS = {}
+
+
+def as_bool(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in ("1", "yes", "true", "on")
+
+
+def split_paths(value):
+    if not value:
+        return []
+    return [normalize_path(item) for item in str(value).split(os.pathsep) if item]
+
+
+def normalize_path(value):
+    if not value:
+        return None
+    return Path(os.path.expandvars(value)).expanduser().resolve()
+
+
+def plugin_arg(key, default=None):
+    return PLUGIN_ARGUMENTS.get(key, default)
+
+
+def default_vcpkg_triplet(platform_name, arch, use_mingw=False):
+    triplet = os.environ.get("VCPKG_DEFAULT_TRIPLET", "")
+    if triplet:
+        return triplet
+    if platform_name == "windows":
+        return "x64-mingw-dynamic" if use_mingw else "x64-windows"
+    if platform_name == "macos":
+        return "arm64-osx" if arch == "arm64" else "x64-osx"
+    return "x64-linux"
+
+
+def pkg_config_exists(packages):
+    if shutil.which("pkg-config") is None:
+        return False
+    result = subprocess.run(
+        ["pkg-config", "--exists", *packages],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def configure_pkg_config(env, packages, *, required, label):
+    if not pkg_config_exists(packages):
+        if required:
+            raise UserError(f"{label} pkg-config packages not found: {' '.join(packages)}")
+        return False
+    env.ParseConfig("pkg-config --cflags --libs " + " ".join(packages))
+    return True
+
+
+def find_existing_dir(candidates):
+    for candidate in candidates:
+        if candidate and candidate.is_dir():
+            return candidate
+    return None
+
+
+def find_header_dir(candidates, header):
+    for candidate in candidates:
+        if candidate and (candidate / header).exists():
+            return candidate
+    return None
+
+
+def find_existing_lib(lib_dirs, names):
+    for lib_dir in lib_dirs:
+        if not lib_dir or not lib_dir.is_dir():
+            continue
+        for name in names:
+            candidate = lib_dir / name
+            if candidate.exists():
+                return candidate
+    return None
+
+
+def ffmpeg_library_names(base, platform_name, is_msvc):
+    if platform_name == "windows":
+        if is_msvc:
+            return [f"{base}.lib", f"lib{base}.lib", f"{base}.dll.a", f"lib{base}.dll.a", f"lib{base}.a"]
+        return [f"lib{base}.dll.a", f"{base}.dll.a", f"lib{base}.a", f"{base}.lib", f"lib{base}.lib"]
+    if platform_name == "macos":
+        return [f"lib{base}.dylib", f"lib{base}.a"]
+    return [f"lib{base}.so", f"lib{base}.a"]
+
+
+def require_macos_universal_libraries(found_libs):
+    lipo = shutil.which("lipo")
+    if not lipo:
+        raise UserError("arch=universal on macOS requires lipo to verify FFmpeg libraries.")
+
+    required_arches = {"x86_64", "arm64"}
+    for name, path in found_libs.items():
+        result = subprocess.run(
+            [lipo, "-info", str(path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise UserError(f"Could not inspect FFmpeg library architecture for {path}: {result.stdout.strip()}")
+        arches = set(re.findall(r"\b(?:x86_64|arm64)\b", result.stdout))
+        if not required_arches.issubset(arches):
+            raise UserError(f"arch=universal requires universal FFmpeg libraries; {name} is {result.stdout.strip()}")
+
+
+def discover_ffmpeg_manual(env, this_dir, platform_name):
+    root = normalize_path(plugin_arg("ffmpeg_root", os.environ.get("FFMPEG_ROOT") or os.environ.get("VCPKG_INSTALLED_DIR")))
+    include_arg = normalize_path(plugin_arg("ffmpeg_include", os.environ.get("FFMPEG_INCLUDE_DIR")))
+    libpath_arg = plugin_arg("ffmpeg_libpath", os.environ.get("FFMPEG_LIB_DIR"))
+
+    triplet = default_vcpkg_triplet(platform_name, env["arch"], env.get("use_mingw", False))
+
+    vcpkg_root = normalize_path(os.environ.get("VCPKG_ROOT"))
+    roots = []
+    root_triplet_direct = root / triplet if root else None
+    root_triplet = root / "installed" / triplet if root else None
+    for candidate in (
+        root,
+        root_triplet_direct,
+        root_triplet,
+        vcpkg_root / "installed" / triplet if vcpkg_root else None,
+        this_dir / "thirdparty" / "ffmpeg",
+    ):
+        if candidate and candidate not in roots:
+            roots.append(candidate)
+
+    include_dirs = []
+    if include_arg:
+        include_dirs.append(include_arg)
+    for candidate_root in roots:
+        include_dirs.extend([candidate_root / "include", candidate_root])
+    include_dir = find_existing_dir([d for d in include_dirs if (d / "libavcodec" / "avcodec.h").exists()])
+
+    lib_dirs = split_paths(libpath_arg)
+    for candidate_root in roots:
+        lib_dirs.extend([
+            candidate_root / "lib",
+            candidate_root / "lib64",
+            candidate_root / "bin",
+        ])
+
+    libs = ["avcodec", "avutil", "swscale"]
+    is_msvc = bool(env.get("is_msvc", False))
+    found_libs = {
+        lib: find_existing_lib(lib_dirs, ffmpeg_library_names(lib, platform_name, is_msvc))
+        for lib in libs
+    }
+
+    missing = []
+    if not include_dir:
+        missing.append("include/libavcodec/avcodec.h")
+    missing.extend(lib for lib, path in found_libs.items() if not path)
+    if missing:
+        raise UserError(
+            "FFmpeg discovery failed. Missing: "
+            + ", ".join(missing)
+            + ". Install FFmpeg dev files or pass ffmpeg_root/ffmpeg_include/ffmpeg_libpath."
+        )
+    if platform_name == "macos" and env["arch"] == "universal":
+        require_macos_universal_libraries(found_libs)
+
+    env.AppendUnique(CPPPATH=[str(include_dir)])
+    env.AppendUnique(LIBS=[File(str(found_libs[lib])) for lib in libs])
+    return True
+
+
+def configure_ffmpeg(env, this_dir, platform_name):
+    packages = ["libavcodec", "libavutil", "libswscale"]
+    mode = plugin_arg("use_pkg_config", "auto").lower()
+    if mode not in ("auto", "yes", "no"):
+        raise UserError("use_pkg_config must be one of: auto, yes, no")
+
+    prefer_pkg_config = platform_name in ("linux", "macos")
+    if mode == "yes" or (mode == "auto" and prefer_pkg_config):
+        if configure_pkg_config(env, packages, required=(mode == "yes"), label="FFmpeg"):
+            return
+        if mode == "yes":
+            return
+
+    discover_ffmpeg_manual(env, this_dir, platform_name)
+
+
+def configure_compiler_flags(env, platform_name):
+    if platform_name == "windows" and env.get("is_msvc", False):
+        env.AppendUnique(CXXFLAGS=["/std:c++17", "/EHsc"])
+    else:
+        env.AppendUnique(CXXFLAGS=["-std=c++17", "-fexceptions"])
+
+
+def configure_platform_libs(env, platform_name):
+    if platform_name == "windows":
+        env.AppendUnique(LIBS=["ws2_32"])
+    elif platform_name == "macos":
+        env.AppendUnique(LINKFLAGS=["-Wl,-rpath,@loader_path"])
+
+
+def shared_library_name(env):
+    if env["platform"] == "windows":
+        return "rm_video_decoder.dll"
+    if env["platform"] == "macos":
+        return "librm_video_decoder.dylib"
+    return "librm_video_decoder.so"
+
+
+def runtime_patterns(platform_name):
+    if platform_name == "windows":
+        return ["av*.dll", "sw*.dll"]
+    if platform_name == "macos":
+        return ["libav*.dylib", "libav*.*.dylib", "libsw*.dylib", "libsw*.*.dylib"]
+    return ["libav*.so*", "libsw*.so*"]
+
+
+def macos_rewrite_dependencies(path, copied_names):
+    tool = shutil.which("install_name_tool")
+    otool = shutil.which("otool")
+    if not copied_names:
+        return
+    if not tool or not otool:
+        if plugin_arg("copy_ffmpeg_runtime", "auto").lower() == "yes":
+            raise UserError("otool and install_name_tool are required to rewrite copied macOS FFmpeg dependency paths.")
+        return
+
+    output = subprocess.check_output([otool, "-L", str(path)], text=True)
+    for line in output.splitlines()[1:]:
+        dep = line.strip().split(" ", 1)[0]
+        dep_name = Path(dep).name
+        if dep_name in copied_names and dep != "@rpath/" + dep_name:
+            subprocess.run([tool, "-change", dep, "@rpath/" + dep_name, str(path)], check=True)
+
+
+def macos_rewrite_install_name_action(target, source, env):
+    copied_path = Path(str(target[0]))
+    tool = shutil.which("install_name_tool")
+    if not tool:
+        if plugin_arg("copy_ffmpeg_runtime", "auto").lower() == "yes":
+            raise UserError("install_name_tool is required to rewrite copied macOS FFmpeg dylib install names.")
+        return 0
+    subprocess.run([tool, "-id", "@rpath/" + copied_path.name, str(copied_path)], check=True)
+    macos_rewrite_dependencies(copied_path, set(env.get("RM_FFMPEG_RUNTIME_NAMES", [])))
+    return 0
+
+
+def macos_rewrite_plugin_dependencies_action(target, source, env):
+    copied_names = set(env.get("RM_FFMPEG_RUNTIME_NAMES", []))
+    macos_rewrite_dependencies(Path(str(target[0])), copied_names)
+    return 0
+
+
+def configure_ffmpeg_runtime_copy(env, rm_synapse_bin):
+    mode = plugin_arg("copy_ffmpeg_runtime", "auto").lower()
+    if mode not in ("auto", "yes", "no"):
+        raise UserError("copy_ffmpeg_runtime must be one of: auto, yes, no")
+    if mode == "no":
+        return []
+
+    runtime_dir = normalize_path(plugin_arg("ffmpeg_runtime_dir", ""))
+    ffmpeg_root = normalize_path(plugin_arg("ffmpeg_root", os.environ.get("FFMPEG_ROOT", "")))
+    triplet = default_vcpkg_triplet(env["platform"], env["arch"], env.get("use_mingw", False))
+    if not ffmpeg_root:
+        vcpkg_root = normalize_path(os.environ.get("VCPKG_ROOT", ""))
+        if vcpkg_root:
+            ffmpeg_root = vcpkg_root / "installed" / triplet
+        else:
+            installed_dir = normalize_path(os.environ.get("VCPKG_INSTALLED_DIR", ""))
+            ffmpeg_root = installed_dir / triplet if installed_dir else None
+    if not runtime_dir and ffmpeg_root:
+        runtime_candidates = [
+            ffmpeg_root / "bin",
+            ffmpeg_root / triplet / "bin",
+            ffmpeg_root / "installed" / triplet / "bin",
+        ]
+        runtime_dir = find_existing_dir(runtime_candidates)
+
+    if not runtime_dir or not runtime_dir.is_dir():
+        if mode == "yes":
+            raise UserError("copy_ffmpeg_runtime=yes requires ffmpeg_runtime_dir or ffmpeg_root/bin")
+        return []
+
+    runtime_sources = []
+    seen_targets = set()
+    for pattern in runtime_patterns(env["platform"]):
+        for source in runtime_dir.glob(pattern):
+            if source.name in seen_targets:
+                continue
+            seen_targets.add(source.name)
+            runtime_sources.append(source)
+
+    copied_names = sorted({source.name for source in runtime_sources})
+    if copied_names:
+        env["RM_FFMPEG_RUNTIME_NAMES"] = copied_names
+
+    copied = []
+    for source in runtime_sources:
+        target = rm_synapse_bin / source.name
+        actions = [Copy("$TARGET", "$SOURCE")]
+        if env["platform"] == "macos":
+            actions.append(Action(macos_rewrite_install_name_action, "Rewriting macOS install name: $TARGET"))
+        copied.append(env.Command(str(target), str(source), actions))
+    if mode == "yes" and not copied:
+        raise UserError(f"No FFmpeg runtime libraries matched in {runtime_dir}")
+    return copied
+
+
+def configure_opencv_for_test(env):
+    mode = plugin_arg("use_pkg_config", "auto").lower()
+    if mode != "no" and configure_pkg_config(env, ["opencv4"], required=False, label="OpenCV"):
+        return
+
+    opencv_root = normalize_path(plugin_arg("opencv_root", os.environ.get("OpenCV_DIR", "")))
+    if not opencv_root:
+        raise UserError("with_test=yes requires OpenCV. Install opencv4 pkg-config files or pass opencv_root.")
+
+    include_dir = find_header_dir([
+        opencv_root / "include",
+        opencv_root / "include" / "opencv4",
+        opencv_root,
+    ], Path("opencv2") / "opencv.hpp")
+    lib_dir = find_existing_dir([
+        opencv_root / "lib",
+        opencv_root / "x64" / "vc17" / "lib",
+        opencv_root / "x64" / "vc16" / "lib",
+    ])
+    if not include_dir or not lib_dir:
+        raise UserError("OpenCV discovery failed. Pass opencv_root with include and lib directories.")
+
+    env.AppendUnique(CPPPATH=[str(include_dir)])
+    env.AppendUnique(LIBPATH=[str(lib_dir)])
+    env.AppendUnique(LIBS=["opencv_world"])
+
 
 # Map user-friendly targets to godot-cpp expected values.
 if ARGUMENTS.get("target") == "release":
     ARGUMENTS["target"] = "template_release"
 if ARGUMENTS.get("target") == "debug":
     ARGUMENTS["target"] = "template_debug"
+if "disable_exceptions" not in ARGUMENTS:
+    ARGUMENTS["disable_exceptions"] = "no"
+for key in PLUGIN_ARGUMENT_KEYS:
+    if key in ARGUMENTS:
+        PLUGIN_ARGUMENTS[key] = ARGUMENTS.pop(key)
 
-# Use SCons Dir('.') to locate this SConstruct reliably.
-this_dir = Path(str(Dir('.').abspath))
-repo_root = this_dir.parent.parent  # /home/.../RMSynapse
+if (ARGUMENTS.get("platform") == "macos" or (not ARGUMENTS.get("platform") and host_platform.system() == "Darwin")) and "arch" not in ARGUMENTS:
+    machine = host_platform.machine().lower()
+    ARGUMENTS["arch"] = "arm64" if machine in ("arm64", "aarch64") else "x86_64"
+
+this_dir = Path(str(Dir(".").abspath))
+repo_root = this_dir.parent.parent
 godot_cpp_dir = repo_root / "godot-cpp"
 rm_synapse_bin = repo_root / "rm_synapse" / "bin"
 
-# 1) 初始化 env：直接复用 godot-cpp 提供的 SCons 配置（包含平台/目标等处理）。
 env = SConscript(str(godot_cpp_dir / "SConstruct"))
+platform_name = env["platform"]
 
-# 2) 公共编译选项
-env.Append(CPPPATH=[
+env.AppendUnique(CPPPATH=[
     str(this_dir / "include"),
     str(this_dir / "godot"),
     str(repo_root / "plugins" / "rm_common" / "include"),
-    str(godot_cpp_dir / "include"),
-    str(godot_cpp_dir / "gen" / "include"),
 ])
-env.Append(CXXFLAGS=["-std=c++17", "-fexceptions"])
 
-# 3) 第三方库：FFmpeg（仅解码路径，OpenCV 仅用于 test，可不链接）
-env.ParseConfig("pkg-config --cflags --libs libavcodec libavutil libswscale")
+configure_compiler_flags(env, platform_name)
+configure_ffmpeg(env, this_dir, platform_name)
+configure_platform_libs(env, platform_name)
 
-# 4) video_core 静态库（不含测试）
 core_sources = [str(this_dir / "src" / "video_core.cpp")]
 core_objs_shared = env.SharedObject(source=core_sources)
 core_objs_static = env.Object(source=core_sources)
 
-# 5) Godot 扩展源码
 gd_sources = [
     str(this_dir / "godot" / "register_types.cpp"),
     str(this_dir / "godot" / "rm_video_canvas.cpp"),
 ]
 
-# 6) 生成共享库（Godot 动态加载），其依赖均链接静态库。
-shlib_name = f"librm_video_decoder{env['SHLIBSUFFIX']}"
-shlib_target = str(rm_synapse_bin / shlib_name)
 gd_lib = env.SharedLibrary(
-    target=shlib_target,
+    target=str(rm_synapse_bin / shared_library_name(env)),
     source=gd_sources + core_objs_shared,
 )
 
-# 7) 将 .gdextension 描述文件复制到同一目录
 gdext_src = this_dir / "godot" / "rm_video_decoder.gdextension"
 gdext_dst = rm_synapse_bin / "rm_video_decoder.gdextension"
-env.Command(str(gdext_dst), str(gdext_src), [Copy("$TARGET", "$SOURCE")])
+gdext_copy = env.Command(str(gdext_dst), str(gdext_src), [Copy("$TARGET", "$SOURCE")])
 
-# 7.1) 复制 shader 资源到 bin，便于 res://bin/video_yuv.gdshader 直接加载
 shader_src = this_dir / "godot" / "shaders" / "video_yuv.gdshader"
 shader_dst = rm_synapse_bin / "video_yuv.gdshader"
-env.Command(str(shader_dst), str(shader_src), [Copy("$TARGET", "$SOURCE")])
+shader_copy = env.Command(str(shader_dst), str(shader_src), [Copy("$TARGET", "$SOURCE")])
 
-# 8) 默认目标
-Default([gd_lib, gdext_dst, shader_dst])
+runtime_copy_targets = configure_ffmpeg_runtime_copy(env, rm_synapse_bin)
+if platform_name == "macos" and env.get("RM_FFMPEG_RUNTIME_NAMES"):
+    env.AddPostAction(gd_lib, Action(macos_rewrite_plugin_dependencies_action, "Rewriting macOS FFmpeg dependency paths: $TARGET"))
 
-# 9) 可选：构建测试程序（依赖 OpenCV），按需启用
-if ARGUMENTS.get("with_test", "no") == "yes":
-    env.ParseConfig("pkg-config --cflags --libs opencv4")
-    test_bin = env.Program(
-        target=str(this_dir / "build" / "test_video_show"),
+default_targets = [gd_lib, gdext_copy, shader_copy]
+default_targets += runtime_copy_targets
+Default(default_targets)
+
+if as_bool(plugin_arg("with_test", "no")):
+    test_env = env.Clone()
+    configure_opencv_for_test(test_env)
+    test_suffix = ".exe" if platform_name == "windows" else ""
+    test_bin = test_env.Program(
+        target=str(this_dir / "build" / f"test_video_show{test_suffix}"),
         source=[
             str(this_dir / "src" / "test" / "test_video_show.cpp"),
             core_objs_static,

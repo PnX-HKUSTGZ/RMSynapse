@@ -1,15 +1,84 @@
 #include "video_core.hpp"
 #include <rm_common/logger.hpp>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <cerrno>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#else
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <unistd.h>
+using SOCKET = int;
+#endif
 #include <cstring>
+#include <string>
 
 namespace RMVideoDecoder {
 
 namespace {
 constexpr std::string_view kLogTag = "rm_video_decoder.VideoCore";
+
+#ifdef _WIN32
+std::string socketErrorMessage(int errorCode = WSAGetLastError()) {
+    char* message = nullptr;
+    const DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+    const DWORD len = FormatMessageA(flags, nullptr, static_cast<DWORD>(errorCode), 0, reinterpret_cast<char*>(&message), 0, nullptr);
+    std::string result = len > 0 && message ? std::string(message, len) : ("Winsock error " + std::to_string(errorCode));
+    if (message) {
+        LocalFree(message);
+    }
+    while (!result.empty() && (result.back() == '\r' || result.back() == '\n')) {
+        result.pop_back();
+    }
+    return result;
+}
+
+bool startWinsock() {
+    WSADATA data{};
+    const int ret = WSAStartup(MAKEWORD(2, 2), &data);
+    if (ret != 0) {
+        RM_LOGE(kLogTag, "WSAStartup failed: %s", socketErrorMessage(ret).c_str());
+        return false;
+    }
+    return true;
+}
+
+void closeSocket(SocketHandle& socket) {
+    if (socket != kInvalidSocket) {
+        closesocket(static_cast<SOCKET>(socket));
+        socket = kInvalidSocket;
+    }
+}
+
+bool isRecvTimeoutError() {
+    const int err = WSAGetLastError();
+    return err == WSAETIMEDOUT || err == WSAEWOULDBLOCK;
+}
+
+std::string lastSocketErrorMessage() {
+    return socketErrorMessage();
+}
+#else
+void closeSocket(SocketHandle& socket) {
+    if (socket != kInvalidSocket) {
+        close(socket);
+        socket = kInvalidSocket;
+    }
+}
+
+bool isRecvTimeoutError() {
+    return errno == EAGAIN || errno == EWOULDBLOCK;
+}
+
+std::string lastSocketErrorMessage() {
+    return std::strerror(errno);
+}
+#endif
 
 struct ParsedPacketHeader {
     uint16_t frame_seq = 0;
@@ -67,14 +136,20 @@ bool VideoCore::FFmpegContext::init(AVCodecID codec_id) {
     }
 
     codec_ctx = avcodec_alloc_context3(codec);
+    if (!codec_ctx) {
+        RM_LOGE(kLogTag, "Failed to allocate codec context.");
+        return false;
+    }
     if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
         RM_LOGE(kLogTag, "Failed to open codec.");
+        avcodec_free_context(&codec_ctx);
         return false;
     }
 
     avPacket_ = av_packet_alloc();
     if (!avPacket_) {
         RM_LOGE(kLogTag, "Failed to allocate AVPacket.");
+        avcodec_free_context(&codec_ctx);
         return false;
     }
 
@@ -146,30 +221,42 @@ VideoCore::~VideoCore() {
     // 销毁ffmpeg上下文
     ffmpeg_ctx_.reset();
     // 关闭socket
-    if (sockfd_ >= 0) {
-        close(sockfd_);
-        sockfd_ = -1;
-    }
+    cleanupUdpSocket();
 }
 
 bool VideoCore::setupUdpSocket(){
+#ifdef _WIN32
+    if (!winsock_started_) {
+        winsock_started_ = startWinsock();
+        if (!winsock_started_) {
+            return false;
+        }
+    }
+#endif
     // 初始化 UDP Socket
-    sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd_ < 0){
-        RM_LOGE(kLogTag, "Failed to create UDP socket.");
+    sockfd_ = static_cast<SocketHandle>(socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (sockfd_ == kInvalidSocket){
+        RM_LOGE(kLogTag, "Failed to create UDP socket: %s", lastSocketErrorMessage().c_str());
+        cleanupUdpSocket();
         return false;
     }
 
     // 设置接收缓冲区大小，防止高码率下内核丢包
     int rcvbuf = 1024 * 1024; // 1MB
-    setsockopt(sockfd_, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
+    setsockopt(static_cast<SOCKET>(sockfd_), SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&rcvbuf), sizeof(rcvbuf));
 
     // 设置等待时间
+#ifdef _WIN32
+    DWORD timeout_ms = 1000;
+    if (setsockopt(static_cast<SOCKET>(sockfd_), SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms)) < 0) {
+#else
     struct timeval tv;
     tv.tv_sec = 1;  // 超时时间 1秒
     tv.tv_usec = 0;
-    if (setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv) < 0) {
-        RM_LOGE(kLogTag, "Failed to set UDP socket timeout option.");
+    if (setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof tv) < 0) {
+#endif
+        RM_LOGE(kLogTag, "Failed to set UDP socket timeout option: %s", lastSocketErrorMessage().c_str());
+        cleanupUdpSocket();
         return false;
     }
 
@@ -179,8 +266,9 @@ bool VideoCore::setupUdpSocket(){
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = htons(port_);
 
-    if (bind(sockfd_, (sockaddr*)&addr, sizeof(addr)) < 0) {
-        RM_LOGE(kLogTag, "Bind failed: %s", strerror(errno));
+    if (bind(static_cast<SOCKET>(sockfd_), reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+        RM_LOGE(kLogTag, "Bind failed: %s", lastSocketErrorMessage().c_str());
+        cleanupUdpSocket();
         return false;
     }
 
@@ -189,10 +277,13 @@ bool VideoCore::setupUdpSocket(){
 }
 
 bool VideoCore::cleanupUdpSocket(){
-    if (sockfd_ >= 0) {
-        close(sockfd_);
-        sockfd_ = -1;
+    closeSocket(sockfd_);
+#ifdef _WIN32
+    if (winsock_started_) {
+        WSACleanup();
+        winsock_started_ = false;
     }
+#endif
     return true;
 }
 
@@ -206,6 +297,8 @@ bool VideoCore::init() {
     ffmpeg_ctx_ = std::make_unique<FFmpegContext>();
     if (!ffmpeg_ctx_->init(codec_id_)) {
         RM_LOGE(kLogTag, "Failed to initialize FFmpeg context.");
+        cleanupUdpSocket();
+        ffmpeg_ctx_.reset();
         return false;
     }
 
@@ -213,6 +306,9 @@ bool VideoCore::init() {
     triple_buffer_ = std::make_unique<TripleBuffer>();
     if (!triple_buffer_->init()) {
         RM_LOGE(kLogTag, "Failed to initialize TripleBuffer.");
+        cleanupUdpSocket();
+        ffmpeg_ctx_.reset();
+        triple_buffer_.reset();
         return false;
     }
 
@@ -240,7 +336,7 @@ void VideoCore::networkLoop() {
 
     while (running_) {
         // 尝试接收
-        ssize_t received = recvfrom(sockfd_, buffer, BUF_SIZE, 0, nullptr, nullptr);
+        const int received = recvfrom(static_cast<SOCKET>(sockfd_), reinterpret_cast<char*>(buffer), BUF_SIZE, 0, nullptr, nullptr);
 
         if (received > 0) {
             // 收到数据，正常处理
@@ -251,7 +347,7 @@ void VideoCore::networkLoop() {
             }
             setUdpStatus(true);
         } else {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            if (isRecvTimeoutError()) {
                 if (last_udp_ok) {
                     RM_LOGW(kLogTag, "UDP recv timeout, no data received.");
                     last_udp_ok = false;
@@ -259,7 +355,7 @@ void VideoCore::networkLoop() {
                 setUdpStatus(false);
                 continue;
             } else {
-                RM_LOGE(kLogTag, "recvfrom error: %s", strerror(errno));
+                RM_LOGE(kLogTag, "recvfrom error: %s", lastSocketErrorMessage().c_str());
                 setUdpStatus(false);
                 continue;
             }
