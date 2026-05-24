@@ -21,7 +21,7 @@ signal robot_position(message)
 signal buff(message)
 signal penalty_info(message)
 signal robot_path_plan_info(message)
-signal map_click_info_notify(message)
+signal map_click_info(message)
 signal radar_info_to_client(message)
 signal custom_byte_block(message)
 signal assembly_command(message)
@@ -72,7 +72,8 @@ const TOPIC_ROBOT_POSITION = "RobotPosition"
 const TOPIC_BUFF = "Buff"
 const TOPIC_PENALTY_INFO = "PenaltyInfo"
 const TOPIC_ROBOT_PATH_PLAN_INFO = "RobotPathPlanInfo"
-const TOPIC_MAP_CLICK_INFO_NOTIFY = "MapClickInfoNotify"
+const TOPIC_MAP_CLICK_INFO = "MapClickInfo"
+const TOPIC_MAP_CLICK_CMD = "MapClickCmd"
 const TOPIC_RADAR_INFO_TO_CLIENT = "RadarInfoToClient"
 const TOPIC_CUSTOM_BYTE_BLOCK = "CustomByteBlock"
 const TOPIC_ASSEMBLY_COMMAND = "AssemblyCommand"
@@ -109,7 +110,7 @@ const TOPIC_SIGNAL_MAP := {
 	TOPIC_BUFF: "buff",
 	TOPIC_PENALTY_INFO: "penalty_info",
 	TOPIC_ROBOT_PATH_PLAN_INFO: "robot_path_plan_info",
-	TOPIC_MAP_CLICK_INFO_NOTIFY: "map_click_info_notify",
+	TOPIC_MAP_CLICK_INFO: "map_click_info",
 	TOPIC_RADAR_INFO_TO_CLIENT: "radar_info_to_client",
 	TOPIC_CUSTOM_BYTE_BLOCK: "custom_byte_block",
 	TOPIC_ASSEMBLY_COMMAND: "assembly_command",
@@ -145,6 +146,7 @@ const SUBSCRIBE_TOPICS: PackedStringArray = [
 	TOPIC_BUFF,
 	TOPIC_PENALTY_INFO,
 	TOPIC_ROBOT_PATH_PLAN_INFO,
+	TOPIC_MAP_CLICK_INFO,
 	TOPIC_RADAR_INFO_TO_CLIENT,
 	TOPIC_CUSTOM_BYTE_BLOCK,
 	TOPIC_TECH_CORE_MOTION_STATE_SYNC,
@@ -161,12 +163,13 @@ const CUSTOM_CONTROL_MAX_BYTES := 30
 const MAP_CLICK_ROBOT_ID_BYTES := 7
 const MAP_CLICK_MIN_INTERVAL_MSEC := 500
 const COMMON_COMMAND_MIN_INTERVAL_MSEC := 100
-const LOW_RATE_COMMAND_MIN_INTERVAL_MSEC := 1000
-const KEYBOARD_MOUSE_MIN_INTERVAL_MSEC := 200
+const LOW_RATE_COMMAND_MIN_INTERVAL_MSEC := 100
+const KEYBOARD_MOUSE_MIN_INTERVAL_MSEC := 13
+const PROTOCOL_MAX_QOS := 1
 
 const SEND_RATE_LIMIT_MSEC_BY_TOPIC := {
 	TOPIC_KEYBOARD_MOUSE_CONTROL: KEYBOARD_MOUSE_MIN_INTERVAL_MSEC,
-	TOPIC_MAP_CLICK_INFO_NOTIFY: MAP_CLICK_MIN_INTERVAL_MSEC,
+	TOPIC_MAP_CLICK_CMD: MAP_CLICK_MIN_INTERVAL_MSEC,
 	TOPIC_COMMON_COMMAND: COMMON_COMMAND_MIN_INTERVAL_MSEC,
 	TOPIC_ASSEMBLY_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
 	TOPIC_ROBOT_PERFORMANCE_SELECTION_COMMAND: LOW_RATE_COMMAND_MIN_INTERVAL_MSEC,
@@ -268,11 +271,11 @@ func send_custom_control(data: AdapterTypes.CustomControlData) -> int:
 	message.set_data(raw_data)
 	return send_message(TOPIC_CUSTOM_CONTROL, message)
 
-func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> int:
+func send_map_click_cmd(data: AdapterTypes.MapClickCmdData) -> int:
 	if data == null:
-		Log.warn("[ProtocolAdapter] send_map_click_info_notify got null data.")
+		Log.warn("[ProtocolAdapter] send_map_click_cmd got null data.")
 		return -1
-	var message = RMProto.MapClickInfoNotify.new()
+	var message = RMProto.MapClickCmd.new()
 	message.set_is_send_all(data.is_send_all)
 	message.set_robot_id(_normalize_map_click_robot_id(data.robot_id))
 	message.set_mode(data.mode)
@@ -281,7 +284,10 @@ func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> in
 	message.set_type(data.type)
 	message.set_map_x(data.map_x)
 	message.set_map_y(data.map_y)
-	return send_message(TOPIC_MAP_CLICK_INFO_NOTIFY, message)
+	return send_message(TOPIC_MAP_CLICK_CMD, message)
+
+func send_map_click_info_notify(data: AdapterTypes.MapClickInfoNotifyData) -> int:
+	return send_map_click_cmd(data)
 
 func send_assembly_command(data: AdapterTypes.AssemblyCommandData) -> int:
 	if data == null:
@@ -369,9 +375,9 @@ func _normalize_qos(qos: int) -> int:
 	if qos < 0:
 		Log.warn("[ProtocolAdapter] QoS %d is less than 0, normalized to 0" % qos)
 		return 0
-	if qos > 2:
-		Log.warn("[ProtocolAdapter] QoS %d is greater than 2, normalized to 2" % qos)
-		return 2
+	if qos > PROTOCOL_MAX_QOS:
+		Log.warn("[ProtocolAdapter] QoS %d is greater than protocol max %d, normalized." % [qos, PROTOCOL_MAX_QOS])
+		return PROTOCOL_MAX_QOS
 	return qos
 
 func _normalize_map_click_robot_id(robot_id: PackedByteArray) -> PackedByteArray:
@@ -386,9 +392,9 @@ func _normalize_map_click_robot_id(robot_id: PackedByteArray) -> PackedByteArray
 	for i in range(copy_count):
 		normalized[i] = source[i]
 	if source.size() < MAP_CLICK_ROBOT_ID_BYTES:
-		Log.warn("[ProtocolAdapter] MapClickInfoNotify robot_id size=%d, pad to %d bytes." % [source.size(), MAP_CLICK_ROBOT_ID_BYTES])
+		Log.warn("[ProtocolAdapter] MapClickCmd robot_id size=%d, pad to %d bytes." % [source.size(), MAP_CLICK_ROBOT_ID_BYTES])
 	elif source.size() > MAP_CLICK_ROBOT_ID_BYTES:
-		Log.warn("[ProtocolAdapter] MapClickInfoNotify robot_id size=%d, truncate to %d bytes." % [source.size(), MAP_CLICK_ROBOT_ID_BYTES])
+		Log.warn("[ProtocolAdapter] MapClickCmd robot_id size=%d, truncate to %d bytes." % [source.size(), MAP_CLICK_ROBOT_ID_BYTES])
 	return normalized
 
 func _get_send_rate_limit_msec(topic: String) -> int:
@@ -432,7 +438,8 @@ func _register_default_mappings() -> void:
 	register_mapping(TOPIC_BUFF, RMProto.Buff)
 	register_mapping(TOPIC_PENALTY_INFO, RMProto.PenaltyInfo)
 	register_mapping(TOPIC_ROBOT_PATH_PLAN_INFO, RMProto.RobotPathPlanInfo)
-	register_mapping(TOPIC_MAP_CLICK_INFO_NOTIFY, RMProto.MapClickInfoNotify)
+	register_mapping(TOPIC_MAP_CLICK_INFO, RMProto.MapClickInfo)
+	register_mapping(TOPIC_MAP_CLICK_CMD, RMProto.MapClickCmd)
 	register_mapping(TOPIC_RADAR_INFO_TO_CLIENT, RMProto.RadarInfoToClient)
 	register_mapping(TOPIC_CUSTOM_BYTE_BLOCK, RMProto.CustomByteBlock)
 	register_mapping(TOPIC_ASSEMBLY_COMMAND, RMProto.AssemblyCommand)

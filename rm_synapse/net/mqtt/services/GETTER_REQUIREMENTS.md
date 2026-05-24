@@ -128,12 +128,13 @@
 
 ### 4.7 RobotPosition（1Hz）
 - 建议目录：`services/robot_position/`
-- 协议字段：`x`, `y`, `z`, `yaw`
-- 状态模型：`RobotPositionState { x:float, y:float, z:float, yaw:float, last_update_msec:int }`
+- 协议字段：`x`, `y`, `z`, `yaw`, `robot_id`
+- 状态模型：`RobotPositionState { x:float, y:float, z:float, yaw:float, robot_id:int, last_update_msec:int }`
 - 建议信号：
   - `robot_position_updated(state)`
   - `position_changed(x, y, z, yaw)`
-- getter：`get_state()`, `get_x()`, `get_y()`, `get_z()`, `get_yaw()`
+  - `robot_id_changed(robot_id)`
+- getter：`get_state()`, `get_x()`, `get_y()`, `get_z()`, `get_yaw()`, `get_robot_id()`
 - 实现要点：
   - 可选增加 `get_planar_position() -> Vector2`
   - 不在服务层做坐标系转换
@@ -169,23 +170,23 @@
 
 ### 4.10 RadarInfoToClient（1Hz）
 - 建议目录：`services/radar_info_to_client/`
-- 协议字段：`target_robot_id`, `target_pos_x`, `target_pos_y`, `torward_angle`, `is_high_light`
+- 协议字段：`radar_single_robot_info[] { target_pos_x, target_pos_y, is_high_light }`
 - 状态模型：`RadarInfoToClientState`
 - 建议信号：
   - `radar_info_updated(state)`
   - `target_changed(target_robot_id)`
-- getter：字段 getter + `get_state()`
+- getter：`get_targets()` + 兼容字段 getter + `get_state()`
 - 实现要点：
-  - 字段名按 protobuf getter：`get_torward_angle()` 对齐生成代码
-  - `is_high_light` 作为 raw int/flag 缓存
+  - 目标顺序按协议定义映射到机器人 ID：对方 1/2/3/4/6/7，己方 1/2/3/4/6/7
+  - `is_high_light` 作为 raw int/flag 缓存；旧单目标字段仅作 UI 兼容输出
 
 ### 4.11 TechCoreMotionStateSync（1Hz）
 - 建议目录：`services/tech_core_motion_state_sync/`
-- 协议字段：`maximum_difficulty_level`, `status`, `enemy_core_status`, `remain_time_all`, `remain_time_step`
+- 协议字段：`maximum_difficulty_level`, `basic_state`, `putin_state`, `move_state`, `rotate_state`, `enemy_core_status`, `remain_time_all`, `remain_time_step`
 - 状态模型：`TechCoreMotionStateSyncState`
 - 建议信号：
   - `tech_core_motion_state_sync_updated(state)`
-  - `tech_core_status_changed(status, enemy_core_status)`
+  - `tech_core_status_changed(basic_state, enemy_core_status)`
 - getter：字段 getter + `get_state()`
 - 实现要点：计时字段按秒缓存，不在服务层做倒计时推进
 
@@ -218,7 +219,7 @@
   - `rune_status_changed(rune_status)`
   - `rune_arms_changed(activated_arms, average_rings)`
 - getter：字段 getter + `get_state()`
-- 实现要点：全部转 int；保留枚举名映射函数
+- 实现要点：`average_rings` 按 float 缓存；保留枚举名映射函数
 
 ### 4.15 SentryStatusSync（1Hz）
 - 建议目录：`services/sentry_status_sync/`

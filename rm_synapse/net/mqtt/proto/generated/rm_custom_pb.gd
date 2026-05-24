@@ -141,7 +141,7 @@ class PBField:
 		tag = a_tag
 		option_packed = packed
 		value = a_value
-		
+
 	var name : String
 	var type : int
 	var rule : int
@@ -530,7 +530,7 @@ class PBPacker:
 					elif res < 0:
 						return res
 					else:
-						break							
+						break
 			else:
 				return offset
 		return PB_ERR.UNDEFINED_STATE
@@ -571,13 +571,13 @@ class PBPacker:
 		for kv in key_values:
 			result[kv.get_key()] = kv.get_value()
 		return result
-	
+
 	static func tabulate(text : String, nesting : int) -> String:
 		var tab : String = ""
 		for _i in range(nesting):
 			tab += DEBUG_TAB
 		return tab + text
-	
+
 	static func value_to_string(value, field : PBField, nesting : int) -> String:
 		var result : String = ""
 		var text : String
@@ -606,7 +606,7 @@ class PBPacker:
 		else:
 			result += str(value)
 		return result
-	
+
 	static func field_to_string(field : PBField, nesting : int) -> String:
 		var result : String = tabulate(field.name + ": ", nesting)
 		if field.type == PB_DATA_TYPE.MAP:
@@ -643,7 +643,7 @@ class PBPacker:
 			result += value_to_string(field.value, field, nesting)
 		result += ";\n"
 		return result
-		
+
 	static func message_to_string(data, nesting : int = 0) -> String:
 		var DEFAULT_VALUES
 		if PROTO_VERSION == 2:
@@ -675,44 +675,44 @@ class PBPacker:
 class KeyboardMouseControl:
 	func _init():
 		var service
-		
+
 		__mouse_x = PBField.new("mouse_x", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __mouse_x
 		data[__mouse_x.tag] = service
-		
+
 		__mouse_y = PBField.new("mouse_y", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __mouse_y
 		data[__mouse_y.tag] = service
-		
+
 		__mouse_z = PBField.new("mouse_z", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __mouse_z
 		data[__mouse_z.tag] = service
-		
+
 		__left_button_down = PBField.new("left_button_down", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __left_button_down
 		data[__left_button_down.tag] = service
-		
+
 		__right_button_down = PBField.new("right_button_down", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __right_button_down
 		data[__right_button_down.tag] = service
-		
+
 		__keyboard_value = PBField.new("keyboard_value", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __keyboard_value
 		data[__keyboard_value.tag] = service
-		
+
 		__mid_button_down = PBField.new("mid_button_down", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __mid_button_down
 		data[__mid_button_down.tag] = service
-		
+
 	var data = {}
-	
+
 	var __mouse_x: PBField
 	func has_mouse_x() -> bool:
 		if __mouse_x.value != null:
@@ -725,7 +725,7 @@ class KeyboardMouseControl:
 		__mouse_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_mouse_x(value : int) -> void:
 		__mouse_x.value = value
-	
+
 	var __mouse_y: PBField
 	func has_mouse_y() -> bool:
 		if __mouse_y.value != null:
@@ -738,7 +738,7 @@ class KeyboardMouseControl:
 		__mouse_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_mouse_y(value : int) -> void:
 		__mouse_y.value = value
-	
+
 	var __mouse_z: PBField
 	func has_mouse_z() -> bool:
 		if __mouse_z.value != null:
@@ -751,7 +751,7 @@ class KeyboardMouseControl:
 		__mouse_z.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_mouse_z(value : int) -> void:
 		__mouse_z.value = value
-	
+
 	var __left_button_down: PBField
 	func has_left_button_down() -> bool:
 		if __left_button_down.value != null:
@@ -764,7 +764,7 @@ class KeyboardMouseControl:
 		__left_button_down.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_left_button_down(value : bool) -> void:
 		__left_button_down.value = value
-	
+
 	var __right_button_down: PBField
 	func has_right_button_down() -> bool:
 		if __right_button_down.value != null:
@@ -777,7 +777,7 @@ class KeyboardMouseControl:
 		__right_button_down.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_right_button_down(value : bool) -> void:
 		__right_button_down.value = value
-	
+
 	var __keyboard_value: PBField
 	func has_keyboard_value() -> bool:
 		if __keyboard_value.value != null:
@@ -790,7 +790,7 @@ class KeyboardMouseControl:
 		__keyboard_value.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_keyboard_value(value : int) -> void:
 		__keyboard_value.value = value
-	
+
 	var __mid_button_down: PBField
 	func has_mid_button_down() -> bool:
 		if __mid_button_down.value != null:
@@ -803,13 +803,13 @@ class KeyboardMouseControl:
 		__mid_button_down.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_mid_button_down(value : bool) -> void:
 		__mid_button_down.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -824,18 +824,18 @@ class KeyboardMouseControl:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class CustomControl:
 	func _init():
 		var service
-		
+
 		__data = PBField.new("data", PB_DATA_TYPE.BYTES, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES])
 		service = PBServiceField.new()
 		service.field = __data
 		data[__data.tag] = service
-		
+
 	var data = {}
-	
+
 	var __data: PBField
 	func has_data() -> bool:
 		if __data.value != null:
@@ -848,13 +848,13 @@ class CustomControl:
 		__data.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES]
 	func set_data(value : PackedByteArray) -> void:
 		__data.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -869,53 +869,53 @@ class CustomControl:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class GameStatus:
 	func _init():
 		var service
-		
+
 		__current_round = PBField.new("current_round", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __current_round
 		data[__current_round.tag] = service
-		
+
 		__total_rounds = PBField.new("total_rounds", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __total_rounds
 		data[__total_rounds.tag] = service
-		
+
 		__red_score = PBField.new("red_score", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __red_score
 		data[__red_score.tag] = service
-		
+
 		__blue_score = PBField.new("blue_score", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __blue_score
 		data[__blue_score.tag] = service
-		
+
 		__current_stage = PBField.new("current_stage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __current_stage
 		data[__current_stage.tag] = service
-		
+
 		__stage_countdown_sec = PBField.new("stage_countdown_sec", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __stage_countdown_sec
 		data[__stage_countdown_sec.tag] = service
-		
+
 		__stage_elapsed_sec = PBField.new("stage_elapsed_sec", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __stage_elapsed_sec
 		data[__stage_elapsed_sec.tag] = service
-		
+
 		__is_paused = PBField.new("is_paused", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __is_paused
 		data[__is_paused.tag] = service
-		
+
 	var data = {}
-	
+
 	var __current_round: PBField
 	func has_current_round() -> bool:
 		if __current_round.value != null:
@@ -928,7 +928,7 @@ class GameStatus:
 		__current_round.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_current_round(value : int) -> void:
 		__current_round.value = value
-	
+
 	var __total_rounds: PBField
 	func has_total_rounds() -> bool:
 		if __total_rounds.value != null:
@@ -941,7 +941,7 @@ class GameStatus:
 		__total_rounds.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_total_rounds(value : int) -> void:
 		__total_rounds.value = value
-	
+
 	var __red_score: PBField
 	func has_red_score() -> bool:
 		if __red_score.value != null:
@@ -954,7 +954,7 @@ class GameStatus:
 		__red_score.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_red_score(value : int) -> void:
 		__red_score.value = value
-	
+
 	var __blue_score: PBField
 	func has_blue_score() -> bool:
 		if __blue_score.value != null:
@@ -967,7 +967,7 @@ class GameStatus:
 		__blue_score.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_blue_score(value : int) -> void:
 		__blue_score.value = value
-	
+
 	var __current_stage: PBField
 	func has_current_stage() -> bool:
 		if __current_stage.value != null:
@@ -980,7 +980,7 @@ class GameStatus:
 		__current_stage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_current_stage(value : int) -> void:
 		__current_stage.value = value
-	
+
 	var __stage_countdown_sec: PBField
 	func has_stage_countdown_sec() -> bool:
 		if __stage_countdown_sec.value != null:
@@ -993,7 +993,7 @@ class GameStatus:
 		__stage_countdown_sec.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_stage_countdown_sec(value : int) -> void:
 		__stage_countdown_sec.value = value
-	
+
 	var __stage_elapsed_sec: PBField
 	func has_stage_elapsed_sec() -> bool:
 		if __stage_elapsed_sec.value != null:
@@ -1006,7 +1006,7 @@ class GameStatus:
 		__stage_elapsed_sec.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_stage_elapsed_sec(value : int) -> void:
 		__stage_elapsed_sec.value = value
-	
+
 	var __is_paused: PBField
 	func has_is_paused() -> bool:
 		if __is_paused.value != null:
@@ -1019,13 +1019,13 @@ class GameStatus:
 		__is_paused.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_is_paused(value : bool) -> void:
 		__is_paused.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1040,85 +1040,85 @@ class GameStatus:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class GlobalUnitStatus:
 	func _init():
 		var service
-		
+
 		__base_health = PBField.new("base_health", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __base_health
 		data[__base_health.tag] = service
-		
+
 		__base_status = PBField.new("base_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __base_status
 		data[__base_status.tag] = service
-		
+
 		__base_shield = PBField.new("base_shield", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __base_shield
 		data[__base_shield.tag] = service
-		
+
 		__outpost_health = PBField.new("outpost_health", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __outpost_health
 		data[__outpost_health.tag] = service
-		
+
 		__outpost_status = PBField.new("outpost_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __outpost_status
 		data[__outpost_status.tag] = service
-		
+
 		__enemy_base_health = PBField.new("enemy_base_health", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_base_health
 		data[__enemy_base_health.tag] = service
-		
+
 		__enemy_base_status = PBField.new("enemy_base_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_base_status
 		data[__enemy_base_status.tag] = service
-		
+
 		__enemy_base_shield = PBField.new("enemy_base_shield", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_base_shield
 		data[__enemy_base_shield.tag] = service
-		
+
 		__enemy_outpost_health = PBField.new("enemy_outpost_health", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_outpost_health
 		data[__enemy_outpost_health.tag] = service
-		
+
 		__enemy_outpost_status = PBField.new("enemy_outpost_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_outpost_status
 		data[__enemy_outpost_status.tag] = service
-		
+
 		var __robot_health_default: Array[int] = []
 		__robot_health = PBField.new("robot_health", PB_DATA_TYPE.UINT32, PB_RULE.REPEATED, 11, true, __robot_health_default)
 		service = PBServiceField.new()
 		service.field = __robot_health
 		data[__robot_health.tag] = service
-		
+
 		var __robot_bullets_default: Array[int] = []
 		__robot_bullets = PBField.new("robot_bullets", PB_DATA_TYPE.INT32, PB_RULE.REPEATED, 12, true, __robot_bullets_default)
 		service = PBServiceField.new()
 		service.field = __robot_bullets
 		data[__robot_bullets.tag] = service
-		
+
 		__total_damage_ally = PBField.new("total_damage_ally", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 13, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __total_damage_ally
 		data[__total_damage_ally.tag] = service
-		
+
 		__total_damage_enemy = PBField.new("total_damage_enemy", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 14, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __total_damage_enemy
 		data[__total_damage_enemy.tag] = service
-		
+
 	var data = {}
-	
+
 	var __base_health: PBField
 	func has_base_health() -> bool:
 		if __base_health.value != null:
@@ -1131,7 +1131,7 @@ class GlobalUnitStatus:
 		__base_health.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_base_health(value : int) -> void:
 		__base_health.value = value
-	
+
 	var __base_status: PBField
 	func has_base_status() -> bool:
 		if __base_status.value != null:
@@ -1144,7 +1144,7 @@ class GlobalUnitStatus:
 		__base_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_base_status(value : int) -> void:
 		__base_status.value = value
-	
+
 	var __base_shield: PBField
 	func has_base_shield() -> bool:
 		if __base_shield.value != null:
@@ -1157,7 +1157,7 @@ class GlobalUnitStatus:
 		__base_shield.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_base_shield(value : int) -> void:
 		__base_shield.value = value
-	
+
 	var __outpost_health: PBField
 	func has_outpost_health() -> bool:
 		if __outpost_health.value != null:
@@ -1170,7 +1170,7 @@ class GlobalUnitStatus:
 		__outpost_health.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_outpost_health(value : int) -> void:
 		__outpost_health.value = value
-	
+
 	var __outpost_status: PBField
 	func has_outpost_status() -> bool:
 		if __outpost_status.value != null:
@@ -1183,7 +1183,7 @@ class GlobalUnitStatus:
 		__outpost_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_outpost_status(value : int) -> void:
 		__outpost_status.value = value
-	
+
 	var __enemy_base_health: PBField
 	func has_enemy_base_health() -> bool:
 		if __enemy_base_health.value != null:
@@ -1196,7 +1196,7 @@ class GlobalUnitStatus:
 		__enemy_base_health.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_base_health(value : int) -> void:
 		__enemy_base_health.value = value
-	
+
 	var __enemy_base_status: PBField
 	func has_enemy_base_status() -> bool:
 		if __enemy_base_status.value != null:
@@ -1209,7 +1209,7 @@ class GlobalUnitStatus:
 		__enemy_base_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_base_status(value : int) -> void:
 		__enemy_base_status.value = value
-	
+
 	var __enemy_base_shield: PBField
 	func has_enemy_base_shield() -> bool:
 		if __enemy_base_shield.value != null:
@@ -1222,7 +1222,7 @@ class GlobalUnitStatus:
 		__enemy_base_shield.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_base_shield(value : int) -> void:
 		__enemy_base_shield.value = value
-	
+
 	var __enemy_outpost_health: PBField
 	func has_enemy_outpost_health() -> bool:
 		if __enemy_outpost_health.value != null:
@@ -1235,7 +1235,7 @@ class GlobalUnitStatus:
 		__enemy_outpost_health.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_outpost_health(value : int) -> void:
 		__enemy_outpost_health.value = value
-	
+
 	var __enemy_outpost_status: PBField
 	func has_enemy_outpost_status() -> bool:
 		if __enemy_outpost_status.value != null:
@@ -1248,7 +1248,7 @@ class GlobalUnitStatus:
 		__enemy_outpost_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_outpost_status(value : int) -> void:
 		__enemy_outpost_status.value = value
-	
+
 	var __robot_health: PBField
 	func get_robot_health() -> Array[int]:
 		return __robot_health.value
@@ -1257,7 +1257,7 @@ class GlobalUnitStatus:
 		__robot_health.value.clear()
 	func add_robot_health(value : int) -> void:
 		__robot_health.value.append(value)
-	
+
 	var __robot_bullets: PBField
 	func get_robot_bullets() -> Array[int]:
 		return __robot_bullets.value
@@ -1266,7 +1266,7 @@ class GlobalUnitStatus:
 		__robot_bullets.value.clear()
 	func add_robot_bullets(value : int) -> void:
 		__robot_bullets.value.append(value)
-	
+
 	var __total_damage_ally: PBField
 	func has_total_damage_ally() -> bool:
 		if __total_damage_ally.value != null:
@@ -1279,7 +1279,7 @@ class GlobalUnitStatus:
 		__total_damage_ally.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_total_damage_ally(value : int) -> void:
 		__total_damage_ally.value = value
-	
+
 	var __total_damage_enemy: PBField
 	func has_total_damage_enemy() -> bool:
 		if __total_damage_enemy.value != null:
@@ -1292,13 +1292,13 @@ class GlobalUnitStatus:
 		__total_damage_enemy.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_total_damage_enemy(value : int) -> void:
 		__total_damage_enemy.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1313,33 +1313,33 @@ class GlobalUnitStatus:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class GlobalLogisticsStatus:
 	func _init():
 		var service
-		
+
 		__remaining_economy = PBField.new("remaining_economy", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __remaining_economy
 		data[__remaining_economy.tag] = service
-		
+
 		__total_economy_obtained = PBField.new("total_economy_obtained", PB_DATA_TYPE.UINT64, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT64])
 		service = PBServiceField.new()
 		service.field = __total_economy_obtained
 		data[__total_economy_obtained.tag] = service
-		
+
 		__tech_level = PBField.new("tech_level", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __tech_level
 		data[__tech_level.tag] = service
-		
+
 		__encryption_level = PBField.new("encryption_level", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __encryption_level
 		data[__encryption_level.tag] = service
-		
+
 	var data = {}
-	
+
 	var __remaining_economy: PBField
 	func has_remaining_economy() -> bool:
 		if __remaining_economy.value != null:
@@ -1352,7 +1352,7 @@ class GlobalLogisticsStatus:
 		__remaining_economy.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remaining_economy(value : int) -> void:
 		__remaining_economy.value = value
-	
+
 	var __total_economy_obtained: PBField
 	func has_total_economy_obtained() -> bool:
 		if __total_economy_obtained.value != null:
@@ -1365,7 +1365,7 @@ class GlobalLogisticsStatus:
 		__total_economy_obtained.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT64]
 	func set_total_economy_obtained(value : int) -> void:
 		__total_economy_obtained.value = value
-	
+
 	var __tech_level: PBField
 	func has_tech_level() -> bool:
 		if __tech_level.value != null:
@@ -1378,7 +1378,7 @@ class GlobalLogisticsStatus:
 		__tech_level.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_tech_level(value : int) -> void:
 		__tech_level.value = value
-	
+
 	var __encryption_level: PBField
 	func has_encryption_level() -> bool:
 		if __encryption_level.value != null:
@@ -1391,13 +1391,13 @@ class GlobalLogisticsStatus:
 		__encryption_level.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_encryption_level(value : int) -> void:
 		__encryption_level.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1412,25 +1412,25 @@ class GlobalLogisticsStatus:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class GlobalSpecialMechanism:
 	func _init():
 		var service
-		
+
 		var __mechanism_id_default: Array[int] = []
 		__mechanism_id = PBField.new("mechanism_id", PB_DATA_TYPE.UINT32, PB_RULE.REPEATED, 1, true, __mechanism_id_default)
 		service = PBServiceField.new()
 		service.field = __mechanism_id
 		data[__mechanism_id.tag] = service
-		
+
 		var __mechanism_time_sec_default: Array[int] = []
 		__mechanism_time_sec = PBField.new("mechanism_time_sec", PB_DATA_TYPE.INT32, PB_RULE.REPEATED, 2, true, __mechanism_time_sec_default)
 		service = PBServiceField.new()
 		service.field = __mechanism_time_sec
 		data[__mechanism_time_sec.tag] = service
-		
+
 	var data = {}
-	
+
 	var __mechanism_id: PBField
 	func get_mechanism_id() -> Array[int]:
 		return __mechanism_id.value
@@ -1439,7 +1439,7 @@ class GlobalSpecialMechanism:
 		__mechanism_id.value.clear()
 	func add_mechanism_id(value : int) -> void:
 		__mechanism_id.value.append(value)
-	
+
 	var __mechanism_time_sec: PBField
 	func get_mechanism_time_sec() -> Array[int]:
 		return __mechanism_time_sec.value
@@ -1448,13 +1448,13 @@ class GlobalSpecialMechanism:
 		__mechanism_time_sec.value.clear()
 	func add_mechanism_time_sec(value : int) -> void:
 		__mechanism_time_sec.value.append(value)
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1469,23 +1469,23 @@ class GlobalSpecialMechanism:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class Event:
 	func _init():
 		var service
-		
+
 		__event_id = PBField.new("event_id", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __event_id
 		data[__event_id.tag] = service
-		
+
 		__param = PBField.new("param", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
 		service = PBServiceField.new()
 		service.field = __param
 		data[__param.tag] = service
-		
+
 	var data = {}
-	
+
 	var __event_id: PBField
 	func has_event_id() -> bool:
 		if __event_id.value != null:
@@ -1498,7 +1498,7 @@ class Event:
 		__event_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_event_id(value : int) -> void:
 		__event_id.value = value
-	
+
 	var __param: PBField
 	func has_param() -> bool:
 		if __param.value != null:
@@ -1511,13 +1511,13 @@ class Event:
 		__param.value = DEFAULT_VALUES_3[PB_DATA_TYPE.STRING]
 	func set_param(value : String) -> void:
 		__param.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1532,63 +1532,63 @@ class Event:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotInjuryStat:
 	func _init():
 		var service
-		
+
 		__total_damage = PBField.new("total_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __total_damage
 		data[__total_damage.tag] = service
-		
+
 		__collision_damage = PBField.new("collision_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __collision_damage
 		data[__collision_damage.tag] = service
-		
+
 		__small_projectile_damage = PBField.new("small_projectile_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __small_projectile_damage
 		data[__small_projectile_damage.tag] = service
-		
+
 		__large_projectile_damage = PBField.new("large_projectile_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __large_projectile_damage
 		data[__large_projectile_damage.tag] = service
-		
+
 		__dart_splash_damage = PBField.new("dart_splash_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __dart_splash_damage
 		data[__dart_splash_damage.tag] = service
-		
+
 		__module_offline_damage = PBField.new("module_offline_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __module_offline_damage
 		data[__module_offline_damage.tag] = service
-		
+
 		__offline_damage = PBField.new("offline_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __offline_damage
 		data[__offline_damage.tag] = service
-		
+
 		__penalty_damage = PBField.new("penalty_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __penalty_damage
 		data[__penalty_damage.tag] = service
-		
+
 		__server_kill_damage = PBField.new("server_kill_damage", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __server_kill_damage
 		data[__server_kill_damage.tag] = service
-		
+
 		__killer_id = PBField.new("killer_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __killer_id
 		data[__killer_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __total_damage: PBField
 	func has_total_damage() -> bool:
 		if __total_damage.value != null:
@@ -1601,7 +1601,7 @@ class RobotInjuryStat:
 		__total_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_total_damage(value : int) -> void:
 		__total_damage.value = value
-	
+
 	var __collision_damage: PBField
 	func has_collision_damage() -> bool:
 		if __collision_damage.value != null:
@@ -1614,7 +1614,7 @@ class RobotInjuryStat:
 		__collision_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_collision_damage(value : int) -> void:
 		__collision_damage.value = value
-	
+
 	var __small_projectile_damage: PBField
 	func has_small_projectile_damage() -> bool:
 		if __small_projectile_damage.value != null:
@@ -1627,7 +1627,7 @@ class RobotInjuryStat:
 		__small_projectile_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_small_projectile_damage(value : int) -> void:
 		__small_projectile_damage.value = value
-	
+
 	var __large_projectile_damage: PBField
 	func has_large_projectile_damage() -> bool:
 		if __large_projectile_damage.value != null:
@@ -1640,7 +1640,7 @@ class RobotInjuryStat:
 		__large_projectile_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_large_projectile_damage(value : int) -> void:
 		__large_projectile_damage.value = value
-	
+
 	var __dart_splash_damage: PBField
 	func has_dart_splash_damage() -> bool:
 		if __dart_splash_damage.value != null:
@@ -1653,7 +1653,7 @@ class RobotInjuryStat:
 		__dart_splash_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_dart_splash_damage(value : int) -> void:
 		__dart_splash_damage.value = value
-	
+
 	var __module_offline_damage: PBField
 	func has_module_offline_damage() -> bool:
 		if __module_offline_damage.value != null:
@@ -1666,7 +1666,7 @@ class RobotInjuryStat:
 		__module_offline_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_module_offline_damage(value : int) -> void:
 		__module_offline_damage.value = value
-	
+
 	var __offline_damage: PBField
 	func has_offline_damage() -> bool:
 		if __offline_damage.value != null:
@@ -1679,7 +1679,7 @@ class RobotInjuryStat:
 		__offline_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_offline_damage(value : int) -> void:
 		__offline_damage.value = value
-	
+
 	var __penalty_damage: PBField
 	func has_penalty_damage() -> bool:
 		if __penalty_damage.value != null:
@@ -1692,7 +1692,7 @@ class RobotInjuryStat:
 		__penalty_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_penalty_damage(value : int) -> void:
 		__penalty_damage.value = value
-	
+
 	var __server_kill_damage: PBField
 	func has_server_kill_damage() -> bool:
 		if __server_kill_damage.value != null:
@@ -1705,7 +1705,7 @@ class RobotInjuryStat:
 		__server_kill_damage.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_server_kill_damage(value : int) -> void:
 		__server_kill_damage.value = value
-	
+
 	var __killer_id: PBField
 	func has_killer_id() -> bool:
 		if __killer_id.value != null:
@@ -1718,13 +1718,13 @@ class RobotInjuryStat:
 		__killer_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_killer_id(value : int) -> void:
 		__killer_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1739,43 +1739,43 @@ class RobotInjuryStat:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotRespawnStatus:
 	func _init():
 		var service
-		
+
 		__is_pending_respawn = PBField.new("is_pending_respawn", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __is_pending_respawn
 		data[__is_pending_respawn.tag] = service
-		
+
 		__total_respawn_progress = PBField.new("total_respawn_progress", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __total_respawn_progress
 		data[__total_respawn_progress.tag] = service
-		
+
 		__current_respawn_progress = PBField.new("current_respawn_progress", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __current_respawn_progress
 		data[__current_respawn_progress.tag] = service
-		
+
 		__can_free_respawn = PBField.new("can_free_respawn", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __can_free_respawn
 		data[__can_free_respawn.tag] = service
-		
+
 		__gold_cost_for_respawn = PBField.new("gold_cost_for_respawn", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __gold_cost_for_respawn
 		data[__gold_cost_for_respawn.tag] = service
-		
+
 		__can_pay_for_respawn = PBField.new("can_pay_for_respawn", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __can_pay_for_respawn
 		data[__can_pay_for_respawn.tag] = service
-		
+
 	var data = {}
-	
+
 	var __is_pending_respawn: PBField
 	func has_is_pending_respawn() -> bool:
 		if __is_pending_respawn.value != null:
@@ -1788,7 +1788,7 @@ class RobotRespawnStatus:
 		__is_pending_respawn.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_is_pending_respawn(value : bool) -> void:
 		__is_pending_respawn.value = value
-	
+
 	var __total_respawn_progress: PBField
 	func has_total_respawn_progress() -> bool:
 		if __total_respawn_progress.value != null:
@@ -1801,7 +1801,7 @@ class RobotRespawnStatus:
 		__total_respawn_progress.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_total_respawn_progress(value : int) -> void:
 		__total_respawn_progress.value = value
-	
+
 	var __current_respawn_progress: PBField
 	func has_current_respawn_progress() -> bool:
 		if __current_respawn_progress.value != null:
@@ -1814,7 +1814,7 @@ class RobotRespawnStatus:
 		__current_respawn_progress.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_current_respawn_progress(value : int) -> void:
 		__current_respawn_progress.value = value
-	
+
 	var __can_free_respawn: PBField
 	func has_can_free_respawn() -> bool:
 		if __can_free_respawn.value != null:
@@ -1827,7 +1827,7 @@ class RobotRespawnStatus:
 		__can_free_respawn.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_can_free_respawn(value : bool) -> void:
 		__can_free_respawn.value = value
-	
+
 	var __gold_cost_for_respawn: PBField
 	func has_gold_cost_for_respawn() -> bool:
 		if __gold_cost_for_respawn.value != null:
@@ -1840,7 +1840,7 @@ class RobotRespawnStatus:
 		__gold_cost_for_respawn.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_gold_cost_for_respawn(value : int) -> void:
 		__gold_cost_for_respawn.value = value
-	
+
 	var __can_pay_for_respawn: PBField
 	func has_can_pay_for_respawn() -> bool:
 		if __can_pay_for_respawn.value != null:
@@ -1853,13 +1853,13 @@ class RobotRespawnStatus:
 		__can_pay_for_respawn.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_can_pay_for_respawn(value : bool) -> void:
 		__can_pay_for_respawn.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -1874,83 +1874,83 @@ class RobotRespawnStatus:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotStaticStatus:
 	func _init():
 		var service
-		
+
 		__connection_state = PBField.new("connection_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __connection_state
 		data[__connection_state.tag] = service
-		
+
 		__field_state = PBField.new("field_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __field_state
 		data[__field_state.tag] = service
-		
+
 		__alive_state = PBField.new("alive_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __alive_state
 		data[__alive_state.tag] = service
-		
+
 		__robot_id = PBField.new("robot_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __robot_id
 		data[__robot_id.tag] = service
-		
+
 		__robot_type = PBField.new("robot_type", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __robot_type
 		data[__robot_type.tag] = service
-		
+
 		__performance_system_shooter = PBField.new("performance_system_shooter", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __performance_system_shooter
 		data[__performance_system_shooter.tag] = service
-		
+
 		__performance_system_chassis = PBField.new("performance_system_chassis", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __performance_system_chassis
 		data[__performance_system_chassis.tag] = service
-		
+
 		__level = PBField.new("level", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __level
 		data[__level.tag] = service
-		
+
 		__max_health = PBField.new("max_health", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __max_health
 		data[__max_health.tag] = service
-		
+
 		__max_heat = PBField.new("max_heat", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __max_heat
 		data[__max_heat.tag] = service
-		
+
 		__heat_cooldown_rate = PBField.new("heat_cooldown_rate", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 11, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __heat_cooldown_rate
 		data[__heat_cooldown_rate.tag] = service
-		
+
 		__max_power = PBField.new("max_power", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 12, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __max_power
 		data[__max_power.tag] = service
-		
+
 		__max_buffer_energy = PBField.new("max_buffer_energy", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 13, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __max_buffer_energy
 		data[__max_buffer_energy.tag] = service
-		
+
 		__max_chassis_energy = PBField.new("max_chassis_energy", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 14, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __max_chassis_energy
 		data[__max_chassis_energy.tag] = service
-		
+
 	var data = {}
-	
+
 	var __connection_state: PBField
 	func has_connection_state() -> bool:
 		if __connection_state.value != null:
@@ -1963,7 +1963,7 @@ class RobotStaticStatus:
 		__connection_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_connection_state(value : int) -> void:
 		__connection_state.value = value
-	
+
 	var __field_state: PBField
 	func has_field_state() -> bool:
 		if __field_state.value != null:
@@ -1976,7 +1976,7 @@ class RobotStaticStatus:
 		__field_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_field_state(value : int) -> void:
 		__field_state.value = value
-	
+
 	var __alive_state: PBField
 	func has_alive_state() -> bool:
 		if __alive_state.value != null:
@@ -1989,7 +1989,7 @@ class RobotStaticStatus:
 		__alive_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_alive_state(value : int) -> void:
 		__alive_state.value = value
-	
+
 	var __robot_id: PBField
 	func has_robot_id() -> bool:
 		if __robot_id.value != null:
@@ -2002,7 +2002,7 @@ class RobotStaticStatus:
 		__robot_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_robot_id(value : int) -> void:
 		__robot_id.value = value
-	
+
 	var __robot_type: PBField
 	func has_robot_type() -> bool:
 		if __robot_type.value != null:
@@ -2015,7 +2015,7 @@ class RobotStaticStatus:
 		__robot_type.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_robot_type(value : int) -> void:
 		__robot_type.value = value
-	
+
 	var __performance_system_shooter: PBField
 	func has_performance_system_shooter() -> bool:
 		if __performance_system_shooter.value != null:
@@ -2028,7 +2028,7 @@ class RobotStaticStatus:
 		__performance_system_shooter.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_performance_system_shooter(value : int) -> void:
 		__performance_system_shooter.value = value
-	
+
 	var __performance_system_chassis: PBField
 	func has_performance_system_chassis() -> bool:
 		if __performance_system_chassis.value != null:
@@ -2041,7 +2041,7 @@ class RobotStaticStatus:
 		__performance_system_chassis.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_performance_system_chassis(value : int) -> void:
 		__performance_system_chassis.value = value
-	
+
 	var __level: PBField
 	func has_level() -> bool:
 		if __level.value != null:
@@ -2054,7 +2054,7 @@ class RobotStaticStatus:
 		__level.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_level(value : int) -> void:
 		__level.value = value
-	
+
 	var __max_health: PBField
 	func has_max_health() -> bool:
 		if __max_health.value != null:
@@ -2067,7 +2067,7 @@ class RobotStaticStatus:
 		__max_health.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_max_health(value : int) -> void:
 		__max_health.value = value
-	
+
 	var __max_heat: PBField
 	func has_max_heat() -> bool:
 		if __max_heat.value != null:
@@ -2080,7 +2080,7 @@ class RobotStaticStatus:
 		__max_heat.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_max_heat(value : int) -> void:
 		__max_heat.value = value
-	
+
 	var __heat_cooldown_rate: PBField
 	func has_heat_cooldown_rate() -> bool:
 		if __heat_cooldown_rate.value != null:
@@ -2093,7 +2093,7 @@ class RobotStaticStatus:
 		__heat_cooldown_rate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_heat_cooldown_rate(value : float) -> void:
 		__heat_cooldown_rate.value = value
-	
+
 	var __max_power: PBField
 	func has_max_power() -> bool:
 		if __max_power.value != null:
@@ -2106,7 +2106,7 @@ class RobotStaticStatus:
 		__max_power.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_max_power(value : int) -> void:
 		__max_power.value = value
-	
+
 	var __max_buffer_energy: PBField
 	func has_max_buffer_energy() -> bool:
 		if __max_buffer_energy.value != null:
@@ -2119,7 +2119,7 @@ class RobotStaticStatus:
 		__max_buffer_energy.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_max_buffer_energy(value : int) -> void:
 		__max_buffer_energy.value = value
-	
+
 	var __max_chassis_energy: PBField
 	func has_max_chassis_energy() -> bool:
 		if __max_chassis_energy.value != null:
@@ -2132,13 +2132,13 @@ class RobotStaticStatus:
 		__max_chassis_energy.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_max_chassis_energy(value : int) -> void:
 		__max_chassis_energy.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2153,78 +2153,78 @@ class RobotStaticStatus:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotDynamicStatus:
 	func _init():
 		var service
-		
+
 		__current_health = PBField.new("current_health", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __current_health
 		data[__current_health.tag] = service
-		
+
 		__current_heat = PBField.new("current_heat", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __current_heat
 		data[__current_heat.tag] = service
-		
+
 		__last_projectile_fire_rate = PBField.new("last_projectile_fire_rate", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __last_projectile_fire_rate
 		data[__last_projectile_fire_rate.tag] = service
-		
+
 		__current_chassis_energy = PBField.new("current_chassis_energy", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __current_chassis_energy
 		data[__current_chassis_energy.tag] = service
-		
+
 		__current_buffer_energy = PBField.new("current_buffer_energy", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __current_buffer_energy
 		data[__current_buffer_energy.tag] = service
-		
+
 		__current_experience = PBField.new("current_experience", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __current_experience
 		data[__current_experience.tag] = service
-		
+
 		__experience_for_upgrade = PBField.new("experience_for_upgrade", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __experience_for_upgrade
 		data[__experience_for_upgrade.tag] = service
-		
+
 		__total_projectiles_fired = PBField.new("total_projectiles_fired", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __total_projectiles_fired
 		data[__total_projectiles_fired.tag] = service
-		
+
 		__remaining_ammo = PBField.new("remaining_ammo", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __remaining_ammo
 		data[__remaining_ammo.tag] = service
-		
+
 		__is_out_of_combat = PBField.new("is_out_of_combat", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __is_out_of_combat
 		data[__is_out_of_combat.tag] = service
-		
+
 		__out_of_combat_countdown = PBField.new("out_of_combat_countdown", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 11, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __out_of_combat_countdown
 		data[__out_of_combat_countdown.tag] = service
-		
+
 		__can_remote_heal = PBField.new("can_remote_heal", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 12, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __can_remote_heal
 		data[__can_remote_heal.tag] = service
-		
+
 		__can_remote_ammo = PBField.new("can_remote_ammo", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 13, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __can_remote_ammo
 		data[__can_remote_ammo.tag] = service
-		
+
 	var data = {}
-	
+
 	var __current_health: PBField
 	func has_current_health() -> bool:
 		if __current_health.value != null:
@@ -2237,7 +2237,7 @@ class RobotDynamicStatus:
 		__current_health.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_current_health(value : int) -> void:
 		__current_health.value = value
-	
+
 	var __current_heat: PBField
 	func has_current_heat() -> bool:
 		if __current_heat.value != null:
@@ -2250,7 +2250,7 @@ class RobotDynamicStatus:
 		__current_heat.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_current_heat(value : float) -> void:
 		__current_heat.value = value
-	
+
 	var __last_projectile_fire_rate: PBField
 	func has_last_projectile_fire_rate() -> bool:
 		if __last_projectile_fire_rate.value != null:
@@ -2263,7 +2263,7 @@ class RobotDynamicStatus:
 		__last_projectile_fire_rate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_last_projectile_fire_rate(value : float) -> void:
 		__last_projectile_fire_rate.value = value
-	
+
 	var __current_chassis_energy: PBField
 	func has_current_chassis_energy() -> bool:
 		if __current_chassis_energy.value != null:
@@ -2276,7 +2276,7 @@ class RobotDynamicStatus:
 		__current_chassis_energy.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_current_chassis_energy(value : int) -> void:
 		__current_chassis_energy.value = value
-	
+
 	var __current_buffer_energy: PBField
 	func has_current_buffer_energy() -> bool:
 		if __current_buffer_energy.value != null:
@@ -2289,7 +2289,7 @@ class RobotDynamicStatus:
 		__current_buffer_energy.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_current_buffer_energy(value : int) -> void:
 		__current_buffer_energy.value = value
-	
+
 	var __current_experience: PBField
 	func has_current_experience() -> bool:
 		if __current_experience.value != null:
@@ -2302,7 +2302,7 @@ class RobotDynamicStatus:
 		__current_experience.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_current_experience(value : int) -> void:
 		__current_experience.value = value
-	
+
 	var __experience_for_upgrade: PBField
 	func has_experience_for_upgrade() -> bool:
 		if __experience_for_upgrade.value != null:
@@ -2315,7 +2315,7 @@ class RobotDynamicStatus:
 		__experience_for_upgrade.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_experience_for_upgrade(value : int) -> void:
 		__experience_for_upgrade.value = value
-	
+
 	var __total_projectiles_fired: PBField
 	func has_total_projectiles_fired() -> bool:
 		if __total_projectiles_fired.value != null:
@@ -2328,7 +2328,7 @@ class RobotDynamicStatus:
 		__total_projectiles_fired.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_total_projectiles_fired(value : int) -> void:
 		__total_projectiles_fired.value = value
-	
+
 	var __remaining_ammo: PBField
 	func has_remaining_ammo() -> bool:
 		if __remaining_ammo.value != null:
@@ -2341,7 +2341,7 @@ class RobotDynamicStatus:
 		__remaining_ammo.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remaining_ammo(value : int) -> void:
 		__remaining_ammo.value = value
-	
+
 	var __is_out_of_combat: PBField
 	func has_is_out_of_combat() -> bool:
 		if __is_out_of_combat.value != null:
@@ -2354,7 +2354,7 @@ class RobotDynamicStatus:
 		__is_out_of_combat.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_is_out_of_combat(value : bool) -> void:
 		__is_out_of_combat.value = value
-	
+
 	var __out_of_combat_countdown: PBField
 	func has_out_of_combat_countdown() -> bool:
 		if __out_of_combat_countdown.value != null:
@@ -2367,7 +2367,7 @@ class RobotDynamicStatus:
 		__out_of_combat_countdown.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_out_of_combat_countdown(value : int) -> void:
 		__out_of_combat_countdown.value = value
-	
+
 	var __can_remote_heal: PBField
 	func has_can_remote_heal() -> bool:
 		if __can_remote_heal.value != null:
@@ -2380,7 +2380,7 @@ class RobotDynamicStatus:
 		__can_remote_heal.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_can_remote_heal(value : bool) -> void:
 		__can_remote_heal.value = value
-	
+
 	var __can_remote_ammo: PBField
 	func has_can_remote_ammo() -> bool:
 		if __can_remote_ammo.value != null:
@@ -2393,13 +2393,13 @@ class RobotDynamicStatus:
 		__can_remote_ammo.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_can_remote_ammo(value : bool) -> void:
 		__can_remote_ammo.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2414,68 +2414,68 @@ class RobotDynamicStatus:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotModuleStatus:
 	func _init():
 		var service
-		
+
 		__power_manager = PBField.new("power_manager", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __power_manager
 		data[__power_manager.tag] = service
-		
+
 		__rfid = PBField.new("rfid", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __rfid
 		data[__rfid.tag] = service
-		
+
 		__light_strip = PBField.new("light_strip", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __light_strip
 		data[__light_strip.tag] = service
-		
+
 		__small_shooter = PBField.new("small_shooter", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __small_shooter
 		data[__small_shooter.tag] = service
-		
+
 		__big_shooter = PBField.new("big_shooter", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __big_shooter
 		data[__big_shooter.tag] = service
-		
+
 		__uwb = PBField.new("uwb", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __uwb
 		data[__uwb.tag] = service
-		
+
 		__armor = PBField.new("armor", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __armor
 		data[__armor.tag] = service
-		
+
 		__video_transmission = PBField.new("video_transmission", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __video_transmission
 		data[__video_transmission.tag] = service
-		
+
 		__capacitor = PBField.new("capacitor", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __capacitor
 		data[__capacitor.tag] = service
-		
+
 		__main_controller = PBField.new("main_controller", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __main_controller
 		data[__main_controller.tag] = service
-		
+
 		__laser_detection_module = PBField.new("laser_detection_module", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 11, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __laser_detection_module
 		data[__laser_detection_module.tag] = service
-		
+
 	var data = {}
-	
+
 	var __power_manager: PBField
 	func has_power_manager() -> bool:
 		if __power_manager.value != null:
@@ -2488,7 +2488,7 @@ class RobotModuleStatus:
 		__power_manager.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_power_manager(value : int) -> void:
 		__power_manager.value = value
-	
+
 	var __rfid: PBField
 	func has_rfid() -> bool:
 		if __rfid.value != null:
@@ -2501,7 +2501,7 @@ class RobotModuleStatus:
 		__rfid.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_rfid(value : int) -> void:
 		__rfid.value = value
-	
+
 	var __light_strip: PBField
 	func has_light_strip() -> bool:
 		if __light_strip.value != null:
@@ -2514,7 +2514,7 @@ class RobotModuleStatus:
 		__light_strip.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_light_strip(value : int) -> void:
 		__light_strip.value = value
-	
+
 	var __small_shooter: PBField
 	func has_small_shooter() -> bool:
 		if __small_shooter.value != null:
@@ -2527,7 +2527,7 @@ class RobotModuleStatus:
 		__small_shooter.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_small_shooter(value : int) -> void:
 		__small_shooter.value = value
-	
+
 	var __big_shooter: PBField
 	func has_big_shooter() -> bool:
 		if __big_shooter.value != null:
@@ -2540,7 +2540,7 @@ class RobotModuleStatus:
 		__big_shooter.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_big_shooter(value : int) -> void:
 		__big_shooter.value = value
-	
+
 	var __uwb: PBField
 	func has_uwb() -> bool:
 		if __uwb.value != null:
@@ -2553,7 +2553,7 @@ class RobotModuleStatus:
 		__uwb.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_uwb(value : int) -> void:
 		__uwb.value = value
-	
+
 	var __armor: PBField
 	func has_armor() -> bool:
 		if __armor.value != null:
@@ -2566,7 +2566,7 @@ class RobotModuleStatus:
 		__armor.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_armor(value : int) -> void:
 		__armor.value = value
-	
+
 	var __video_transmission: PBField
 	func has_video_transmission() -> bool:
 		if __video_transmission.value != null:
@@ -2579,7 +2579,7 @@ class RobotModuleStatus:
 		__video_transmission.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_video_transmission(value : int) -> void:
 		__video_transmission.value = value
-	
+
 	var __capacitor: PBField
 	func has_capacitor() -> bool:
 		if __capacitor.value != null:
@@ -2592,7 +2592,7 @@ class RobotModuleStatus:
 		__capacitor.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_capacitor(value : int) -> void:
 		__capacitor.value = value
-	
+
 	var __main_controller: PBField
 	func has_main_controller() -> bool:
 		if __main_controller.value != null:
@@ -2605,7 +2605,7 @@ class RobotModuleStatus:
 		__main_controller.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_main_controller(value : int) -> void:
 		__main_controller.value = value
-	
+
 	var __laser_detection_module: PBField
 	func has_laser_detection_module() -> bool:
 		if __laser_detection_module.value != null:
@@ -2618,13 +2618,13 @@ class RobotModuleStatus:
 		__laser_detection_module.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_laser_detection_module(value : int) -> void:
 		__laser_detection_module.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2639,33 +2639,38 @@ class RobotModuleStatus:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotPosition:
 	func _init():
 		var service
-		
+
 		__x = PBField.new("x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __x
 		data[__x.tag] = service
-		
+
 		__y = PBField.new("y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __y
 		data[__y.tag] = service
-		
+
 		__z = PBField.new("z", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __z
 		data[__z.tag] = service
-		
+
 		__yaw = PBField.new("yaw", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __yaw
 		data[__yaw.tag] = service
-		
+
+		__robot_id = PBField.new("robot_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+		service = PBServiceField.new()
+		service.field = __robot_id
+		data[__robot_id.tag] = service
+
 	var data = {}
-	
+
 	var __x: PBField
 	func has_x() -> bool:
 		if __x.value != null:
@@ -2678,7 +2683,7 @@ class RobotPosition:
 		__x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_x(value : float) -> void:
 		__x.value = value
-	
+
 	var __y: PBField
 	func has_y() -> bool:
 		if __y.value != null:
@@ -2691,7 +2696,7 @@ class RobotPosition:
 		__y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_y(value : float) -> void:
 		__y.value = value
-	
+
 	var __z: PBField
 	func has_z() -> bool:
 		if __z.value != null:
@@ -2704,7 +2709,7 @@ class RobotPosition:
 		__z.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_z(value : float) -> void:
 		__z.value = value
-	
+
 	var __yaw: PBField
 	func has_yaw() -> bool:
 		if __yaw.value != null:
@@ -2717,13 +2722,26 @@ class RobotPosition:
 		__yaw.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_yaw(value : float) -> void:
 		__yaw.value = value
-	
+
+	var __robot_id: PBField
+	func has_robot_id() -> bool:
+		if __robot_id.value != null:
+			return true
+		return false
+	func get_robot_id() -> int:
+		return __robot_id.value
+	func clear_robot_id() -> void:
+		data[5].state = PB_SERVICE_STATE.UNFILLED
+		__robot_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_robot_id(value : int) -> void:
+		__robot_id.value = value
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2738,38 +2756,38 @@ class RobotPosition:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class Buff:
 	func _init():
 		var service
-		
+
 		__robot_id = PBField.new("robot_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __robot_id
 		data[__robot_id.tag] = service
-		
+
 		__buff_type = PBField.new("buff_type", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __buff_type
 		data[__buff_type.tag] = service
-		
+
 		__buff_level = PBField.new("buff_level", PB_DATA_TYPE.INT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT32])
 		service = PBServiceField.new()
 		service.field = __buff_level
 		data[__buff_level.tag] = service
-		
+
 		__buff_max_time = PBField.new("buff_max_time", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __buff_max_time
 		data[__buff_max_time.tag] = service
-		
+
 		__buff_left_time = PBField.new("buff_left_time", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __buff_left_time
 		data[__buff_left_time.tag] = service
-		
+
 	var data = {}
-	
+
 	var __robot_id: PBField
 	func has_robot_id() -> bool:
 		if __robot_id.value != null:
@@ -2782,7 +2800,7 @@ class Buff:
 		__robot_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_robot_id(value : int) -> void:
 		__robot_id.value = value
-	
+
 	var __buff_type: PBField
 	func has_buff_type() -> bool:
 		if __buff_type.value != null:
@@ -2795,7 +2813,7 @@ class Buff:
 		__buff_type.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_buff_type(value : int) -> void:
 		__buff_type.value = value
-	
+
 	var __buff_level: PBField
 	func has_buff_level() -> bool:
 		if __buff_level.value != null:
@@ -2808,7 +2826,7 @@ class Buff:
 		__buff_level.value = DEFAULT_VALUES_3[PB_DATA_TYPE.INT32]
 	func set_buff_level(value : int) -> void:
 		__buff_level.value = value
-	
+
 	var __buff_max_time: PBField
 	func has_buff_max_time() -> bool:
 		if __buff_max_time.value != null:
@@ -2821,7 +2839,7 @@ class Buff:
 		__buff_max_time.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_buff_max_time(value : int) -> void:
 		__buff_max_time.value = value
-	
+
 	var __buff_left_time: PBField
 	func has_buff_left_time() -> bool:
 		if __buff_left_time.value != null:
@@ -2834,13 +2852,13 @@ class Buff:
 		__buff_left_time.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_buff_left_time(value : int) -> void:
 		__buff_left_time.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2855,28 +2873,28 @@ class Buff:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class PenaltyInfo:
 	func _init():
 		var service
-		
+
 		__penalty_type = PBField.new("penalty_type", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __penalty_type
 		data[__penalty_type.tag] = service
-		
+
 		__penalty_effect_sec = PBField.new("penalty_effect_sec", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __penalty_effect_sec
 		data[__penalty_effect_sec.tag] = service
-		
+
 		__total_penalty_num = PBField.new("total_penalty_num", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __total_penalty_num
 		data[__total_penalty_num.tag] = service
-		
+
 	var data = {}
-	
+
 	var __penalty_type: PBField
 	func has_penalty_type() -> bool:
 		if __penalty_type.value != null:
@@ -2889,7 +2907,7 @@ class PenaltyInfo:
 		__penalty_type.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_penalty_type(value : int) -> void:
 		__penalty_type.value = value
-	
+
 	var __penalty_effect_sec: PBField
 	func has_penalty_effect_sec() -> bool:
 		if __penalty_effect_sec.value != null:
@@ -2902,7 +2920,7 @@ class PenaltyInfo:
 		__penalty_effect_sec.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_penalty_effect_sec(value : int) -> void:
 		__penalty_effect_sec.value = value
-	
+
 	var __total_penalty_num: PBField
 	func has_total_penalty_num() -> bool:
 		if __total_penalty_num.value != null:
@@ -2915,13 +2933,13 @@ class PenaltyInfo:
 		__total_penalty_num.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_total_penalty_num(value : int) -> void:
 		__total_penalty_num.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -2936,45 +2954,45 @@ class PenaltyInfo:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotPathPlanInfo:
 	func _init():
 		var service
-		
+
 		__intention = PBField.new("intention", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __intention
 		data[__intention.tag] = service
-		
+
 		__start_pos_x = PBField.new("start_pos_x", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __start_pos_x
 		data[__start_pos_x.tag] = service
-		
+
 		__start_pos_y = PBField.new("start_pos_y", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __start_pos_y
 		data[__start_pos_y.tag] = service
-		
+
 		var __offset_x_default: Array[int] = []
 		__offset_x = PBField.new("offset_x", PB_DATA_TYPE.INT32, PB_RULE.REPEATED, 4, true, __offset_x_default)
 		service = PBServiceField.new()
 		service.field = __offset_x
 		data[__offset_x.tag] = service
-		
+
 		var __offset_y_default: Array[int] = []
 		__offset_y = PBField.new("offset_y", PB_DATA_TYPE.INT32, PB_RULE.REPEATED, 5, true, __offset_y_default)
 		service = PBServiceField.new()
 		service.field = __offset_y
 		data[__offset_y.tag] = service
-		
+
 		__sender_id = PBField.new("sender_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __sender_id
 		data[__sender_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __intention: PBField
 	func has_intention() -> bool:
 		if __intention.value != null:
@@ -2987,7 +3005,7 @@ class RobotPathPlanInfo:
 		__intention.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_intention(value : int) -> void:
 		__intention.value = value
-	
+
 	var __start_pos_x: PBField
 	func has_start_pos_x() -> bool:
 		if __start_pos_x.value != null:
@@ -3000,7 +3018,7 @@ class RobotPathPlanInfo:
 		__start_pos_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_start_pos_x(value : int) -> void:
 		__start_pos_x.value = value
-	
+
 	var __start_pos_y: PBField
 	func has_start_pos_y() -> bool:
 		if __start_pos_y.value != null:
@@ -3013,7 +3031,7 @@ class RobotPathPlanInfo:
 		__start_pos_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_start_pos_y(value : int) -> void:
 		__start_pos_y.value = value
-	
+
 	var __offset_x: PBField
 	func get_offset_x() -> Array[int]:
 		return __offset_x.value
@@ -3022,7 +3040,7 @@ class RobotPathPlanInfo:
 		__offset_x.value.clear()
 	func add_offset_x(value : int) -> void:
 		__offset_x.value.append(value)
-	
+
 	var __offset_y: PBField
 	func get_offset_y() -> Array[int]:
 		return __offset_y.value
@@ -3031,7 +3049,7 @@ class RobotPathPlanInfo:
 		__offset_y.value.clear()
 	func add_offset_y(value : int) -> void:
 		__offset_y.value.append(value)
-	
+
 	var __sender_id: PBField
 	func has_sender_id() -> bool:
 		if __sender_id.value != null:
@@ -3044,13 +3062,13 @@ class RobotPathPlanInfo:
 		__sender_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_sender_id(value : int) -> void:
 		__sender_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3065,53 +3083,53 @@ class RobotPathPlanInfo:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
-class MapClickInfoNotify:
+
+class MapClickInfo:
 	func _init():
 		var service
-		
+
 		__is_send_all = PBField.new("is_send_all", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __is_send_all
 		data[__is_send_all.tag] = service
-		
+
 		__robot_id = PBField.new("robot_id", PB_DATA_TYPE.BYTES, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES])
 		service = PBServiceField.new()
 		service.field = __robot_id
 		data[__robot_id.tag] = service
-		
+
 		__mode = PBField.new("mode", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __mode
 		data[__mode.tag] = service
-		
+
 		__enemy_id = PBField.new("enemy_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __enemy_id
 		data[__enemy_id.tag] = service
-		
+
 		__ascii = PBField.new("ascii", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __ascii
 		data[__ascii.tag] = service
-		
+
 		__type = PBField.new("type", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __type
 		data[__type.tag] = service
-		
+
 		__map_x = PBField.new("map_x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __map_x
 		data[__map_x.tag] = service
-		
+
 		__map_y = PBField.new("map_y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __map_y
 		data[__map_y.tag] = service
-		
+
 	var data = {}
-	
+
 	var __is_send_all: PBField
 	func has_is_send_all() -> bool:
 		if __is_send_all.value != null:
@@ -3124,7 +3142,7 @@ class MapClickInfoNotify:
 		__is_send_all.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_is_send_all(value : int) -> void:
 		__is_send_all.value = value
-	
+
 	var __robot_id: PBField
 	func has_robot_id() -> bool:
 		if __robot_id.value != null:
@@ -3137,7 +3155,7 @@ class MapClickInfoNotify:
 		__robot_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES]
 	func set_robot_id(value : PackedByteArray) -> void:
 		__robot_id.value = value
-	
+
 	var __mode: PBField
 	func has_mode() -> bool:
 		if __mode.value != null:
@@ -3150,7 +3168,7 @@ class MapClickInfoNotify:
 		__mode.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_mode(value : int) -> void:
 		__mode.value = value
-	
+
 	var __enemy_id: PBField
 	func has_enemy_id() -> bool:
 		if __enemy_id.value != null:
@@ -3163,7 +3181,7 @@ class MapClickInfoNotify:
 		__enemy_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_id(value : int) -> void:
 		__enemy_id.value = value
-	
+
 	var __ascii: PBField
 	func has_ascii() -> bool:
 		if __ascii.value != null:
@@ -3176,7 +3194,7 @@ class MapClickInfoNotify:
 		__ascii.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_ascii(value : int) -> void:
 		__ascii.value = value
-	
+
 	var __type: PBField
 	func has_type() -> bool:
 		if __type.value != null:
@@ -3189,7 +3207,7 @@ class MapClickInfoNotify:
 		__type.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_type(value : int) -> void:
 		__type.value = value
-	
+
 	var __map_x: PBField
 	func has_map_x() -> bool:
 		if __map_x.value != null:
@@ -3202,7 +3220,7 @@ class MapClickInfoNotify:
 		__map_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_map_x(value : float) -> void:
 		__map_x.value = value
-	
+
 	var __map_y: PBField
 	func has_map_y() -> bool:
 		if __map_y.value != null:
@@ -3215,13 +3233,13 @@ class MapClickInfoNotify:
 		__map_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
 	func set_map_y(value : float) -> void:
 		__map_y.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3236,90 +3254,107 @@ class MapClickInfoNotify:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
+class MapClickCmd:
+	extends MapClickInfo
+
+class MapClickInfoNotify:
+	extends MapClickCmd
+
 class RadarInfoToClient:
 	func _init():
 		var service
-		
-		__target_robot_id = PBField.new("target_robot_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+
+		var __radar_single_robot_info_default: Array = []
+		__radar_single_robot_info = PBField.new("radar_single_robot_info", PB_DATA_TYPE.MESSAGE, PB_RULE.REPEATED, 1, true, __radar_single_robot_info_default)
 		service = PBServiceField.new()
-		service.field = __target_robot_id
-		data[__target_robot_id.tag] = service
-		
-		__target_pos_x = PBField.new("target_pos_x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		service.field = __radar_single_robot_info
+		service.func_ref = Callable(self, "add_radar_single_robot_info")
+		data[__radar_single_robot_info.tag] = service
+
+	var data = {}
+
+	var __radar_single_robot_info: PBField
+	func get_radar_single_robot_info() -> Array:
+		return __radar_single_robot_info.value
+	func clear_radar_single_robot_info() -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__radar_single_robot_info.value.clear()
+	func add_radar_single_robot_info() -> RadarSingleRobotInfo:
+		var element = RadarSingleRobotInfo.new()
+		__radar_single_robot_info.value.append(element)
+		return element
+	func get_RadarSingleRobotInfo() -> Array:
+		return get_radar_single_robot_info()
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
+		var cur_limit = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				if limit == -1:
+					return PB_ERR.NO_ERRORS
+			else:
+				return PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+
+class RadarSingleRobotInfo:
+	func _init():
+		var service
+
+		__target_pos_x = PBField.new("target_pos_x", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __target_pos_x
 		data[__target_pos_x.tag] = service
-		
-		__target_pos_y = PBField.new("target_pos_y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+
+		__target_pos_y = PBField.new("target_pos_y", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __target_pos_y
 		data[__target_pos_y.tag] = service
-		
-		__torward_angle = PBField.new("torward_angle", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
-		service = PBServiceField.new()
-		service.field = __torward_angle
-		data[__torward_angle.tag] = service
-		
-		__is_high_light = PBField.new("is_high_light", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+
+		__is_high_light = PBField.new("is_high_light", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __is_high_light
 		data[__is_high_light.tag] = service
-		
+
 	var data = {}
-	
-	var __target_robot_id: PBField
-	func has_target_robot_id() -> bool:
-		if __target_robot_id.value != null:
-			return true
-		return false
-	func get_target_robot_id() -> int:
-		return __target_robot_id.value
-	func clear_target_robot_id() -> void:
-		data[1].state = PB_SERVICE_STATE.UNFILLED
-		__target_robot_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_target_robot_id(value : int) -> void:
-		__target_robot_id.value = value
-	
+
 	var __target_pos_x: PBField
 	func has_target_pos_x() -> bool:
 		if __target_pos_x.value != null:
 			return true
 		return false
-	func get_target_pos_x() -> float:
+	func get_target_pos_x() -> int:
 		return __target_pos_x.value
 	func clear_target_pos_x() -> void:
-		data[2].state = PB_SERVICE_STATE.UNFILLED
-		__target_pos_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
-	func set_target_pos_x(value : float) -> void:
+		data[1].state = PB_SERVICE_STATE.UNFILLED
+		__target_pos_x.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_target_pos_x(value : int) -> void:
 		__target_pos_x.value = value
-	
+
 	var __target_pos_y: PBField
 	func has_target_pos_y() -> bool:
 		if __target_pos_y.value != null:
 			return true
 		return false
-	func get_target_pos_y() -> float:
+	func get_target_pos_y() -> int:
 		return __target_pos_y.value
 	func clear_target_pos_y() -> void:
-		data[3].state = PB_SERVICE_STATE.UNFILLED
-		__target_pos_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
-	func set_target_pos_y(value : float) -> void:
+		data[2].state = PB_SERVICE_STATE.UNFILLED
+		__target_pos_y.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
+	func set_target_pos_y(value : int) -> void:
 		__target_pos_y.value = value
-	
-	var __torward_angle: PBField
-	func has_torward_angle() -> bool:
-		if __torward_angle.value != null:
-			return true
-		return false
-	func get_torward_angle() -> float:
-		return __torward_angle.value
-	func clear_torward_angle() -> void:
-		data[4].state = PB_SERVICE_STATE.UNFILLED
-		__torward_angle.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
-	func set_torward_angle(value : float) -> void:
-		__torward_angle.value = value
-	
+
 	var __is_high_light: PBField
 	func has_is_high_light() -> bool:
 		if __is_high_light.value != null:
@@ -3328,17 +3363,17 @@ class RadarInfoToClient:
 	func get_is_high_light() -> int:
 		return __is_high_light.value
 	func clear_is_high_light() -> void:
-		data[5].state = PB_SERVICE_STATE.UNFILLED
+		data[3].state = PB_SERVICE_STATE.UNFILLED
 		__is_high_light.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_is_high_light(value : int) -> void:
 		__is_high_light.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3353,18 +3388,18 @@ class RadarInfoToClient:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class CustomByteBlock:
 	func _init():
 		var service
-		
+
 		__data = PBField.new("data", PB_DATA_TYPE.BYTES, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES])
 		service = PBServiceField.new()
 		service.field = __data
 		data[__data.tag] = service
-		
+
 	var data = {}
-	
+
 	var __data: PBField
 	func has_data() -> bool:
 		if __data.value != null:
@@ -3377,13 +3412,13 @@ class CustomByteBlock:
 		__data.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BYTES]
 	func set_data(value : PackedByteArray) -> void:
 		__data.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3398,23 +3433,23 @@ class CustomByteBlock:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class AssemblyCommand:
 	func _init():
 		var service
-		
+
 		__operation = PBField.new("operation", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __operation
 		data[__operation.tag] = service
-		
+
 		__difficulty = PBField.new("difficulty", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __difficulty
 		data[__difficulty.tag] = service
-		
+
 	var data = {}
-	
+
 	var __operation: PBField
 	func has_operation() -> bool:
 		if __operation.value != null:
@@ -3427,7 +3462,7 @@ class AssemblyCommand:
 		__operation.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_operation(value : int) -> void:
 		__operation.value = value
-	
+
 	var __difficulty: PBField
 	func has_difficulty() -> bool:
 		if __difficulty.value != null:
@@ -3440,13 +3475,13 @@ class AssemblyCommand:
 		__difficulty.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_difficulty(value : int) -> void:
 		__difficulty.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3461,16 +3496,16 @@ class AssemblyCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class TechCoreMotionStateSync:
 	func _init():
 		var service
-		
+
 		__maximum_difficulty_level = PBField.new("maximum_difficulty_level", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __maximum_difficulty_level
 		data[__maximum_difficulty_level.tag] = service
-		
+
 		__basic_state = PBField.new("basic_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __basic_state
@@ -3485,7 +3520,7 @@ class TechCoreMotionStateSync:
 		service = PBServiceField.new()
 		service.field = __move_state
 		data[__move_state.tag] = service
-		
+
 		__rotate_state = PBField.new("rotate_state", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __rotate_state
@@ -3505,9 +3540,9 @@ class TechCoreMotionStateSync:
 		service = PBServiceField.new()
 		service.field = __remain_time_step
 		data[__remain_time_step.tag] = service
-		
+
 	var data = {}
-	
+
 	var __maximum_difficulty_level: PBField
 	func has_maximum_difficulty_level() -> bool:
 		if __maximum_difficulty_level.value != null:
@@ -3520,7 +3555,7 @@ class TechCoreMotionStateSync:
 		__maximum_difficulty_level.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_maximum_difficulty_level(value : int) -> void:
 		__maximum_difficulty_level.value = value
-	
+
 	var __basic_state: PBField
 	func has_basic_state() -> bool:
 		if __basic_state.value != null:
@@ -3580,7 +3615,7 @@ class TechCoreMotionStateSync:
 		__rotate_state.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_rotate_state(value : int) -> void:
 		__rotate_state.value = value
-	
+
 	var __enemy_core_status: PBField
 	func has_enemy_core_status() -> bool:
 		if __enemy_core_status.value != null:
@@ -3593,7 +3628,7 @@ class TechCoreMotionStateSync:
 		__enemy_core_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_enemy_core_status(value : int) -> void:
 		__enemy_core_status.value = value
-	
+
 	var __remain_time_all: PBField
 	func has_remain_time_all() -> bool:
 		if __remain_time_all.value != null:
@@ -3606,7 +3641,7 @@ class TechCoreMotionStateSync:
 		__remain_time_all.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remain_time_all(value : int) -> void:
 		__remain_time_all.value = value
-	
+
 	var __remain_time_step: PBField
 	func has_remain_time_step() -> bool:
 		if __remain_time_step.value != null:
@@ -3619,13 +3654,13 @@ class TechCoreMotionStateSync:
 		__remain_time_step.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_remain_time_step(value : int) -> void:
 		__remain_time_step.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3640,28 +3675,28 @@ class TechCoreMotionStateSync:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotPerformanceSelectionCommand:
 	func _init():
 		var service
-		
+
 		__shooter = PBField.new("shooter", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __shooter
 		data[__shooter.tag] = service
-		
+
 		__chassis = PBField.new("chassis", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __chassis
 		data[__chassis.tag] = service
-		
+
 		__sentry_control = PBField.new("sentry_control", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __sentry_control
 		data[__sentry_control.tag] = service
-		
+
 	var data = {}
-	
+
 	var __shooter: PBField
 	func has_shooter() -> bool:
 		if __shooter.value != null:
@@ -3674,7 +3709,7 @@ class RobotPerformanceSelectionCommand:
 		__shooter.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_shooter(value : int) -> void:
 		__shooter.value = value
-	
+
 	var __chassis: PBField
 	func has_chassis() -> bool:
 		if __chassis.value != null:
@@ -3687,7 +3722,7 @@ class RobotPerformanceSelectionCommand:
 		__chassis.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_chassis(value : int) -> void:
 		__chassis.value = value
-	
+
 	var __sentry_control: PBField
 	func has_sentry_control() -> bool:
 		if __sentry_control.value != null:
@@ -3700,13 +3735,13 @@ class RobotPerformanceSelectionCommand:
 		__sentry_control.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_sentry_control(value : int) -> void:
 		__sentry_control.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3721,28 +3756,28 @@ class RobotPerformanceSelectionCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RobotPerformanceSelectionSync:
 	func _init():
 		var service
-		
+
 		__shooter = PBField.new("shooter", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __shooter
 		data[__shooter.tag] = service
-		
+
 		__chassis = PBField.new("chassis", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __chassis
 		data[__chassis.tag] = service
-		
+
 		__sentry_control = PBField.new("sentry_control", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __sentry_control
 		data[__sentry_control.tag] = service
-		
+
 	var data = {}
-	
+
 	var __shooter: PBField
 	func has_shooter() -> bool:
 		if __shooter.value != null:
@@ -3755,7 +3790,7 @@ class RobotPerformanceSelectionSync:
 		__shooter.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_shooter(value : int) -> void:
 		__shooter.value = value
-	
+
 	var __chassis: PBField
 	func has_chassis() -> bool:
 		if __chassis.value != null:
@@ -3768,7 +3803,7 @@ class RobotPerformanceSelectionSync:
 		__chassis.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_chassis(value : int) -> void:
 		__chassis.value = value
-	
+
 	var __sentry_control: PBField
 	func has_sentry_control() -> bool:
 		if __sentry_control.value != null:
@@ -3781,13 +3816,13 @@ class RobotPerformanceSelectionSync:
 		__sentry_control.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_sentry_control(value : int) -> void:
 		__sentry_control.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3802,23 +3837,23 @@ class RobotPerformanceSelectionSync:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class CommonCommand:
 	func _init():
 		var service
-		
+
 		__cmd_type = PBField.new("cmd_type", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __cmd_type
 		data[__cmd_type.tag] = service
-		
+
 		__param = PBField.new("param", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __param
 		data[__param.tag] = service
-		
+
 	var data = {}
-	
+
 	var __cmd_type: PBField
 	func has_cmd_type() -> bool:
 		if __cmd_type.value != null:
@@ -3831,7 +3866,7 @@ class CommonCommand:
 		__cmd_type.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_cmd_type(value : int) -> void:
 		__cmd_type.value = value
-	
+
 	var __param: PBField
 	func has_param() -> bool:
 		if __param.value != null:
@@ -3844,13 +3879,13 @@ class CommonCommand:
 		__param.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_param(value : int) -> void:
 		__param.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3865,18 +3900,18 @@ class CommonCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class HeroDeployModeEventCommand:
 	func _init():
 		var service
-		
+
 		__mode = PBField.new("mode", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __mode
 		data[__mode.tag] = service
-		
+
 	var data = {}
-	
+
 	var __mode: PBField
 	func has_mode() -> bool:
 		if __mode.value != null:
@@ -3889,13 +3924,13 @@ class HeroDeployModeEventCommand:
 		__mode.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_mode(value : int) -> void:
 		__mode.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3910,18 +3945,18 @@ class HeroDeployModeEventCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class DeployModeStatusSync:
 	func _init():
 		var service
-		
+
 		__status = PBField.new("status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __status
 		data[__status.tag] = service
-		
+
 	var data = {}
-	
+
 	var __status: PBField
 	func has_status() -> bool:
 		if __status.value != null:
@@ -3934,13 +3969,13 @@ class DeployModeStatusSync:
 		__status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_status(value : int) -> void:
 		__status.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -3955,18 +3990,18 @@ class DeployModeStatusSync:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RuneActivateCommand:
 	func _init():
 		var service
-		
+
 		__activate = PBField.new("activate", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __activate
 		data[__activate.tag] = service
-		
+
 	var data = {}
-	
+
 	var __activate: PBField
 	func has_activate() -> bool:
 		if __activate.value != null:
@@ -3979,13 +4014,13 @@ class RuneActivateCommand:
 		__activate.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_activate(value : int) -> void:
 		__activate.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4000,28 +4035,28 @@ class RuneActivateCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class RuneStatusSync:
 	func _init():
 		var service
-		
+
 		__rune_status = PBField.new("rune_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __rune_status
 		data[__rune_status.tag] = service
-		
+
 		__activated_arms = PBField.new("activated_arms", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __activated_arms
 		data[__activated_arms.tag] = service
-		
-		__average_rings = PBField.new("average_rings", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
+
+		__average_rings = PBField.new("average_rings", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
 		service = PBServiceField.new()
 		service.field = __average_rings
 		data[__average_rings.tag] = service
-		
+
 	var data = {}
-	
+
 	var __rune_status: PBField
 	func has_rune_status() -> bool:
 		if __rune_status.value != null:
@@ -4034,7 +4069,7 @@ class RuneStatusSync:
 		__rune_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_rune_status(value : int) -> void:
 		__rune_status.value = value
-	
+
 	var __activated_arms: PBField
 	func has_activated_arms() -> bool:
 		if __activated_arms.value != null:
@@ -4047,26 +4082,26 @@ class RuneStatusSync:
 		__activated_arms.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_activated_arms(value : int) -> void:
 		__activated_arms.value = value
-	
+
 	var __average_rings: PBField
 	func has_average_rings() -> bool:
 		if __average_rings.value != null:
 			return true
 		return false
-	func get_average_rings() -> int:
+	func get_average_rings() -> float:
 		return __average_rings.value
 	func clear_average_rings() -> void:
 		data[3].state = PB_SERVICE_STATE.UNFILLED
-		__average_rings.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
-	func set_average_rings(value : int) -> void:
+		__average_rings.value = DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT]
+	func set_average_rings(value : float) -> void:
 		__average_rings.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4081,23 +4116,23 @@ class RuneStatusSync:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class SentryStatusSync:
 	func _init():
 		var service
-		
+
 		__posture_id = PBField.new("posture_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __posture_id
 		data[__posture_id.tag] = service
-		
+
 		__is_weakened = PBField.new("is_weakened", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __is_weakened
 		data[__is_weakened.tag] = service
-		
+
 	var data = {}
-	
+
 	var __posture_id: PBField
 	func has_posture_id() -> bool:
 		if __posture_id.value != null:
@@ -4110,7 +4145,7 @@ class SentryStatusSync:
 		__posture_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_posture_id(value : int) -> void:
 		__posture_id.value = value
-	
+
 	var __is_weakened: PBField
 	func has_is_weakened() -> bool:
 		if __is_weakened.value != null:
@@ -4123,13 +4158,13 @@ class SentryStatusSync:
 		__is_weakened.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_is_weakened(value : bool) -> void:
 		__is_weakened.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4144,28 +4179,28 @@ class SentryStatusSync:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class DartCommand:
 	func _init():
 		var service
-		
+
 		__target_id = PBField.new("target_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __target_id
 		data[__target_id.tag] = service
-		
+
 		__open = PBField.new("open", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __open
 		data[__open.tag] = service
-		
+
 		__launch_confirm = PBField.new("launch_confirm", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
 		service = PBServiceField.new()
 		service.field = __launch_confirm
 		data[__launch_confirm.tag] = service
-		
+
 	var data = {}
-	
+
 	var __target_id: PBField
 	func has_target_id() -> bool:
 		if __target_id.value != null:
@@ -4178,7 +4213,7 @@ class DartCommand:
 		__target_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_target_id(value : int) -> void:
 		__target_id.value = value
-	
+
 	var __open: PBField
 	func has_open() -> bool:
 		if __open.value != null:
@@ -4191,7 +4226,7 @@ class DartCommand:
 		__open.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_open(value : bool) -> void:
 		__open.value = value
-	
+
 	var __launch_confirm: PBField
 	func has_launch_confirm() -> bool:
 		if __launch_confirm.value != null:
@@ -4204,13 +4239,13 @@ class DartCommand:
 		__launch_confirm.value = DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL]
 	func set_launch_confirm(value : bool) -> void:
 		__launch_confirm.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4225,23 +4260,23 @@ class DartCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class DartSelectTargetStatusSync:
 	func _init():
 		var service
-		
+
 		__target_id = PBField.new("target_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __target_id
 		data[__target_id.tag] = service
-		
+
 		__open = PBField.new("open", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __open
 		data[__open.tag] = service
-		
+
 	var data = {}
-	
+
 	var __target_id: PBField
 	func has_target_id() -> bool:
 		if __target_id.value != null:
@@ -4254,7 +4289,7 @@ class DartSelectTargetStatusSync:
 		__target_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_target_id(value : int) -> void:
 		__target_id.value = value
-	
+
 	var __open: PBField
 	func has_open() -> bool:
 		if __open.value != null:
@@ -4267,13 +4302,13 @@ class DartSelectTargetStatusSync:
 		__open.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_open(value : int) -> void:
 		__open.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4288,18 +4323,18 @@ class DartSelectTargetStatusSync:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class SentryCtrlCommand:
 	func _init():
 		var service
-		
+
 		__command_id = PBField.new("command_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __command_id
 		data[__command_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __command_id: PBField
 	func has_command_id() -> bool:
 		if __command_id.value != null:
@@ -4312,13 +4347,13 @@ class SentryCtrlCommand:
 		__command_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_command_id(value : int) -> void:
 		__command_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4333,23 +4368,23 @@ class SentryCtrlCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class SentryCtrlResult:
 	func _init():
 		var service
-		
+
 		__command_id = PBField.new("command_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __command_id
 		data[__command_id.tag] = service
-		
+
 		__result_code = PBField.new("result_code", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __result_code
 		data[__result_code.tag] = service
-		
+
 	var data = {}
-	
+
 	var __command_id: PBField
 	func has_command_id() -> bool:
 		if __command_id.value != null:
@@ -4362,7 +4397,7 @@ class SentryCtrlResult:
 		__command_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_command_id(value : int) -> void:
 		__command_id.value = value
-	
+
 	var __result_code: PBField
 	func has_result_code() -> bool:
 		if __result_code.value != null:
@@ -4375,13 +4410,13 @@ class SentryCtrlResult:
 		__result_code.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_result_code(value : int) -> void:
 		__result_code.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4396,18 +4431,18 @@ class SentryCtrlResult:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class AirSupportCommand:
 	func _init():
 		var service
-		
+
 		__command_id = PBField.new("command_id", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __command_id
 		data[__command_id.tag] = service
-		
+
 	var data = {}
-	
+
 	var __command_id: PBField
 	func has_command_id() -> bool:
 		if __command_id.value != null:
@@ -4420,13 +4455,13 @@ class AirSupportCommand:
 		__command_id.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_command_id(value : int) -> void:
 		__command_id.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4441,38 +4476,38 @@ class AirSupportCommand:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 class AirSupportStatusSync:
 	func _init():
 		var service
-		
+
 		__airsupport_status = PBField.new("airsupport_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __airsupport_status
 		data[__airsupport_status.tag] = service
-		
+
 		__left_time = PBField.new("left_time", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __left_time
 		data[__left_time.tag] = service
-		
+
 		__cost_coins = PBField.new("cost_coins", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __cost_coins
 		data[__cost_coins.tag] = service
-		
+
 		__is_being_targeted = PBField.new("is_being_targeted", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __is_being_targeted
 		data[__is_being_targeted.tag] = service
-		
+
 		__shooter_status = PBField.new("shooter_status", PB_DATA_TYPE.UINT32, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32])
 		service = PBServiceField.new()
 		service.field = __shooter_status
 		data[__shooter_status.tag] = service
-		
+
 	var data = {}
-	
+
 	var __airsupport_status: PBField
 	func has_airsupport_status() -> bool:
 		if __airsupport_status.value != null:
@@ -4485,7 +4520,7 @@ class AirSupportStatusSync:
 		__airsupport_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_airsupport_status(value : int) -> void:
 		__airsupport_status.value = value
-	
+
 	var __left_time: PBField
 	func has_left_time() -> bool:
 		if __left_time.value != null:
@@ -4498,7 +4533,7 @@ class AirSupportStatusSync:
 		__left_time.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_left_time(value : int) -> void:
 		__left_time.value = value
-	
+
 	var __cost_coins: PBField
 	func has_cost_coins() -> bool:
 		if __cost_coins.value != null:
@@ -4511,7 +4546,7 @@ class AirSupportStatusSync:
 		__cost_coins.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_cost_coins(value : int) -> void:
 		__cost_coins.value = value
-	
+
 	var __is_being_targeted: PBField
 	func has_is_being_targeted() -> bool:
 		if __is_being_targeted.value != null:
@@ -4524,7 +4559,7 @@ class AirSupportStatusSync:
 		__is_being_targeted.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_is_being_targeted(value : int) -> void:
 		__is_being_targeted.value = value
-	
+
 	var __shooter_status: PBField
 	func has_shooter_status() -> bool:
 		if __shooter_status.value != null:
@@ -4537,13 +4572,13 @@ class AirSupportStatusSync:
 		__shooter_status.value = DEFAULT_VALUES_3[PB_DATA_TYPE.UINT32]
 	func set_shooter_status(value : int) -> void:
 		__shooter_status.value = value
-	
+
 	func _to_string() -> String:
 		return PBPacker.message_to_string(data)
-		
+
 	func to_bytes() -> PackedByteArray:
 		return PBPacker.pack_message(data)
-		
+
 	func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:
 		var cur_limit = bytes.size()
 		if limit != -1:
@@ -4558,5 +4593,5 @@ class AirSupportStatusSync:
 		elif limit == -1 && result > 0:
 			return PB_ERR.PARSE_INCOMPLETE
 		return result
-	
+
 ################ USER DATA END #################

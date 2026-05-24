@@ -1,6 +1,6 @@
 # TODO
 - [x] 主 UI MQTT 接收/发送桥接：下行状态经 `HudDataBridge -> hud.gd -> window.godotPush` 进入 React，上行操作经 `emitGodotOperation -> HudOperationBridge` 发送到 MQTT command services。
-- [ ] 主 UI 还未提供 `KeyboardMouseControl`、`CustomControl`、`MapClickInfoNotify` 的前端交互入口；底层 `ProtocolAdapter` 已有发送 API，但当前 React 主 UI 没有对应控件或输入捕获逻辑。
+- [ ] 主 UI 还未提供 `KeyboardMouseControl`、`CustomControl`、`MapClickCmd` 的前端交互入口；底层 `ProtocolAdapter` 已有发送 API，但当前 React 主 UI 没有对应控件或输入捕获逻辑。
 
 
 # RMSynapse
@@ -57,7 +57,7 @@ cmake --build build
 - 上行：
   - 高频：`KeyboardMouseControl`、`CustomControl`（75 Hz，latest-only，自定义数据最大 30 bytes）。
   - 请求/低频：`RobotPerformanceSelectionCommand`、`HeroDeployModeEventCommand`、`RuneActivateCommand`、`AssemblyCommand`、`DartCommand`、`SentryCtrlCommand`、`AirSupportCommand`。
-  - 触发：`CommonCommand`、`MapClickInfoNotify`，支持协议侧最小发送间隔。
+  - 触发：`CommonCommand`、`MapClickCmd`，支持协议侧最小发送间隔。
 - 数据流设计：网络线程只读写线程安全队列，主线程在 `_process` 中批量落地并发信号；发送端 ACK/超时重试、断线可选择丢弃高频包（详见 `rm_synapse/net/data_flow.md` 与 `rm_synapse/net/Readme.md`）。
 
 ## 视频流协议与 RMVideoCanvas

@@ -739,7 +739,7 @@ func _send_map_click(operation: Dictionary) -> void:
 			"timestamp": Time.get_ticks_msec()
 		})
 		return
-	var data = AdapterTypes.MapClickInfoNotifyData.new()
+	var data = AdapterTypes.MapClickCmdData.new()
 	var robot_id := str(operation.get("robotId", "")).strip_edges()
 	data.is_send_all = 1 if robot_id.is_empty() else int(operation.get("isSendAll", 0))
 	data.robot_id = _robot_id_to_bytes(robot_id)
@@ -749,7 +749,7 @@ func _send_map_click(operation: Dictionary) -> void:
 	data.type = int(operation.get("clickType", operation.get("typeValue", 0)))
 	data.map_x = float(operation.get("mapX", 0.0))
 	data.map_y = float(operation.get("mapY", 0.0))
-	var result := int(adapter.send_map_click_info_notify(data))
+	var result := int(adapter.send_map_click_cmd(data))
 	_on_operation_status({
 		"state": "success" if result >= 0 else "failed",
 		"label": "地图标点",
@@ -762,7 +762,7 @@ func _send_map_click(operation: Dictionary) -> void:
 func _robot_id_to_bytes(value: String) -> PackedByteArray:
 	var out := PackedByteArray()
 	var source := value.to_utf8_buffer()
-	for i in range(min(source.size(), AdapterTypes.MapClickInfoNotifyData.ROBOT_ID_BYTES)):
+	for i in range(min(source.size(), AdapterTypes.MapClickCmdData.ROBOT_ID_BYTES)):
 		out.append(source[i])
 	return out
 

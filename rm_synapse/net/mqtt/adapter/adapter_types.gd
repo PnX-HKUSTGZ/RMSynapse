@@ -16,7 +16,7 @@ class CustomControlData:
 	const MAX_DATA_BYTES := 30
 	var data: PackedByteArray = PackedByteArray()
 
-class MapClickInfoNotifyData:
+class MapClickCmdData:
 	extends RefCounted
 	const ROBOT_ID_BYTES := 7
 	var is_send_all: int = 0
@@ -27,6 +27,9 @@ class MapClickInfoNotifyData:
 	var type: int = 0
 	var map_x: float = 0.0
 	var map_y: float = 0.0
+
+class MapClickInfoNotifyData:
+	extends MapClickCmdData
 
 class AssemblyCommandData:
 	extends RefCounted

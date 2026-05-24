@@ -9,7 +9,7 @@
 
 依据来源：
 - 协议定义：`rm_synapse/net/mqtt/proto/rm_custom.proto` 的 `message GlobalLogisticsStatus`
-- 协议说明：`references/RoboMaster 2026 机甲大师高校系列赛通信协议 V1.2.0（20260209）.pdf` 2.2.5
+- 协议说明：`references/RoboMaster_2026_机甲大师高校系列赛通信协议_V1.3.1（20260519）.pdf` 2.2.5
 - UI 需求：`rm_synapse/ui/Readme.md`（GlobalLogisticsStatus，1Hz）
 
 ## 2. 服务定位

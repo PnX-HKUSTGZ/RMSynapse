@@ -722,7 +722,7 @@ Backspace：返回上一级
 ## TODO：需要修改的事项
 
 - 清理主 UI 默认数据：移除生产环境默认测试消息，默认背景改为透明，默认机器人/消息/地图数据避免误导。
-- 按 2026 V1.3.0 通信协议重写 `Event` 映射；当前事件编号含义需要和协议重新对齐。
+- 按 2026 V1.3.1 通信协议重写 `Event` 映射；当前事件编号含义需要和协议重新对齐。
 - 补全 `normalizeIncomingData` 的协议映射：`GlobalSpecialMechanism`、`RobotInjuryStat`、`RobotModuleStatus`、`RobotPosition`、`Buff`、`PenaltyInfo`、`RobotPathPlanInfo`、`RadarInfoToClient`、`TechCoreMotionStateSync`、`RobotPerformanceSelectionSync`、`DeployModeStatusSync`、`RuneStatusSync`、`SentryStatusSync`、`DartSelectTargetStatusSync`、`SentryCtrlResult`、`AirSupportStatusSync`。
 - 修正 `GlobalUnitStatus.robot_health` 到双方机器人血量条的映射，按协议顺序生成己方/对方机器人概览。
 - 核对并修正本地 `msg.proto` 与官方协议差异：`RobotPosition.robot_id`、`RuneStatusSync.average_rings` 类型、`TechCoreMotionStateSync` 字段、`RadarInfoToClient` 数据结构等。

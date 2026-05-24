@@ -1,5 +1,7 @@
 extends Node
 
+const RMProto = preload("res://net/mqtt/proto/generated/rm_custom_pb.gd")
+
 class FakeAdapterGetter:
 	extends MQTTProtocolAdapterGetter
 	var adapter_ref = null
@@ -13,6 +15,30 @@ class FakeAdapterGetter:
 	func get_adapter():
 		get_adapter_calls += 1
 		return adapter_ref
+
+class FakeTransport:
+	extends Node
+	signal raw_message(topic, payload)
+	signal connected
+
+	var published: Array[Dictionary] = []
+	var subscriptions: Array[Dictionary] = []
+
+	func publish_bytes(topic: String, payload: PackedByteArray, retain: bool, qos: int) -> int:
+		published.append({
+			"topic": topic,
+			"payload": payload,
+			"retain": retain,
+			"qos": qos
+		})
+		return 0
+
+	func subscribe(topic: String, qos: int) -> int:
+		subscriptions.append({
+			"topic": topic,
+			"qos": qos
+		})
+		return 0
 
 func _ready() -> void:
 	var ok = true
@@ -74,6 +100,52 @@ func _ready() -> void:
 	if keyboard_sender._logged_missing:
 		ok = false
 		errors.append("keyboard sender should treat non-null adapter as available")
+
+	var map_adapter = ProtocolAdapter.new()
+	map_adapter.auto_subscribe = false
+	map_adapter._ready()
+	var transport = FakeTransport.new()
+	map_adapter.bind_transport(transport)
+	var map_click = AdapterTypes.MapClickCmdData.new()
+	map_click.is_send_all = 1
+	map_click.robot_id = PackedByteArray([1, 2, 3])
+	map_click.mode = 4
+	map_click.enemy_id = 106
+	map_click.ascii = 67
+	map_click.type = 1
+	map_click.map_x = 123.5
+	map_click.map_y = 456.25
+	if map_adapter.send_map_click_cmd(map_click) != 0:
+		ok = false
+		errors.append("map click cmd should send")
+	if transport.published.size() != 1:
+		ok = false
+		errors.append("map click cmd publish count")
+	else:
+		var item = transport.published[0]
+		if item.get("topic") != ProtocolAdapter.TOPIC_MAP_CLICK_CMD:
+			ok = false
+			errors.append("map click cmd topic")
+		if int(item.get("qos", -1)) > ProtocolAdapter.PROTOCOL_MAX_QOS:
+			ok = false
+			errors.append("map click cmd qos")
+		var decoded = RMProto.MapClickCmd.new()
+		if decoded.from_bytes(item.get("payload", PackedByteArray())) != RMProto.PB_ERR.NO_ERRORS:
+			ok = false
+			errors.append("map click cmd decode")
+		else:
+			if decoded.get_robot_id().size() != AdapterTypes.MapClickCmdData.ROBOT_ID_BYTES:
+				ok = false
+				errors.append("map click cmd robot_id normalized size")
+			if decoded.get_robot_id()[0] != 1 or decoded.get_robot_id()[1] != 2 or decoded.get_robot_id()[2] != 3:
+				ok = false
+				errors.append("map click cmd robot_id preserved")
+			if decoded.get_mode() != 4 or decoded.get_enemy_id() != 106 or decoded.get_ascii() != 67 or decoded.get_type() != 1:
+				ok = false
+				errors.append("map click cmd scalar fields")
+			if absf(decoded.get_map_x() - 123.5) > 0.001 or absf(decoded.get_map_y() - 456.25) > 0.001:
+				ok = false
+				errors.append("map click cmd map coordinates")
 
 	if ok:
 		print("CONTROL_SENDER_SCENE_TEST_OK")

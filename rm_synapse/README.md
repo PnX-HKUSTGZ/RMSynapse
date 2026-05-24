@@ -87,7 +87,7 @@ func _on_robot_dynamic(msg) -> void:
 `Adapter` 提供统一发送方法：
 - `send_keyboard_mouse_control(data)` -> `KeyboardMouseControl`
 - `send_custom_control(data)` -> `CustomControl`
-- `send_map_click_info_notify(data)` -> `MapClickInfoNotify`
+- `send_map_click_cmd(data)` -> `MapClickCmd`
 - `send_assembly_command(data)` -> `AssemblyCommand`
 - `send_robot_performance_selection_command(data)` -> `RobotPerformanceSelectionCommand`
 - `send_common_command(data)` -> 买血、买弹、复活等通用命令

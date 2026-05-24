@@ -7,11 +7,11 @@
 - `ProtocolAdapter.tech_core_motion_state_sync(message)`
 
 ## 状态模型
-- `TechCoreMotionStateSyncState { maximum_difficulty_level, status, enemy_core_status, remain_time_all, remain_time_step, last_update_msec }`
+- `TechCoreMotionStateSyncState { maximum_difficulty_level, basic_state, putin_state, move_state, rotate_state, enemy_core_status, remain_time_all, remain_time_step, last_update_msec }`
 
 ## 对外信号
 - `tech_core_motion_state_sync_updated(state)`
-- `tech_core_status_changed(status, enemy_core_status)`
+- `tech_core_status_changed(basic_state, enemy_core_status)`
 
 ## 主要接口
 - `get_state()`

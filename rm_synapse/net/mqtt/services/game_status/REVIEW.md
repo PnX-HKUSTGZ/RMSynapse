@@ -4,7 +4,7 @@
 范围：
 - `rm_synapse/net/mqtt/services/game_status/game_status_service.gd`
 - `rm_synapse/net/mqtt/tests/game_status_service_test.gd`
-- 对照：`references/RoboMaster 2026 机甲大师高校系列赛通信协议 V1.2.0（20260209）.pdf` 2.2.3 `GameStatus`
+- 对照：`references/RoboMaster_2026_机甲大师高校系列赛通信协议_V1.3.1（20260519）.pdf` 2.2.3 `GameStatus`
 
 ## 结论
 - 协议字段与阶段枚举映射整体正确，核心 ingest/cache/signal 逻辑可用。

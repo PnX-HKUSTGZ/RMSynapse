@@ -135,6 +135,7 @@ message RobotPosition {
   float y = 2;
   float z = 3;
   float yaw = 4;
+  uint32 robot_id = 5;
 }
 
 message Buff {
@@ -160,7 +161,18 @@ message RobotPathPlanInfo {
   uint32 sender_id = 6;
 }
 
-message MapClickInfoNotify {
+message MapClickInfo {
+  uint32 is_send_all = 1;
+  bytes robot_id = 2;
+  uint32 mode = 3;
+  uint32 enemy_id = 4;
+  uint32 ascii = 5;
+  uint32 type = 6;
+  float map_x = 7;
+  float map_y = 8;
+}
+
+message MapClickCmd {
   uint32 is_send_all = 1;
   bytes robot_id = 2;
   uint32 mode = 3;
@@ -172,11 +184,13 @@ message MapClickInfoNotify {
 }
 
 message RadarInfoToClient {
-  uint32 target_robot_id = 1;
-  float target_pos_x = 2;
-  float target_pos_y = 3;
-  float torward_angle = 4;
-  uint32 is_high_light = 5;
+  repeated RadarSingleRobotInfo radar_single_robot_info = 1;
+}
+
+message RadarSingleRobotInfo {
+  uint32 target_pos_x = 1;
+  uint32 target_pos_y = 2;
+  uint32 is_high_light = 3;
 }
 
 message CustomByteBlock {
@@ -231,7 +245,7 @@ message RuneActivateCommand {
 message RuneStatusSync {
   uint32 rune_status = 1;
   uint32 activated_arms = 2;
-  uint32 average_rings = 3;
+  float average_rings = 3;
 }
 
 message SentryStatusSync {

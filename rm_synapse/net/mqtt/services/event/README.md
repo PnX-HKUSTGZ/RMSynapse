@@ -50,4 +50,4 @@
 - `assembly_result(result_code)`
 
 ## 事件 ID 枚举
-`EventId` 枚举名称使用事件英文翻译大写，值等于 V1.3.0 协议 `Event.event_id` 的 1~15。
+`EventId` 枚举名称使用事件英文翻译大写，值等于 V1.3.1 协议 `Event.event_id` 的 1~15。

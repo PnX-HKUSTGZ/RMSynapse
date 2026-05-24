@@ -3,6 +3,7 @@ class_name RobotPositionService
 
 signal robot_position_updated(state)
 signal position_changed(x, y, z, yaw)
+signal robot_id_changed(robot_id)
 
 @export var bind_retry_interval_sec: float = 1.0
 
@@ -14,6 +15,7 @@ class RobotPositionState:
 	var y: float = 0.0
 	var z: float = 0.0
 	var yaw: float = 0.0
+	var robot_id: int = 0
 	var last_update_msec: int = 0
 
 	func clone() -> RobotPositionState:
@@ -22,6 +24,7 @@ class RobotPositionState:
 		c.y = y
 		c.z = z
 		c.yaw = yaw
+		c.robot_id = robot_id
 		c.last_update_msec = last_update_msec
 		return c
 
@@ -31,6 +34,7 @@ class RobotPositionState:
 			"y": y,
 			"z": z,
 			"yaw": yaw,
+			"robot_id": robot_id,
 			"last_update_msec": last_update_msec
 		}
 
@@ -80,6 +84,9 @@ func get_z() -> float:
 func get_yaw() -> float:
 	return _state.yaw
 
+func get_robot_id() -> int:
+	return _state.robot_id
+
 func get_planar_position() -> Vector2:
 	return Vector2(_state.x, _state.y)
 
@@ -96,6 +103,7 @@ func _on_robot_position(message) -> void:
 	_state.y = float(message.get_y())
 	_state.z = float(message.get_z())
 	_state.yaw = float(message.get_yaw())
+	_state.robot_id = _get_message_int(message, "get_robot_id")
 	_state.last_update_msec = Time.get_ticks_msec()
 	_emit_change_signals(old_state)
 	emit_signal("robot_position_updated", _state.clone())
@@ -141,6 +149,13 @@ func _disconnect_bound_adapter() -> void:
 func _emit_change_signals(old_state: RobotPositionState) -> void:
 	if _state.x != old_state.x or _state.y != old_state.y or _state.z != old_state.z or _state.yaw != old_state.yaw:
 		emit_signal("position_changed", _state.x, _state.y, _state.z, _state.yaw)
+	if _state.robot_id != old_state.robot_id:
+		emit_signal("robot_id_changed", _state.robot_id)
+
+func _get_message_int(message, method: String) -> int:
+	if method != "" and message.has_method(method):
+		return int(message.call(method))
+	return 0
 
 func _log_error(message: String) -> void:
 	var logger = get_node_or_null("/root/Log")

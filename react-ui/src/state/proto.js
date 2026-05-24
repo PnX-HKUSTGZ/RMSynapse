@@ -38,6 +38,7 @@ const STAGE_LABELS = {
 };
 
 const GLOBAL_UNIT_ROBOT_IDS = [1, 2, 3, 4, 7];
+const RADAR_ROBOT_IDS = [101, 102, 103, 104, 106, 107, 1, 2, 3, 4, 6, 7];
 
 const BUFF_TYPE_META = {
   1: { type: 'attack', name: '攻击增益', value: '+20%' },
@@ -169,12 +170,12 @@ function normalizeMechanismEffects(effects) {
   }));
 }
 
-function normalizeRadarTarget(source) {
+function normalizeRadarTarget(source, index = 0) {
   return {
-    robotId: toNonNegativeInt(source.target_robot_id),
+    robotId: toNonNegativeInt(source.target_robot_id ?? RADAR_ROBOT_IDS[index]),
     x: (toFiniteNumber(source.target_pos_x) / MAP_PROTOCOL_MAX) * 100,
     y: (toFiniteNumber(source.target_pos_y) / MAP_PROTOCOL_MAX) * 100,
-    angle: toFiniteNumber(source.torward_angle),
+    angle: toFiniteNumber(source.torward_angle ?? 0),
     highlighted: toBoolean(source.is_high_light),
     timestamp: toNonNegativeInt(source.last_update_msec, Date.now()),
   };
@@ -182,6 +183,7 @@ function normalizeRadarTarget(source) {
 
 function normalizeMapPosition(source) {
   return {
+    robotId: toNonNegativeInt(source.robot_id),
     x: (toFiniteNumber(source.x) / MAP_PROTOCOL_MAX) * 100,
     y: (toFiniteNumber(source.y) / MAP_PROTOCOL_MAX) * 100,
     z: toFiniteNumber(source.z),
@@ -488,7 +490,15 @@ function buildProtoPatch(data) {
   }
 
   if (isPlainObject(data.RadarInfoToClient)) {
-    patch.radarTargets = [normalizeRadarTarget(data.RadarInfoToClient)];
+    const source = data.RadarInfoToClient;
+    const targets = Array.isArray(source.targets)
+      ? source.targets
+      : Array.isArray(source.radar_single_robot_info)
+        ? source.radar_single_robot_info
+        : null;
+    patch.radarTargets = targets
+      ? targets.map((target, index) => normalizeRadarTarget(target, index))
+      : [normalizeRadarTarget(source)];
   }
 
   if (isPlainObject(data.TechCoreMotionStateSync)) {

@@ -1,5 +1,16 @@
 extends Node
 
+class DummyRadarSingleRobotInfo:
+    extends RefCounted
+
+    var target_pos_x: float = 0.0
+    var target_pos_y: float = 0.0
+    var is_high_light: int = 0
+
+    func get_target_pos_x() -> float: return target_pos_x
+    func get_target_pos_y() -> float: return target_pos_y
+    func get_is_high_light() -> int: return is_high_light
+
 class DummyMessage:
     extends RefCounted
 
@@ -87,6 +98,7 @@ class DummyMessage:
     var target_pos_y: float = 0.0
     var torward_angle: float = 0.0
     var is_high_light: int = 0
+    var radar_single_robot_info: Array = []
 
     var maximum_difficulty_level: int = 0
     var status: int = 0
@@ -100,7 +112,7 @@ class DummyMessage:
 
     var rune_status: int = 0
     var activated_arms: int = 0
-    var average_rings: int = 0
+    var average_rings: float = 0.0
 
     var posture_id: int = 0
     var is_weakened: bool = false
@@ -198,6 +210,7 @@ class DummyMessage:
     func get_target_pos_y() -> float: return target_pos_y
     func get_torward_angle() -> float: return torward_angle
     func get_is_high_light() -> int: return is_high_light
+    func get_radar_single_robot_info() -> Array: return radar_single_robot_info
 
     func get_maximum_difficulty_level() -> int: return maximum_difficulty_level
     func get_status() -> int: return status
@@ -211,7 +224,7 @@ class DummyMessage:
 
     func get_rune_status() -> int: return rune_status
     func get_activated_arms() -> int: return activated_arms
-    func get_average_rings() -> int: return average_rings
+    func get_average_rings() -> float: return average_rings
 
     func get_posture_id() -> int: return posture_id
     func get_is_weakened() -> bool: return is_weakened
@@ -260,6 +273,17 @@ func _make_message(fields: Dictionary) -> DummyMessage:
     for k in fields.keys():
         m.set(str(k), fields[k])
     return m
+
+func _make_radar_targets(items: Array) -> Array:
+    var targets := []
+    for item in items:
+        var target = DummyRadarSingleRobotInfo.new()
+        if item is Dictionary:
+            target.target_pos_x = float(item.get("target_pos_x", 0.0))
+            target.target_pos_y = float(item.get("target_pos_y", 0.0))
+            target.is_high_light = int(item.get("is_high_light", 0))
+        targets.append(target)
+    return targets
 
 func _run_case(
     name: String,
@@ -544,12 +568,12 @@ func _ready() -> void:
         RobotPositionService.new(),
         "ingest_robot_position",
         "robot_position",
-        func(s): return int(round(s.get_x() * 100.0)),
+        func(s): return s.get_robot_id(),
         0,
-        123,
-        456,
-        {"x": 1.23},
-        {"x": 4.56},
+        7,
+        107,
+        {"x": 1.23, "robot_id": 7},
+        {"x": 4.56, "robot_id": 107},
         errors
     )
 
@@ -586,14 +610,32 @@ func _ready() -> void:
         RadarInfoToClientService.new(),
         "ingest_radar_info_to_client",
         "radar_info_to_client",
-        func(s): return s.get_target_robot_id(),
+        func(s): return s.get_targets().size(),
         0,
-        201,
-        202,
-        {"target_robot_id": 201},
-        {"target_robot_id": 202},
+        1,
+        2,
+        {"radar_single_robot_info": _make_radar_targets([
+            {"target_pos_x": 850, "target_pos_y": 625, "is_high_light": 1}
+        ])},
+        {"radar_single_robot_info": _make_radar_targets([
+            {"target_pos_x": 850, "target_pos_y": 625, "is_high_light": 1},
+            {"target_pos_x": 410, "target_pos_y": 320, "is_high_light": 0}
+        ])},
         errors
     )
+
+    var radar_mapping_service = RadarInfoToClientService.new()
+    radar_mapping_service.ingest_radar_info_to_client(_make_message({
+        "radar_single_robot_info": _make_radar_targets([
+            {"target_pos_x": 850, "target_pos_y": 625, "is_high_light": 1},
+            {"target_pos_x": 410, "target_pos_y": 320, "is_high_light": 0}
+        ])
+    }))
+    var radar_targets = radar_mapping_service.get_targets()
+    if radar_mapping_service.get_target_robot_id() != 101:
+        errors.append("radar_info_to_client first target id")
+    if radar_targets.size() < 2 or radar_targets[1].target_robot_id != 102:
+        errors.append("radar_info_to_client second target id")
 
     _run_case(
         "tech_core_motion_state_sync",
@@ -642,12 +684,12 @@ func _ready() -> void:
         RuneStatusSyncService.new(),
         "ingest_rune_status_sync",
         "rune_status_sync",
-        func(s): return s.get_rune_status(),
+        func(s): return int(round(s.get_average_rings() * 10.0)),
         0,
-        6,
-        7,
-        {"rune_status": 6},
-        {"rune_status": 7},
+        86,
+        92,
+        {"rune_status": 6, "average_rings": 8.6},
+        {"rune_status": 7, "average_rings": 9.2},
         errors
     )
 

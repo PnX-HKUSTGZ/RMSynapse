@@ -13,7 +13,7 @@ class RuneStatusSyncState:
 	extends RefCounted
 	var rune_status: int = 0
 	var activated_arms: int = 0
-	var average_rings: int = 0
+	var average_rings: float = 0.0
 	var last_update_msec: int = 0
 
 	func clone() -> RuneStatusSyncState:
@@ -72,7 +72,7 @@ func get_rune_status() -> int:
 func get_activated_arms() -> int:
 	return _state.activated_arms
 
-func get_average_rings() -> int:
+func get_average_rings() -> float:
 	return _state.average_rings
 
 func get_rune_status_name(status: int) -> String:
@@ -89,7 +89,7 @@ func _on_rune_status_sync(message) -> void:
 	var old_state = _state.clone()
 	_state.rune_status = int(message.get_rune_status())
 	_state.activated_arms = int(message.get_activated_arms())
-	_state.average_rings = int(message.get_average_rings())
+	_state.average_rings = float(message.get_average_rings())
 	_state.last_update_msec = Time.get_ticks_msec()
 	_emit_change_signals(old_state)
 	emit_signal("rune_status_sync_updated", _state.clone())

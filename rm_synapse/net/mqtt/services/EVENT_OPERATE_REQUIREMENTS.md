@@ -142,7 +142,7 @@
 
 成功判定：
 1. `AssemblyCommand`：
-- 第一版以“发送成功 + 状态有更新”判定（可观察 `TechCoreMotionStateSync.status`）。
+- 第一版以“发送成功 + 状态有更新”判定（可观察 `TechCoreMotionStateSync.basic_state`；`status` 仅作为旧接口兼容别名）。
 
 2. `RobotPerformanceSelectionCommand`：
 - `RobotPerformanceSelectionSync` 三字段达到目标值即成功。

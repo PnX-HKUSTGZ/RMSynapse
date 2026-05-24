@@ -2,7 +2,7 @@
 
 来源：
 
-- `RoboMaster_2026_机甲大师高校系列赛通信协议_V1.3.0（20260327）.pdf`
+- `RoboMaster_2026_机甲大师高校系列赛通信协议_V1.3.1（20260519）.pdf`
 - `RoboMaster_2026_机甲大师高校系列超级对抗赛比赛规则手册.pdf`
 
 本文只整理“自定义客户端”相关内容。自定义控制器、机器人串口交互、小地图协议会在和自定义客户端有边界关系时附带说明。
@@ -58,7 +58,7 @@
 
 | Topic | 频率 | Payload | 可触发的操作 | 规则解释 |
 | --- | --- | --- | --- | --- |
-| `MapClickInfoNotify` | 触发式；频率限制与小地图下发一致 | `is_send_all:uint32`、`robot_id:bytes`、`mode:uint32`、`enemy_id:uint32`、`ascii:uint32`、`type:uint32`、`map_x:float`、`map_y:float` | 云台手地图点击标记，也会由服务器转发给自定义客户端 | `is_send_all`：0 指定客户端，1 除哨兵，2 包含哨兵。`robot_id` 固定 7B，填目标机器人 ID 列表，后续补 0。注意协议表的中文字段和 proto 字段名容易混淆：`mode` 是“标记类型”，1 攻击、2 防御、3 警戒、4 自定义；`type` 是“标记模式”，1 地图、2 对方机器人。`ascii` 仅自定义图标有效，只允许官方客户端可接受的字母：C-L、N、O、Q-Z。云台手小地图对指定机器人发送的间隔不低于 0.5s；半自动控制机器人操作手通过大地图发送的间隔不低于 3s。 |
+| `MapClickCmd` | 触发式；频率限制与小地图下发一致 | `is_send_all:uint32`、`robot_id:bytes`、`mode:uint32`、`enemy_id:uint32`、`ascii:uint32`、`type:uint32`、`map_x:float`、`map_y:float` | 云台手地图点击标记指令；服务器转发给自定义客户端时使用 `MapClickInfo` | `is_send_all`：0 指定客户端，1 除哨兵，2 包含哨兵。`robot_id` 固定 7B，填目标机器人 ID 列表，后续补 0。注意协议表的中文字段和 proto 字段名容易混淆：`mode` 是“标记类型”，1 攻击、2 防御、3 警戒、4 自定义；`type` 是“标记模式”，1 地图、2 对方机器人。`ascii` 仅自定义图标有效，只允许官方客户端可接受的字母：C-L、N、O、Q-Z。云台手小地图对指定机器人发送的间隔不低于 0.5s；半自动控制机器人操作手通过大地图发送的间隔不低于 3s。 |
 | `AssemblyCommand` | 触发式，最高 10Hz | `operation:uint32`、`difficulty:uint32` | 工程机器人装配流程控制 | `operation`：0 开始兑换/开始装配，1 确认装配，2 取消装配。工程需占领己方装配区增益点后选择难度。难度需按一、二、三、四级逐级解锁，且受比赛时间限制：开局只可一级，1 分钟后二级，2 分钟后三级，3 分钟后四级。确认装配失败后 1 秒内不再接收确认输入。 |
 | `RobotPerformanceSelectionCommand` | 触发式，最高 10Hz | `shooter:uint32`、`chassis:uint32`、`sentry_control:uint32` | 地面机器人选择发射机构性能体系、底盘性能体系，或哨兵控制方式 | `shooter/chassis` 枚举参考 `RobotStaticStatus`：1 冷却优先/血量优先，2 爆发优先/功率优先，3 英雄近战优先，4 英雄远程优先。`sentry_control`：0 自动哨兵，1 半自动哨兵。哨兵控制方式在三分钟准备阶段开始后、十五秒自检前由云台手选择；未选择则比赛开始后默认自动控制。 |
 | `CommonCommand` | 触发式，最高 10Hz | `cmd_type:uint32`、`param:uint32` | 常用赛事指令 | `cmd_type=1` 兑换 17mm 发弹量，`param` 必须为 10 的倍数；`2` 兑换 42mm 发弹量；`3` 确认复活；`4` 兑换立即复活；`5` 远程兑换允许发弹量；`6` 远程兑换血量。兑换需要满足金币、占点、脱战、时间等规则条件，不满足时无效。 |
@@ -97,7 +97,7 @@
 
 | Topic | 频率 | Payload | 用途解释 |
 | --- | --- | --- | --- |
-| `MapClickInfoNotify` | 触发式 | 字段同发送侧 | 云台手地图标记也会由服务器下发给客户端，可用于显示来自官方小地图体系的攻击/防御/警戒/自定义标记。 |
+| `MapClickInfo` | 触发式 | 字段同 `MapClickCmd` | 云台手地图标记也会由服务器下发给客户端，可用于显示来自官方小地图体系的攻击/防御/警戒/自定义标记。 |
 | `RadarInfoToClient` | 触发式 | `RadarSingleRobotInfo` 列表：`target_pos_x`、`target_pos_y`、`is_high_light` | 雷达发送到客户端的机器人位置信息。顺序为对方 1、2、3、4、6、7；己方 1、2、3、4、6、7。坐标单位 cm。`is_high_light`：0 否，1 特殊标识，2 特殊标识但目标定位模块离线。雷达识别进度达到阈值后，小地图可显示真实位置和特殊标识，并对地面机器人产生易伤。 |
 | `RobotPathPlanInfo` | 触发式 | `intention`、`start_pos_x`、`start_pos_y`、`offset_x[49]`、`offset_y[49]`、`sender_id` | 哨兵轨迹规划信息。`intention`：1 攻击，2 防守，3 移动。坐标单位 dm，增量范围 -128 到 127。与常规链路 `0x0307` 的小地图路径显示对应。 |
 
