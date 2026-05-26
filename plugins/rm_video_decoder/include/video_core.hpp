@@ -49,6 +49,12 @@ struct CompleteFrame {
     std::vector<uint8_t> data;
 };
 
+enum class HeaderByteOrder {
+    Unknown,
+    BigEndian,
+    LittleEndian,
+};
+
 
 class VideoCore {
 public:
@@ -97,7 +103,6 @@ private:
     int port_ = 3334;
     AVCodecID codec_id_ = AV_CODEC_ID_HEVC;
     static constexpr uint32_t kMaxFrameBytes = 16 * 1024 * 1024; // 16MB safety cap
-    static constexpr size_t kFrameContextBufferSize = 8;
 
     // --- 内部处理函数 ---
 
@@ -105,10 +110,14 @@ private:
     void networkLoop();
     // 协议解析与拼包
     void processPacket(const uint8_t* buffer, size_t len);
+    void finalizeCurrentFrame(const char* reason);
+    bool assembleCurrentFrame(std::vector<uint8_t>& frameData) const;
+    bool currentFrameLooksByteSwapped() const;
+    std::vector<uint8_t> prepareHevcAccessUnit(std::vector<uint8_t>&& frameData);
+    void resetStreamState();
     // FFmpeg 解码
     void decodeFrame(std::vector<uint8_t>&& frameData);
     // 拼包：获取/创建上下文槽位
-    FrameContext& getOrCreateFrameContext(uint16_t frameSeq, uint32_t totalSize);
 
     inline void setUdpStatus(bool s) { udp_ok_.store(s); }
 
@@ -146,6 +155,10 @@ private:
         // 判断是否拼包完成
         bool isComplete() const {
             return received_size >= total_size && total_size > 0;
+        }
+
+        bool hasFragments() const {
+            return !fragments.empty();
         }
 
         // 重置状态
@@ -238,7 +251,14 @@ private:
     std::thread receive_thread_;
     
     // 拼包缓冲区（支持乱序/丢包时多帧并发）
-    std::array<FrameContext, kFrameContextBufferSize> buffers_{};
+    FrameContext current_frame_{};
+    HeaderByteOrder header_byte_order_ = HeaderByteOrder::Unknown;
+    std::array<std::vector<uint8_t>, 3> hevc_parameter_sets_{};
+    bool hevc_stream_ready_ = false;
+    bool logged_first_frame_ = false;
+    uint64_t frames_seen_ = 0;
+    uint64_t frames_ok_ = 0;
+    std::chrono::steady_clock::time_point last_stats_log_{};
 };
 
 } // namespace RMVideoDecoder

@@ -15,6 +15,7 @@
 #include <unistd.h>
 using SOCKET = int;
 #endif
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -96,43 +97,144 @@ struct ParsedPacketHeader {
     uint32_t total_size = 0;
 };
 
-bool parsePacketHeader(const uint8_t* buffer, size_t len, uint32_t maxFrameBytes, ParsedPacketHeader& out) {
+struct HevcNalUnit {
+    int type = -1;
+    size_t start = 0;
+    size_t header = 0;
+    size_t end = 0;
+};
+
+uint16_t readU16Be(const uint8_t* data) {
+    return static_cast<uint16_t>((static_cast<uint16_t>(data[0]) << 8) | data[1]);
+}
+
+uint16_t readU16Le(const uint8_t* data) {
+    return static_cast<uint16_t>((static_cast<uint16_t>(data[1]) << 8) | data[0]);
+}
+
+uint32_t readU32Be(const uint8_t* data) {
+    return (static_cast<uint32_t>(data[0]) << 24) |
+           (static_cast<uint32_t>(data[1]) << 16) |
+           (static_cast<uint32_t>(data[2]) << 8) |
+           static_cast<uint32_t>(data[3]);
+}
+
+uint32_t readU32Le(const uint8_t* data) {
+    return (static_cast<uint32_t>(data[3]) << 24) |
+           (static_cast<uint32_t>(data[2]) << 16) |
+           (static_cast<uint32_t>(data[1]) << 8) |
+           static_cast<uint32_t>(data[0]);
+}
+
+ParsedPacketHeader parsePacketHeaderAs(const uint8_t* buffer, HeaderByteOrder order) {
+    if (order == HeaderByteOrder::LittleEndian) {
+        return {
+            readU16Le(buffer),
+            readU16Le(buffer + 2),
+            readU32Le(buffer + 4),
+        };
+    }
+    return {
+        readU16Be(buffer),
+        readU16Be(buffer + 2),
+        readU32Be(buffer + 4),
+    };
+}
+
+const char* byteOrderName(HeaderByteOrder order) {
+    switch (order) {
+        case HeaderByteOrder::BigEndian:
+            return "big-endian";
+        case HeaderByteOrder::LittleEndian:
+            return "little-endian";
+        case HeaderByteOrder::Unknown:
+        default:
+            return "unknown";
+    }
+}
+
+bool isFrameSizePlausible(const ParsedPacketHeader& header, size_t payloadLen, uint32_t maxFrameBytes) {
+    return header.total_size >= payloadLen && header.total_size <= maxFrameBytes;
+}
+
+HeaderByteOrder detectHeaderByteOrder(const uint8_t* buffer, size_t len, uint32_t maxFrameBytes) {
+    const size_t payloadLen = len > sizeof(VideoPacketHeader) ? len - sizeof(VideoPacketHeader) : 0;
+    const ParsedPacketHeader be = parsePacketHeaderAs(buffer, HeaderByteOrder::BigEndian);
+    const ParsedPacketHeader le = parsePacketHeaderAs(buffer, HeaderByteOrder::LittleEndian);
+    const bool bePlausible = isFrameSizePlausible(be, payloadLen, maxFrameBytes);
+    const bool lePlausible = isFrameSizePlausible(le, payloadLen, maxFrameBytes);
+
+    if (bePlausible && !lePlausible) return HeaderByteOrder::BigEndian;
+    if (lePlausible && !bePlausible) return HeaderByteOrder::LittleEndian;
+
+    return HeaderByteOrder::BigEndian;
+}
+
+bool parsePacketHeader(const uint8_t* buffer, size_t len, HeaderByteOrder order, ParsedPacketHeader& out) {
     if (len < sizeof(VideoPacketHeader)) return false;
 
-    uint16_t frameSeqBe = 0;
-    uint16_t fragSeqBe = 0;
-    uint32_t totalSizeBe = 0;
-
-    std::memcpy(&frameSeqBe, buffer, sizeof(frameSeqBe));
-    std::memcpy(&fragSeqBe, buffer + sizeof(frameSeqBe), sizeof(fragSeqBe));
-    std::memcpy(&totalSizeBe, buffer + sizeof(frameSeqBe) + sizeof(fragSeqBe), sizeof(totalSizeBe));
-
-    const ParsedPacketHeader netOrder{
-        ntohs(frameSeqBe),
-        ntohs(fragSeqBe),
-        ntohl(totalSizeBe),
-    };
-
-    const ParsedPacketHeader hostOrder{
-        frameSeqBe,
-        fragSeqBe,
-        totalSizeBe,
-    };
-
-    const auto plausible = [&](const ParsedPacketHeader& h) {
-        return h.total_size > 0 && h.total_size <= maxFrameBytes;
-    };
-
-    if (plausible(netOrder)) {
-        out = netOrder;
-        return true;
-    }
-    if (plausible(hostOrder)) {
-        out = hostOrder;
-        return true;
-    }
-    out = netOrder;
+    out = parsePacketHeaderAs(buffer, order);
     return true;
+}
+
+bool isStartCodeAt(const std::vector<uint8_t>& data, size_t pos, size_t& codeSize) {
+    if (pos + 3 <= data.size() && data[pos] == 0x00 && data[pos + 1] == 0x00 && data[pos + 2] == 0x01) {
+        codeSize = 3;
+        return true;
+    }
+    if (pos + 4 <= data.size() && data[pos] == 0x00 && data[pos + 1] == 0x00 &&
+        data[pos + 2] == 0x00 && data[pos + 3] == 0x01) {
+        codeSize = 4;
+        return true;
+    }
+    return false;
+}
+
+std::vector<HevcNalUnit> findHevcNalUnits(const std::vector<uint8_t>& data) {
+    std::vector<HevcNalUnit> units;
+    size_t pos = 0;
+    while (pos + 3 < data.size()) {
+        size_t codeSize = 0;
+        if (!isStartCodeAt(data, pos, codeSize)) {
+            ++pos;
+            continue;
+        }
+
+        const size_t nalHeader = pos + codeSize;
+        if (nalHeader + 1 >= data.size()) {
+            break;
+        }
+
+        size_t next = nalHeader + 2;
+        while (next + 3 < data.size()) {
+            size_t nextCodeSize = 0;
+            if (isStartCodeAt(data, next, nextCodeSize)) {
+                break;
+            }
+            ++next;
+        }
+
+        units.push_back({
+            static_cast<int>((data[nalHeader] >> 1) & 0x3f),
+            pos,
+            nalHeader,
+            next < data.size() ? next : data.size(),
+        });
+        pos = next;
+    }
+    return units;
+}
+
+bool isHevcParameterNal(int nalType) {
+    return nalType == 32 || nalType == 33 || nalType == 34;
+}
+
+bool isHevcIdrNal(int nalType) {
+    return nalType == 19 || nalType == 20 || nalType == 21;
+}
+
+size_t hevcParameterIndex(int nalType) {
+    return static_cast<size_t>(nalType - 32);
 }
 } // namespace
 
@@ -299,6 +401,7 @@ bool VideoCore::cleanupUdpSocket(){
 }
 
 bool VideoCore::init() {
+    resetStreamState();
 
     if(!setupUdpSocket()){
         return false;
@@ -360,6 +463,13 @@ void VideoCore::networkLoop() {
             setUdpStatus(true);
         } else {
             if (isRecvTimeoutError()) {
+                if (current_frame_.active && current_frame_.isComplete()) {
+                    finalizeCurrentFrame("UDP timeout complete");
+                } else if (current_frame_.active && current_frame_.isOutdated()) {
+                    dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+                    RM_LOGW_STREAM(kLogTag, "Dropping stale incomplete frame_seq=" << current_frame_.frame_seq);
+                    current_frame_.reset();
+                }
                 if (last_udp_ok) {
                     RM_LOGW(kLogTag, "UDP recv timeout, no data received.");
                     last_udp_ok = false;
@@ -377,89 +487,265 @@ void VideoCore::networkLoop() {
 
 // 协议解析与重组 (Assembler)
 void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
+    if (len <= sizeof(VideoPacketHeader)) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
+
+    if (header_byte_order_ == HeaderByteOrder::Unknown) {
+        header_byte_order_ = detectHeaderByteOrder(buffer, len, kMaxFrameBytes);
+        RM_LOGI(kLogTag, "Detected UDP video packet header byte order: %s", byteOrderName(header_byte_order_));
+    }
+
     ParsedPacketHeader header{};
-    if (!parsePacketHeader(buffer, len, kMaxFrameBytes, header)) {
+    if (!parsePacketHeader(buffer, len, header_byte_order_, header)) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
         return;
     }
 
-    const uint16_t frameSeq = header.frame_seq;
-    const uint16_t fragSeq = header.fragment_seq;
-    const uint32_t totalSize = header.total_size;
+    uint16_t frameSeq = header.frame_seq;
+    uint16_t fragSeq = header.fragment_seq;
+    uint32_t totalSize = header.total_size;
 
-    if (totalSize == 0 || totalSize > kMaxFrameBytes) {
-        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        RM_LOGW_STREAM(kLogTag, "Dropping packet: unreasonable total_size=" << totalSize << " for frame_seq=" << frameSeq);
-        return;
-    }
-
-    size_t payloadLen = len - sizeof(VideoPacketHeader);
+    const size_t payloadLen = len - sizeof(VideoPacketHeader);
     const uint8_t* payloadData = buffer + sizeof(VideoPacketHeader);
 
-    if (payloadLen == 0 || payloadLen > totalSize) {
+    if (payloadLen == 0) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        RM_LOGW_STREAM(kLogTag, "Dropping packet: payloadLen=" << payloadLen << " totalSize=" << totalSize
-                                                               << " frame_seq=" << frameSeq);
         return;
     }
 
-    FrameContext& targetCtx = getOrCreateFrameContext(frameSeq, totalSize);
-    targetCtx.insertFragment(fragSeq, std::vector<uint8_t>(payloadData, payloadData + payloadLen));
-
-    if (!targetCtx.isComplete()) return;
-
-    std::vector<uint8_t> frameData;
-    frameData.reserve(targetCtx.total_size);
-    for (const auto& fragPair : targetCtx.fragments) {
-        frameData.insert(frameData.end(), fragPair.second.begin(), fragPair.second.end());
-        if (frameData.size() >= targetCtx.total_size) break;
-    }
-    if (frameData.size() < targetCtx.total_size) {
+    if (totalSize > kMaxFrameBytes) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        targetCtx.reset();
+        RM_LOGW_STREAM(kLogTag, "Dropping packet: frame_size=" << totalSize << " exceeds cap, frame_seq=" << frameSeq);
         return;
     }
-    if (frameData.size() > targetCtx.total_size) {
-        frameData.resize(targetCtx.total_size);
+
+    if (!current_frame_.active) {
+        current_frame_.markActive(frameSeq, totalSize);
+    } else if (current_frame_.frame_seq != frameSeq) {
+        const HeaderByteOrder orderBeforeFinalize = header_byte_order_;
+        finalizeCurrentFrame("frame rollover");
+        if (header_byte_order_ != orderBeforeFinalize &&
+            parsePacketHeader(buffer, len, header_byte_order_, header)) {
+            frameSeq = header.frame_seq;
+            fragSeq = header.fragment_seq;
+            totalSize = header.total_size;
+        }
+        current_frame_.markActive(frameSeq, totalSize);
+    } else if (current_frame_.total_size == 0 && totalSize > 0) {
+        current_frame_.total_size = totalSize;
     }
 
-    decodeFrame(std::move(frameData));
-    targetCtx.reset();
+    current_frame_.insertFragment(fragSeq, std::vector<uint8_t>(payloadData, payloadData + payloadLen));
+
+    if (current_frame_.received_size > kMaxFrameBytes) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        RM_LOGW_STREAM(kLogTag, "Dropping frame_seq=" << current_frame_.frame_seq << " because assembled bytes exceed cap");
+        current_frame_.reset();
+        return;
+    }
+
+    if (current_frame_.isComplete()) {
+        finalizeCurrentFrame("frame size complete");
+    }
 }
 
-VideoCore::FrameContext& VideoCore::getOrCreateFrameContext(uint16_t frameSeq, uint32_t totalSize) {
-    for (auto& ctx : buffers_) {
-        if (ctx.isActive() && ctx.frame_seq == frameSeq) {
-            if (ctx.total_size != totalSize) {
-                ctx.reset();
-                ctx.markActive(frameSeq, totalSize);
+bool VideoCore::assembleCurrentFrame(std::vector<uint8_t>& frameData) const {
+    if (!current_frame_.active || current_frame_.fragments.empty()) {
+        return false;
+    }
+
+    uint16_t expected = 0;
+    uint32_t assembledSize = 0;
+    for (const auto& fragPair : current_frame_.fragments) {
+        if (fragPair.first != expected) {
+            return false;
+        }
+        assembledSize += static_cast<uint32_t>(fragPair.second.size());
+        if (assembledSize > kMaxFrameBytes) {
+            return false;
+        }
+        if (expected == UINT16_MAX) {
+            break;
+        }
+        ++expected;
+    }
+
+    frameData.clear();
+    frameData.reserve(assembledSize);
+    for (const auto& fragPair : current_frame_.fragments) {
+        frameData.insert(frameData.end(), fragPair.second.begin(), fragPair.second.end());
+    }
+    return !frameData.empty();
+}
+
+bool VideoCore::currentFrameLooksByteSwapped() const {
+    if (current_frame_.fragments.size() < 2) {
+        return false;
+    }
+
+    uint16_t expected = 0;
+    for (const auto& fragPair : current_frame_.fragments) {
+        if (fragPair.first % 256 != 0) {
+            return false;
+        }
+        if (fragPair.first / 256 != expected) {
+            return false;
+        }
+        if (expected == UINT16_MAX) {
+            break;
+        }
+        ++expected;
+    }
+    return true;
+}
+
+void VideoCore::finalizeCurrentFrame(const char* reason) {
+    if (!current_frame_.active) {
+        return;
+    }
+
+    if (!current_frame_.hasFragments()) {
+        current_frame_.reset();
+        return;
+    }
+
+    frames_seen_ += 1;
+
+    std::vector<uint8_t> frameData;
+    if (!assembleCurrentFrame(frameData)) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        if (currentFrameLooksByteSwapped()) {
+            header_byte_order_ = header_byte_order_ == HeaderByteOrder::BigEndian
+                                     ? HeaderByteOrder::LittleEndian
+                                     : HeaderByteOrder::BigEndian;
+            RM_LOGW(kLogTag,
+                    "Detected byte-swapped UDP shard sequence; switching video packet header byte order to %s",
+                    byteOrderName(header_byte_order_));
+        }
+        RM_LOGW_STREAM(kLogTag, "Dropping frame_seq=" << current_frame_.frame_seq
+                                                      << " because UDP shards are not contiguous from 0");
+        current_frame_.reset();
+        return;
+    }
+
+    if (current_frame_.total_size > 0 && frameData.size() != current_frame_.total_size) {
+        RM_LOGW_STREAM(kLogTag, "Frame_seq=" << current_frame_.frame_seq << " assembled size=" << frameData.size()
+                                             << " differs from header frame_size=" << current_frame_.total_size
+                                             << "; decoding contiguous shards like receive_video.py");
+    }
+
+    if (!logged_first_frame_) {
+        RM_LOGI_STREAM(kLogTag, "First assembled UDP video frame: frame_seq=" << current_frame_.frame_seq
+                                                                              << " bytes=" << frameData.size()
+                                                                              << " reason=" << reason);
+        logged_first_frame_ = true;
+    }
+
+    frameData = prepareHevcAccessUnit(std::move(frameData));
+    if (!frameData.empty()) {
+        frames_ok_ += 1;
+        decodeFrame(std::move(frameData));
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    if (last_stats_log_.time_since_epoch().count() == 0 || now - last_stats_log_ >= std::chrono::seconds(1)) {
+        const auto packets = packet_count_.load(std::memory_order_relaxed);
+        const auto decoded = decoded_frame_count_.load(std::memory_order_relaxed);
+        const auto dropped = dropped_packet_count_.load(std::memory_order_relaxed);
+        RM_LOGI_STREAM(kLogTag, "UDP video stats: packets=" << packets
+                                                            << " frames=" << frames_seen_
+                                                            << " accepted=" << frames_ok_
+                                                            << " decoded=" << decoded
+                                                            << " dropped=" << dropped
+                                                            << " stream_ready=" << (hevc_stream_ready_ ? 1 : 0));
+        last_stats_log_ = now;
+    }
+
+    current_frame_.reset();
+}
+
+std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& frameData) {
+    if (codec_id_ != AV_CODEC_ID_HEVC || frameData.empty()) {
+        return std::move(frameData);
+    }
+
+    const auto units = findHevcNalUnits(frameData);
+    if (units.empty()) {
+        return std::move(frameData);
+    }
+
+    bool hasParam = false;
+    bool hasIdr = false;
+    bool hasVps = false;
+    bool hasSps = false;
+    bool hasPps = false;
+
+    for (const auto& unit : units) {
+        if (isHevcParameterNal(unit.type)) {
+            hasParam = true;
+            const size_t index = hevcParameterIndex(unit.type);
+            if (index < hevc_parameter_sets_.size() && unit.end > unit.start && unit.end <= frameData.size()) {
+                hevc_parameter_sets_[index].assign(frameData.begin() + static_cast<std::ptrdiff_t>(unit.start),
+                                                   frameData.begin() + static_cast<std::ptrdiff_t>(unit.end));
             }
-            return ctx;
+        }
+        if (unit.type == 32) hasVps = true;
+        if (unit.type == 33) hasSps = true;
+        if (unit.type == 34) hasPps = true;
+        if (isHevcIdrNal(unit.type)) hasIdr = true;
+    }
+
+    const bool hadStreamReady = hevc_stream_ready_;
+    hevc_stream_ready_ = hevc_stream_ready_ || hasParam ||
+                         (!hevc_parameter_sets_[0].empty() &&
+                          !hevc_parameter_sets_[1].empty() &&
+                          !hevc_parameter_sets_[2].empty());
+
+    if (!hadStreamReady && hevc_stream_ready_) {
+        RM_LOGI(kLogTag, "HEVC stream parameters received; decoder can start accepting frames.");
+    }
+
+    if (!hevc_stream_ready_ && !hasParam) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        RM_LOGW(kLogTag, "Dropping HEVC access unit before VPS/SPS/PPS parameter data is available.");
+        return {};
+    }
+
+    if (hasIdr) {
+        const bool frameHasAllParams = hasVps && hasSps && hasPps;
+        const bool cacheHasAllParams = !hevc_parameter_sets_[0].empty() &&
+                                       !hevc_parameter_sets_[1].empty() &&
+                                       !hevc_parameter_sets_[2].empty();
+        if (!frameHasAllParams && cacheHasAllParams) {
+            std::vector<uint8_t> withHeaders;
+            withHeaders.reserve(hevc_parameter_sets_[0].size() +
+                                hevc_parameter_sets_[1].size() +
+                                hevc_parameter_sets_[2].size() +
+                                frameData.size());
+            for (const auto& param : hevc_parameter_sets_) {
+                withHeaders.insert(withHeaders.end(), param.begin(), param.end());
+            }
+            withHeaders.insert(withHeaders.end(), frameData.begin(), frameData.end());
+            return withHeaders;
         }
     }
 
-    for (auto& ctx : buffers_) {
-        if (!ctx.isActive()) {
-            ctx.markActive(frameSeq, totalSize);
-            return ctx;
-        }
-    }
+    return std::move(frameData);
+}
 
-    auto oldestIt = buffers_.begin();
-    for (auto it = buffers_.begin() + 1; it != buffers_.end(); ++it) {
-        if (it->last_update < oldestIt->last_update) {
-            oldestIt = it;
-        }
+void VideoCore::resetStreamState() {
+    current_frame_.reset();
+    header_byte_order_ = HeaderByteOrder::Unknown;
+    for (auto& param : hevc_parameter_sets_) {
+        param.clear();
     }
-
-    const uint16_t droppedSeq = oldestIt->frame_seq;
-    oldestIt->reset();
-    oldestIt->markActive(frameSeq, totalSize);
-    dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-    RM_LOGW_STREAM(kLogTag, "All FrameContext slots are busy. Dropping frame_seq " << droppedSeq
-                                                                                   << " and reusing slot for frame_seq "
-                                                                                   << frameSeq);
-    return *oldestIt;
+    hevc_stream_ready_ = false;
+    logged_first_frame_ = false;
+    frames_seen_ = 0;
+    frames_ok_ = 0;
+    last_stats_log_ = {};
 }
 
 void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
@@ -534,19 +820,14 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
 }
 
 size_t VideoCore::getActiveFrameContextCount() const {
-    size_t count = 0;
-    for (const auto& ctx : buffers_) {
-        if (ctx.isActive()) {
-            ++count;
-        }
-    }
-    return count;
+    return current_frame_.isActive() ? 1 : 0;
 }
 
 bool VideoCore::restartUdp() {
     // 停止接收线程
     stop();
     cleanupUdpSocket();
+    resetStreamState();
     if(!setupUdpSocket()){
         return false;
     }

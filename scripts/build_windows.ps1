@@ -91,7 +91,13 @@ function Build-Video {
 
     Push-Location (Join-Path $RootDir "plugins\rm_video_decoder")
     try {
-        & scons @Args
+        $SConsCmd = Get-Command scons -ErrorAction SilentlyContinue
+        if ($SConsCmd) {
+            & $SConsCmd.Source @Args
+        }
+        else {
+            & python -m SCons @Args
+        }
     }
     finally {
         Pop-Location
