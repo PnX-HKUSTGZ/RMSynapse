@@ -31,6 +31,7 @@ Options:
   --ffmpeg-root <path>    Pass ffmpeg_root=<path> to SCons.
   --ffmpeg-runtime <path> Pass ffmpeg_runtime_dir=<path> to SCons.
   --copy-ffmpeg <mode>    Pass copy_ffmpeg_runtime=auto|yes|no to SCons.
+  --static-ffmpeg         Link FFmpeg from static libraries and skip runtime copy.
   -h, --help              Show this help.
 
 Examples:
@@ -89,6 +90,10 @@ while [[ $# -gt 0 ]]; do
     --copy-ffmpeg)
       SCONS_EXTRA+=("copy_ffmpeg_runtime=${2:?missing value for --copy-ffmpeg}")
       shift 2
+      ;;
+    --static-ffmpeg)
+      SCONS_EXTRA+=("static_ffmpeg=yes" "copy_ffmpeg_runtime=no")
+      shift
       ;;
     -h|--help)
       usage
