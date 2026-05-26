@@ -17,12 +17,15 @@ using SOCKET = int;
 #endif
 #include <algorithm>
 #include <cstring>
+#include <iomanip>
+#include <sstream>
 #include <string>
 
 namespace RMVideoDecoder {
 
 namespace {
 constexpr std::string_view kLogTag = "rm_video_decoder.VideoCore";
+constexpr int kRequestedUdpReceiveBufferBytes = 20 * 1024 * 1024;
 
 #ifdef _WIN32
 std::string socketErrorMessage(int errorCode = WSAGetLastError()) {
@@ -236,6 +239,35 @@ bool isHevcIdrNal(int nalType) {
 size_t hevcParameterIndex(int nalType) {
     return static_cast<size_t>(nalType - 32);
 }
+
+std::string firstBytesHex(const std::vector<uint8_t>& data, size_t maxBytes = 24) {
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0');
+    const size_t count = std::min(maxBytes, data.size());
+    for (size_t i = 0; i < count; ++i) {
+        oss << std::setw(2) << static_cast<unsigned>(data[i]);
+    }
+    return oss.str();
+}
+
+std::string nalTypeSummary(const std::vector<HevcNalUnit>& units, size_t maxUnits = 12) {
+    if (units.empty()) {
+        return "none";
+    }
+
+    std::ostringstream oss;
+    const size_t count = std::min(maxUnits, units.size());
+    for (size_t i = 0; i < count; ++i) {
+        if (i > 0) {
+            oss << ",";
+        }
+        oss << units[i].type;
+    }
+    if (units.size() > count) {
+        oss << ",...";
+    }
+    return oss.str();
+}
 } // namespace
 
 //  =============== FFmpegContext ===============
@@ -354,8 +386,12 @@ bool VideoCore::setupUdpSocket(){
     }
 
     // 设置接收缓冲区大小，防止高码率下内核丢包
-    int rcvbuf = 1024 * 1024; // 1MB
-    setsockopt(static_cast<SOCKET>(sockfd_), SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&rcvbuf), sizeof(rcvbuf));
+    int rcvbuf = kRequestedUdpReceiveBufferBytes;
+    if (setsockopt(static_cast<SOCKET>(sockfd_), SOL_SOCKET, SO_RCVBUF, reinterpret_cast<const char*>(&rcvbuf), sizeof(rcvbuf)) < 0) {
+        RM_LOGW(kLogTag, "Failed to request UDP receive buffer size %d: %s",
+                kRequestedUdpReceiveBufferBytes,
+                lastSocketErrorMessage().c_str());
+    }
 
     // 设置等待时间
 #ifdef _WIN32
@@ -556,28 +592,60 @@ bool VideoCore::assembleCurrentFrame(std::vector<uint8_t>& frameData) const {
         return false;
     }
 
-    uint16_t expected = 0;
-    uint32_t assembledSize = 0;
-    for (const auto& fragPair : current_frame_.fragments) {
-        if (fragPair.first != expected) {
-            return false;
+    auto assembleOrdinalFragments = [&]() -> bool {
+        uint16_t expected = 0;
+        uint32_t assembledSize = 0;
+        for (const auto& fragPair : current_frame_.fragments) {
+            if (fragPair.first != expected) {
+                return false;
+            }
+            assembledSize += static_cast<uint32_t>(fragPair.second.size());
+            if (assembledSize > kMaxFrameBytes) {
+                return false;
+            }
+            if (expected == UINT16_MAX) {
+                break;
+            }
+            ++expected;
         }
-        assembledSize += static_cast<uint32_t>(fragPair.second.size());
-        if (assembledSize > kMaxFrameBytes) {
-            return false;
-        }
-        if (expected == UINT16_MAX) {
-            break;
-        }
-        ++expected;
-    }
 
-    frameData.clear();
-    frameData.reserve(assembledSize);
-    for (const auto& fragPair : current_frame_.fragments) {
-        frameData.insert(frameData.end(), fragPair.second.begin(), fragPair.second.end());
+        frameData.clear();
+        frameData.reserve(assembledSize);
+        for (const auto& fragPair : current_frame_.fragments) {
+            frameData.insert(frameData.end(), fragPair.second.begin(), fragPair.second.end());
+        }
+        return !frameData.empty();
+    };
+
+    auto assembleByteOffsetFragments = [&]() -> bool {
+        if (current_frame_.total_size == 0 || current_frame_.total_size > kMaxFrameBytes) {
+            return false;
+        }
+
+        uint32_t expectedOffset = 0;
+        frameData.clear();
+        frameData.reserve(current_frame_.total_size);
+
+        for (const auto& fragPair : current_frame_.fragments) {
+            const uint32_t offset = fragPair.first;
+            const auto& fragment = fragPair.second;
+            if (offset != expectedOffset) {
+                return false;
+            }
+            if (fragment.size() > current_frame_.total_size - expectedOffset) {
+                return false;
+            }
+            frameData.insert(frameData.end(), fragment.begin(), fragment.end());
+            expectedOffset += static_cast<uint32_t>(fragment.size());
+        }
+
+        return !frameData.empty();
+    };
+
+    if (assembleOrdinalFragments()) {
+        return true;
     }
-    return !frameData.empty();
+    return assembleByteOffsetFragments();
 }
 
 bool VideoCore::currentFrameLooksByteSwapped() const {
@@ -625,15 +693,20 @@ void VideoCore::finalizeCurrentFrame(const char* reason) {
                     byteOrderName(header_byte_order_));
         }
         RM_LOGW_STREAM(kLogTag, "Dropping frame_seq=" << current_frame_.frame_seq
-                                                      << " because UDP shards are not contiguous from 0");
+                                                      << " because UDP fragments are not contiguous as ordinal or byte offsets");
         current_frame_.reset();
         return;
     }
 
     if (current_frame_.total_size > 0 && frameData.size() != current_frame_.total_size) {
-        RM_LOGW_STREAM(kLogTag, "Frame_seq=" << current_frame_.frame_seq << " assembled size=" << frameData.size()
-                                             << " differs from header frame_size=" << current_frame_.total_size
-                                             << "; decoding contiguous shards like receive_video.py");
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        incomplete_frames_ += 1;
+        RM_LOGW_STREAM(kLogTag, "Dropping incomplete frame_seq=" << current_frame_.frame_seq
+                                                                 << " assembled_size=" << frameData.size()
+                                                                 << " expected_size=" << current_frame_.total_size
+                                                                 << " fragments=" << current_frame_.fragments.size());
+        current_frame_.reset();
+        return;
     }
 
     if (!logged_first_frame_) {
@@ -659,6 +732,7 @@ void VideoCore::finalizeCurrentFrame(const char* reason) {
                                                             << " accepted=" << frames_ok_
                                                             << " decoded=" << decoded
                                                             << " dropped=" << dropped
+                                                            << " incomplete_frames=" << incomplete_frames_
                                                             << " stream_ready=" << (hevc_stream_ready_ ? 1 : 0));
         last_stats_log_ = now;
     }
@@ -672,7 +746,11 @@ std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& fra
     }
 
     const auto units = findHevcNalUnits(frameData);
+    const std::string nalSummary = nalTypeSummary(units);
     if (units.empty()) {
+        if (!hevc_stream_ready_) {
+            logWaitingForHevcParams(frameData, nalSummary);
+        }
         return std::move(frameData);
     }
 
@@ -709,7 +787,7 @@ std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& fra
 
     if (!hevc_stream_ready_ && !hasParam) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        RM_LOGW(kLogTag, "Dropping HEVC access unit before VPS/SPS/PPS parameter data is available.");
+        logWaitingForHevcParams(frameData, nalSummary);
         return {};
     }
 
@@ -735,6 +813,22 @@ std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& fra
     return std::move(frameData);
 }
 
+void VideoCore::logWaitingForHevcParams(const std::vector<uint8_t>& frameData, const std::string& nalSummary) {
+    hevc_waiting_param_frames_ += 1;
+
+    const auto now = std::chrono::steady_clock::now();
+    if (hevc_waiting_param_frames_ <= 5 ||
+        last_hevc_wait_log_.time_since_epoch().count() == 0 ||
+        now - last_hevc_wait_log_ >= std::chrono::seconds(2)) {
+        RM_LOGW_STREAM(kLogTag, "Waiting for HEVC VPS/SPS/PPS before decoding"
+                                << " wait_frames=" << hevc_waiting_param_frames_
+                                << " bytes=" << frameData.size()
+                                << " nal_types=" << nalSummary
+                                << " prefix_hex=" << firstBytesHex(frameData));
+        last_hevc_wait_log_ = now;
+    }
+}
+
 void VideoCore::resetStreamState() {
     current_frame_.reset();
     header_byte_order_ = HeaderByteOrder::Unknown;
@@ -745,7 +839,10 @@ void VideoCore::resetStreamState() {
     logged_first_frame_ = false;
     frames_seen_ = 0;
     frames_ok_ = 0;
+    incomplete_frames_ = 0;
+    hevc_waiting_param_frames_ = 0;
     last_stats_log_ = {};
+    last_hevc_wait_log_ = {};
 }
 
 void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {

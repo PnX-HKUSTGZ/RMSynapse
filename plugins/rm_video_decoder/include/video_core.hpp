@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstddef>
+#include <string>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -114,6 +115,7 @@ private:
     bool assembleCurrentFrame(std::vector<uint8_t>& frameData) const;
     bool currentFrameLooksByteSwapped() const;
     std::vector<uint8_t> prepareHevcAccessUnit(std::vector<uint8_t>&& frameData);
+    void logWaitingForHevcParams(const std::vector<uint8_t>& frameData, const std::string& nalSummary);
     void resetStreamState();
     // FFmpeg 解码
     void decodeFrame(std::vector<uint8_t>&& frameData);
@@ -154,7 +156,7 @@ private:
 
         // 判断是否拼包完成
         bool isComplete() const {
-            return received_size >= total_size && total_size > 0;
+            return received_size == total_size && total_size > 0;
         }
 
         bool hasFragments() const {
@@ -258,7 +260,10 @@ private:
     bool logged_first_frame_ = false;
     uint64_t frames_seen_ = 0;
     uint64_t frames_ok_ = 0;
+    uint64_t incomplete_frames_ = 0;
+    uint64_t hevc_waiting_param_frames_ = 0;
     std::chrono::steady_clock::time_point last_stats_log_{};
+    std::chrono::steady_clock::time_point last_hevc_wait_log_{};
 };
 
 } // namespace RMVideoDecoder
