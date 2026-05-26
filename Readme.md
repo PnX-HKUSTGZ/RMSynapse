@@ -31,26 +31,175 @@ RoboMaster 2026 自定义客户端（Godot 4.5 + MQTT/Protobuf + UDP 视频）�
 5) 运行：`godot4 --path rm_synapse` 直接播放主场景；界面自动订阅 MQTT、显示数据并按当前设置发送交互命令。  
 6) 可选：使用导出产物 `rm_synapse/Export/linux/`、`rm_synapse/Export/windows/`、`rm_synapse/Export/macos/` 中对应平台文件启动。
 
-## 构建 / 更新 GDExtension
-- 依赖（Ubuntu 举例）：
+## 编译与分发
+本项目的发布包由三部分组成：React HUD 静态资源、Godot 工程导出、可选的 `rm_video_decoder` C++ GDExtension。正式分发前建议在目标平台本机完成一次构建，因为 Godot CEF、FFmpeg 与动态库加载路径都和平台/架构强相关。
+
+### 通用准备
+1) 拉取源码、LFS 大文件和子模块：
+```bash
+git clone <repo_url> RMSynapse
+cd RMSynapse
+git lfs pull
+git submodule update --init --recursive
+```
+`rm_synapse/addons/godot_cef/**` 使用 Git LFS 管理；如果没有执行 `git lfs pull`，CEF 运行库会只是 pointer 文件，Godot 导出后无法加载 HUD WebView。
+
+2) 安装工具链：
+- Godot 4.5.x，并在编辑器中安装对应平台的 Export Templates。
+- Node.js 20+ 与 npm，用于构建 `react-ui`。
+- Python 3、SCons、CMake；如果需要视频插件，还要安装 FFmpeg 开发库。
+
+3) 构建并同步 React HUD：
+```bash
+cd react-ui
+npm ci
+npm run build
+```
+Linux/macOS 可直接执行同步脚本：
+```bash
+./ui.sh
+```
+Windows PowerShell 使用等价命令：
+```powershell
+cd react-ui
+npm ci
+npm run build
+Remove-Item -Recurse -Force ..\rm_synapse\ui\web -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force ..\rm_synapse\ui\web | Out-Null
+Copy-Item -Recurse .\dist\* ..\rm_synapse\ui\web\
+```
+导出预设的 `include_filter` 已包含 `ui/web/**`，因此需要先同步这一步，再做 Godot 导出。
+
+### 一键脚本
+仓库在 `scripts/` 下提供了三平台构建脚本。默认会构建 React HUD、同步 `rm_synapse/ui/web/`，并编译当前平台的视频 GDExtension；需要 Godot 导出时额外加 `--export` 或 `-Export`。
+
+Linux：
+```bash
+scripts/build_linux.sh
+scripts/build_linux.sh --export
+scripts/build_linux.sh --skip-video --export
+```
+
+macOS：
+```bash
+scripts/build_macos.sh --arch arm64
+scripts/build_macos.sh --arch x86_64 --export
+scripts/build_macos.sh --arch universal --export --copy-ffmpeg yes --ffmpeg-runtime /path/to/ffmpeg/lib
+```
+
+Windows PowerShell：
+```powershell
+.\scripts\build_windows.ps1 -Toolchain msvc -FfmpegRoot "$env:VCPKG_ROOT\installed\x64-windows"
+.\scripts\build_windows.ps1 -Toolchain mingw -FfmpegRoot "$env:VCPKG_ROOT\installed\x64-mingw-dynamic"
+.\scripts\build_windows.ps1 -SkipVideo -Export -GodotBin "D:\Users\18384\Desktop\Godot_v4.5.2-stable_mono_win64\Godot_v4.5.2-stable_mono_win64_console.exe"
+```
+
+常用选项：
+- Linux/macOS：`--debug`、`--arch <arch>`、`--skip-ui`、`--skip-video`、`--export`、`--godot <path>`、`--lfs-pull`、`--ffmpeg-root <path>`、`--ffmpeg-runtime <path>`。
+- Windows：`-Debug`、`-Arch <arch>`、`-SkipUi`、`-SkipVideo`、`-Export`、`-GodotBin <path>`、`-LfsPull`、`-FfmpegRoot <path>`、`-FfmpegRuntimeDir <path>`。
+
+### 编译视频 GDExtension
+视频插件源码位于 `plugins/rm_video_decoder/`，SCons 构建完成后会把插件、`.gdextension` 和 shader 复制到 `rm_synapse/bin/`。如果只运行当前占位视频界面，可以跳过本节；如果要接 UDP H.265 图传，需要按目标平台编译。
+
+Ubuntu x86_64：
 ```bash
 sudo apt update
-sudo apt install build-essential scons pkg-config libavcodec-dev libavutil-dev libswscale-dev \
-                 libopencv-dev cmake # OpenCV 仅用于 test_video_show
-```
-- 重新编译视频解码插件：
-```bash
+sudo apt install build-essential scons pkg-config cmake \
+                 libavcodec-dev libavutil-dev libswscale-dev
+
 cd plugins/rm_video_decoder
-scons platform=linux target=template_release  # 或 template_debug
-# 成品位于 rm_synapse/bin/librm_video_decoder.* 和 video_yuv.gdshader
+scons platform=linux target=template_release arch=x86_64
 ```
-- 构建独立测试程序（UDP→FFmpeg→OpenCV 预览）：
+
+macOS arm64 或 x86_64：
 ```bash
-cmake -S plugins/rm_video_decoder -B build
-cmake --build build
-./build/test_video_show   # 端口默认 3334，可在源码中修改
+brew install scons pkg-config ffmpeg cmake
+
+cd plugins/rm_video_decoder
+scons platform=macos target=template_release arch=arm64    # Apple Silicon
+scons platform=macos target=template_release arch=x86_64   # Intel
 ```
-- 其他平台：将 `platform=windows|macos|android`，若交叉编译需先让 `godot-cpp` 获取对应头/模板。构建后确保产物放入 `rm_synapse/bin/` 并与 `rm_video_decoder.gdextension` 指向的文件名一致。
+`arch=universal` 只在 FFmpeg 本身也是 universal 库时使用；否则请按宿主架构构建。
+
+Windows MSVC + vcpkg：
+```powershell
+vcpkg install ffmpeg:x64-windows
+
+cd plugins\rm_video_decoder
+scons platform=windows target=template_release arch=x86_64 `
+      ffmpeg_root=$env:VCPKG_ROOT\installed\x64-windows
+```
+
+Windows MinGW + vcpkg：
+```powershell
+vcpkg install ffmpeg:x64-mingw-dynamic
+
+cd plugins\rm_video_decoder
+scons platform=windows target=template_release arch=x86_64 use_mingw=yes `
+      ffmpeg_root=$env:VCPKG_ROOT\installed\x64-mingw-dynamic
+```
+
+插件输出文件名应为：
+- Linux：`rm_synapse/bin/librm_video_decoder.so`
+- Windows：`rm_synapse/bin/rm_video_decoder.dll`
+- macOS：`rm_synapse/bin/librm_video_decoder.dylib`
+- 共享资源：`rm_synapse/bin/rm_video_decoder.gdextension`、`rm_synapse/bin/video_yuv.gdshader`
+
+FFmpeg 不在系统搜索路径时，可额外传入 `ffmpeg_include=<path>`、`ffmpeg_libpath=<path>`、`ffmpeg_runtime_dir=<path>`。Windows 默认会尝试从 `ffmpeg_root/bin` 复制 `av*.dll`、`sw*.dll` 到 `rm_synapse/bin/`；Linux/macOS 如需随包分发动态库，可显式使用 `copy_ffmpeg_runtime=yes ffmpeg_runtime_dir=<path>`。
+
+### CMake 验证构建
+CMake 入口只构建 `video_core` 和可选预览测试程序，不负责 Godot 插件发布。默认不依赖 OpenCV：
+```bash
+cmake -S plugins/rm_video_decoder -B build/rm_video_decoder -DRM_VIDEO_DECODER_BUILD_TESTS=OFF
+cmake --build build/rm_video_decoder
+```
+需要 UDP→FFmpeg→OpenCV 预览时再开启测试：
+```bash
+cmake -S plugins/rm_video_decoder -B build/rm_video_decoder-test \
+      -DRM_VIDEO_DECODER_BUILD_TESTS=ON \
+      -DOpenCV_DIR=<opencv-config-dir>
+cmake --build build/rm_video_decoder-test
+```
+
+### Godot 导出
+导出预设位于 `rm_synapse/export_presets.cfg`，当前维护三个目标：`Linux`、`Windows Desktop`、`macOS`。导出前确认：
+- Godot 已安装对应平台 Export Templates。
+- `rm_synapse/ui/web/` 已是最新 React 构建产物。
+- `rm_synapse/addons/godot_cef/bin/<platform>/` 不是 LFS pointer。
+- 如果启用视频插件，`rm_synapse/bin/` 已有对应平台的 `rm_video_decoder` 动态库和 FFmpeg 运行时库。
+
+Linux：
+```bash
+godot --headless --path rm_synapse --export-release "Linux" "Export/linux/rmsynapse.x86_64"
+```
+产物默认放在 `rm_synapse/Export/linux/`。分发时至少包含可执行文件；如果未使用 embed pck，还要同时带上 `.pck`。
+
+Windows：
+```powershell
+godot --headless --path rm_synapse --export-release "Windows Desktop" "Export/windows/rmsynapse.exe"
+```
+推荐使用控制台版 Godot 执行导出，便于看到缺失库或资源导入错误。分发目录应包含 `rmsynapse.exe`，以及 Godot/CEF/FFmpeg 没有被自动打入可执行文件旁边的运行时文件。
+
+macOS：
+```bash
+godot --headless --path rm_synapse --export-release "macOS" "Export/macos/rmsynapse.dmg"
+```
+当前预设为 universal 导出；如果只准备单架构 CEF 或视频插件，需要在 Godot 导出预设中把 `binary_format/architecture` 调整为对应架构，或补齐 universal 运行库后再导出。
+
+### 发布检查
+每个平台发布前至少做一次快速检查：
+```bash
+godot --headless --path rm_synapse --quit
+```
+然后启动导出产物，确认 HUD 能显示、MQTT 设置能保存、无 CEF/GDExtension 缺失库报错。有视频流时打开 `rm_synapse/net/video_udp/transfer_image.tscn` 做一次画面烟测；无视频流时，只出现 UDP timeout 日志不视为失败。
+
+平台动态库检查命令：
+- Linux：`ldd rm_synapse/bin/librm_video_decoder.so`
+- Windows MSVC：`dumpbin /dependents rm_synapse\bin\rm_video_decoder.dll`
+- Windows MinGW：`objdump -p rm_synapse\bin\rm_video_decoder.dll`
+- macOS：`otool -L rm_synapse/bin/librm_video_decoder.dylib`
+
+`rm_synapse/bin/`、`rm_synapse/Export/`、`godot-cpp/bin/` 和构建缓存默认被 `.gitignore` 排除。它们是本地构建/分发产物，不应作为源码改动提交。
 
 ## 网络与协议速览
 - 下行订阅（`ProtocolAdapter.DEFAULT_SUBSCRIBE_TOPICS` 默认）：`GameStatus`、`GlobalUnitStatus`、`GlobalLogisticsStatus`、`GlobalSpecialMechanism`、`Event`、`RobotInjuryStat`、`RobotRespawnStatus`、`RobotStaticStatus`、`RobotDynamicStatus`、`RobotModuleStatus`、`RobotPosition`、`Buff`、`PenaltyInfo`、`RobotPathPlanInfo`、`RadarInfoToClient`、`RobotPerformanceSelectionSync`、`DeployModeStatusSync`、`TechCoreMotionStateSync`、`RuneStatusSync`、`SentryStatusSync`、`DartSelectTargetStatusSync`、`SentryCtrlResult`、`AirSupportStatusSync`、`CustomByteBlock`。解码成功的消息会写入状态服务并逐类触发 `*_updated` 信号。  
