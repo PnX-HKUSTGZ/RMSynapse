@@ -11,10 +11,10 @@ script = ExtResource("1_qmlgy")
 
 [node name="Transport" type="Node" parent="."]
 script = ExtResource("2_x7r4m")
-broker_url = "127.0.0.1:3333"
+broker_url = "192.168.12.1:3333"
 auto_connect = false
 
 [node name="ClientSetter" type="Node" parent="."]
 script = ExtResource("3_7ph8n")
-broker_url = "127.0.0.1:3333"
+broker_url = "192.168.12.1:3333"
 connect_after_apply = true

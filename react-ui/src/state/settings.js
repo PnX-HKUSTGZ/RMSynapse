@@ -1,6 +1,7 @@
 import { clamp } from './utils';
 
 const STORAGE_KEY = 'rm-synapse-hud-settings-v1';
+export const DEFAULT_MQTT_BROKER_HOST = '192.168.12.1';
 
 export const DEFAULT_HUD_SETTINGS = {
   mouseSensitivity: 1,
@@ -18,7 +19,7 @@ export const DEFAULT_HUD_SETTINGS = {
   },
   network: {
     mqtt: {
-      host: '127.0.0.1',
+      host: DEFAULT_MQTT_BROKER_HOST,
       port: 3333,
       clientId: '',
     },

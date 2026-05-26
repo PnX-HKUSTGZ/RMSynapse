@@ -17,7 +17,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { emitGodotOperation } from '../../bridge/godot';
-import { DEFAULT_HUD_SETTINGS, normalizeHudSettings } from '../../state/settings';
+import { DEFAULT_HUD_SETTINGS, DEFAULT_MQTT_BROKER_HOST, normalizeHudSettings } from '../../state/settings';
 
 const HOTKEY_ROWS = [
   { key: 'heal', label: '买血', icon: HeartPulse },
@@ -236,6 +236,18 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
     );
   };
 
+  const applyMqttConnection = () => {
+    emitGodotOperation(
+      {
+        type: 'setConnectionSettings',
+        settings: { mqtt: normalized.network.mqtt },
+        applyConnection: true,
+      },
+      '[settings] applyMqttConnection',
+      `${normalized.network.mqtt.host}:${normalized.network.mqtt.port}`,
+    );
+  };
+
   const captureHotkey = (action, event) => {
     if (capturingAction !== action) return;
     event.preventDefault();
@@ -332,7 +344,7 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
                 icon={Server}
                 value={normalized.network.mqtt.host}
                 onChange={(host) => updateNetwork('mqtt', { host })}
-                placeholder="192.168.12.1"
+                placeholder={DEFAULT_MQTT_BROKER_HOST}
               />
               <TextInputRow
                 label="Port"
@@ -349,6 +361,16 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
                 options={CLIENT_ID_OPTIONS}
                 onChange={(clientId) => updateNetwork('mqtt', { clientId })}
               />
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={applyMqttConnection}
+                className="flex min-h-9 items-center justify-center gap-1 rounded border border-cyan-400/45 bg-cyan-500/12 px-3 text-xs font-bold text-cyan-100 transition-colors hover:border-cyan-300 hover:bg-cyan-500/20"
+              >
+                <RotateCcw size={14} />
+                应用并重连
+              </button>
             </div>
           </section>
 

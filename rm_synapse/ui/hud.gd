@@ -56,6 +56,8 @@ var _mid_button_down := false
 var _pressed_key_bits: Dictionary = {}
 var _pending_map_payloads: Array[Dictionary] = []
 var _last_video_settings_key := ""
+var _active_mqtt_connection_key := ""
+var _pending_mqtt_connection_key := ""
 var _pending_web_eval_payloads: Array[Dictionary] = []
 var _shutting_down := false
 
@@ -116,6 +118,7 @@ const MIN_MOUSE_SENSITIVITY := 0.1
 const MAX_MOUSE_SENSITIVITY := 5.0
 const MIN_PORT := 1
 const MAX_PORT := 65535
+const DEFAULT_MQTT_BROKER_HOST := "192.168.12.1"
 const WEB_SOURCE_DIR := "res://ui/web"
 const WEB_RUNTIME_DIR := "user://web"
 const WEB_INDEX_FILE := "index.html"
@@ -311,6 +314,12 @@ func _copy_file(source_path: String, target_path: String) -> bool:
 	return true
 
 func _write_imported_texture_png(source_path: String, target_path: String) -> bool:
+	var raw_image := Image.load_from_file(source_path)
+	if raw_image != null:
+		var raw_err: int = raw_image.save_png(target_path)
+		if raw_err == OK:
+			return true
+		push_error("Cannot write raw web PNG asset: %s (error=%s)" % [target_path, str(raw_err)])
 	var texture := ResourceLoader.load(source_path) as Texture2D
 	if texture != null:
 		var image: Image = texture.get_image()
@@ -640,7 +649,8 @@ func _on_web_ipc_message(message, source: String = "hud") -> void:
 		if operation_type == "setConnectionSettings":
 			if source == "map":
 				return
-			_apply_connection_settings(operation.get("settings", {}))
+			var apply_connection := bool(operation.get("applyConnection", operation.get("applyNow", false)))
+			_apply_connection_settings(operation.get("settings", {}), apply_connection)
 			return
 		if operation_type == "setDebugLogSettings":
 			if source == "map":
@@ -1074,11 +1084,11 @@ func _bytes_to_hex_sample(bytes: PackedByteArray, max_count: int) -> String:
 		parts.append("%02x" % int(bytes[i]))
 	return " ".join(parts)
 
-func _apply_connection_settings(settings) -> void:
+func _apply_connection_settings(settings, apply_connection: bool = false) -> void:
 	if not (settings is Dictionary):
 		return
 	if settings.has("mqtt"):
-		_apply_mqtt_settings(settings.get("mqtt", {}))
+		_apply_mqtt_settings(settings.get("mqtt", {}), apply_connection)
 	if settings.has("video"):
 		_apply_video_settings(settings.get("video", {}))
 	if settings.has("input"):
@@ -1086,7 +1096,7 @@ func _apply_connection_settings(settings) -> void:
 	if settings.has("debug"):
 		_apply_debug_settings(settings.get("debug", {}))
 
-func _apply_mqtt_settings(mqtt_settings) -> void:
+func _apply_mqtt_settings(mqtt_settings, apply_connection: bool = false) -> void:
 	if not (mqtt_settings is Dictionary):
 		return
 	var transport := adapter_getter.get_transport()
@@ -1094,25 +1104,49 @@ func _apply_mqtt_settings(mqtt_settings) -> void:
 		push_warning("Cannot apply MQTT settings: transport not found.")
 		return
 	var broker_url := _build_endpoint_url(mqtt_settings, "tcp")
-	transport.broker_url = broker_url
+	var connection_key := _build_mqtt_connection_key(mqtt_settings, broker_url)
+	var previous_key := _active_mqtt_connection_key
+	if previous_key.is_empty():
+		previous_key = _build_mqtt_connection_key_from_transport(transport)
+		_active_mqtt_connection_key = previous_key
+	var connection_changed := connection_key != previous_key
+	if apply_connection:
+		transport.broker_url = broker_url
 	transport.auto_reconnect = bool(mqtt_settings.get("autoReconnect", true))
 	transport.reconnect_delay_ms = int(mqtt_settings.get("reconnectDelayMs", transport.reconnect_delay_ms))
 	transport.ping_interval_sec = int(mqtt_settings.get("pingIntervalSec", transport.ping_interval_sec))
-	transport.client_id = str(mqtt_settings.get("clientId", ""))
-	transport.username = str(mqtt_settings.get("username", ""))
-	transport.password = str(mqtt_settings.get("password", ""))
+	if apply_connection:
+		transport.client_id = str(mqtt_settings.get("clientId", ""))
+		transport.username = str(mqtt_settings.get("username", ""))
+		transport.password = str(mqtt_settings.get("password", ""))
 	transport.binary_messages = true
 	var client_setter := get_tree().root.get_node_or_null("/root/Mqtt/ClientSetter")
 	if client_setter != null:
-		_set_object_property_if_exists(client_setter, "broker_url", broker_url)
 		_set_object_property_if_exists(client_setter, "auto_reconnect", transport.auto_reconnect)
 		_set_object_property_if_exists(client_setter, "reconnect_delay_ms", transport.reconnect_delay_ms)
 		_set_object_property_if_exists(client_setter, "ping_interval_sec", transport.ping_interval_sec)
-		_set_object_property_if_exists(client_setter, "client_id", transport.client_id)
-		_set_object_property_if_exists(client_setter, "username", transport.username)
-		_set_object_property_if_exists(client_setter, "password", transport.password)
-	transport.restart_connection()
+		if apply_connection:
+			_set_object_property_if_exists(client_setter, "broker_url", broker_url)
+			_set_object_property_if_exists(client_setter, "client_id", transport.client_id)
+			_set_object_property_if_exists(client_setter, "username", transport.username)
+			_set_object_property_if_exists(client_setter, "password", transport.password)
 	_try_bind_transport_signals()
+	if apply_connection:
+		_pending_mqtt_connection_key = ""
+		_active_mqtt_connection_key = connection_key
+		if transport.is_broker_connected():
+			print("MQTT settings applied; restarting connection: ", broker_url)
+			transport.restart_connection()
+		else:
+			print("MQTT settings applied; connecting broker: ", broker_url)
+			transport.connect_to_broker()
+		return
+	if connection_changed:
+		_pending_mqtt_connection_key = connection_key
+		print("MQTT connection settings updated; waiting for Apply & Reconnect: ", broker_url)
+	else:
+		_pending_mqtt_connection_key = ""
+		print("MQTT settings updated without reconnect: ", broker_url)
 
 func _apply_video_settings(video_settings) -> void:
 	if not (video_settings is Dictionary):
@@ -1182,13 +1216,42 @@ func _apply_debug_settings(debug_settings) -> void:
 	_set_object_property_if_exists(Log, "remote_endpoint", endpoint)
 	_set_object_property_if_exists(Log, "remote_enabled", not endpoint.is_empty())
 
+func _build_mqtt_connection_key(settings: Dictionary, broker_url: String) -> String:
+	return JSON.stringify({
+		"broker_url": _canonical_mqtt_broker_url(broker_url),
+		"client_id": str(settings.get("clientId", "")),
+		"username": str(settings.get("username", "")),
+		"password": str(settings.get("password", "")),
+		"binary_messages": true
+	})
+
+func _build_mqtt_connection_key_from_transport(transport: NetworkTransport) -> String:
+	if transport == null:
+		return ""
+	return JSON.stringify({
+		"broker_url": _canonical_mqtt_broker_url(str(transport.broker_url)),
+		"client_id": str(transport.client_id),
+		"username": str(transport.username),
+		"password": str(transport.password),
+		"binary_messages": bool(transport.binary_messages)
+	})
+
+func _canonical_mqtt_broker_url(value: String) -> String:
+	var broker_url := value.strip_edges()
+	if broker_url.is_empty():
+		return "tcp://%s:3333" % DEFAULT_MQTT_BROKER_HOST
+	if broker_url.contains("://"):
+		return broker_url
+	return "tcp://" + broker_url
+
 func _build_endpoint_url(settings: Dictionary, fallback_protocol: String) -> String:
 	var protocol := str(settings.get("protocol", fallback_protocol)).strip_edges().replace("://", "").replace(":/", "")
 	if protocol.is_empty():
 		protocol = fallback_protocol
-	var host := str(settings.get("host", "127.0.0.1")).strip_edges()
+	var default_host := DEFAULT_MQTT_BROKER_HOST if fallback_protocol == "tcp" else "127.0.0.1"
+	var host := str(settings.get("host", default_host)).strip_edges()
 	if host.is_empty():
-		host = "127.0.0.1"
+		host = default_host
 	var port := int(clamp(float(settings.get("port", 3333)), MIN_PORT, MAX_PORT))
 	var path := str(settings.get("path", "")).strip_edges()
 	if not path.is_empty() and not path.begins_with("/"):

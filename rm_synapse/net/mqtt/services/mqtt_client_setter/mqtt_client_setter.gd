@@ -15,7 +15,7 @@ class_name MQTTClientSetter
 @export var force_rebind: bool = false
 
 @export_group("Transport Settings")
-@export var broker_url: String = "127.0.0.1:3333"
+@export var broker_url: String = "192.168.12.1:3333"
 @export var auto_connect: bool = false
 @export var auto_reconnect: bool = true
 @export var reconnect_delay_ms: int = 2000
