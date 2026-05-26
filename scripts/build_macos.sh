@@ -147,6 +147,20 @@ build_video() {
   popd >/dev/null
 }
 
+clean_legacy_video_plugin() {
+  rm -f \
+    "${ROOT_DIR}/rm_synapse/bin/librm_video_decoder.dylib" \
+    "${ROOT_DIR}/rm_synapse/bin/rm_video_decoder.gdextension" \
+    "${ROOT_DIR}/rm_synapse/bin/rm_video_decoder.gdextension.uid" \
+    "${ROOT_DIR}/rm_synapse/bin/video_yuv.gdshader" \
+    "${ROOT_DIR}/rm_synapse/bin/video_yuv.gdshader.uid"
+}
+
+clean_export_dir() {
+  mkdir -p "${ROOT_DIR}/rm_synapse/Export/macos"
+  find "${ROOT_DIR}/rm_synapse/Export/macos" -mindepth 1 ! -name ".gitkeep" -exec rm -rf {} +
+}
+
 export_project() {
   if [[ "${RUN_EXPORT}" -eq 0 ]]; then
     return
@@ -156,7 +170,8 @@ export_project() {
     echo "Note: Godot macOS export preset is universal; make sure CEF and GDExtension runtime libraries match the export architecture." >&2
   fi
 
-  mkdir -p "${ROOT_DIR}/rm_synapse/Export/macos"
+  clean_legacy_video_plugin
+  clean_export_dir
   "${GODOT_BIN}" --headless --path "${ROOT_DIR}/rm_synapse" \
     --export-release "macOS" "${ROOT_DIR}/rm_synapse/Export/macos/rmsynapse.dmg"
 }

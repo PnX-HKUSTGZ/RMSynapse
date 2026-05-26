@@ -140,12 +140,27 @@ build_video() {
   popd >/dev/null
 }
 
+clean_legacy_video_plugin() {
+  rm -f \
+    "${ROOT_DIR}/rm_synapse/bin/librm_video_decoder.so" \
+    "${ROOT_DIR}/rm_synapse/bin/rm_video_decoder.gdextension" \
+    "${ROOT_DIR}/rm_synapse/bin/rm_video_decoder.gdextension.uid" \
+    "${ROOT_DIR}/rm_synapse/bin/video_yuv.gdshader" \
+    "${ROOT_DIR}/rm_synapse/bin/video_yuv.gdshader.uid"
+}
+
+clean_export_dir() {
+  mkdir -p "${ROOT_DIR}/rm_synapse/Export/linux"
+  find "${ROOT_DIR}/rm_synapse/Export/linux" -mindepth 1 ! -name ".gitkeep" -exec rm -rf {} +
+}
+
 export_project() {
   if [[ "${RUN_EXPORT}" -eq 0 ]]; then
     return
   fi
 
-  mkdir -p "${ROOT_DIR}/rm_synapse/Export/linux"
+  clean_legacy_video_plugin
+  clean_export_dir
   "${GODOT_BIN}" --headless --path "${ROOT_DIR}/rm_synapse" \
     --export-release "Linux" "${ROOT_DIR}/rm_synapse/Export/linux/rmsynapse.x86_64"
 }

@@ -98,6 +98,30 @@ function Build-Video {
     }
 }
 
+function Clear-LegacyVideoPlugin {
+    $LegacyFiles = @(
+        "rm_synapse\bin\rm_video_decoder.dll",
+        "rm_synapse\bin\librm_video_decoder.a",
+        "rm_synapse\bin\rm_video_decoder.gdextension",
+        "rm_synapse\bin\rm_video_decoder.gdextension.uid",
+        "rm_synapse\bin\video_yuv.gdshader",
+        "rm_synapse\bin\video_yuv.gdshader.uid"
+    )
+
+    foreach ($RelativePath in $LegacyFiles) {
+        Remove-Item -Force -LiteralPath (Join-Path $RootDir $RelativePath) -ErrorAction SilentlyContinue
+    }
+}
+
+function Clear-ExportDirectory {
+    $ExportDir = Join-Path $RootDir "rm_synapse\Export\windows"
+    New-Item -ItemType Directory -Force -Path $ExportDir | Out-Null
+
+    Get-ChildItem -Force -LiteralPath $ExportDir | Where-Object { $_.Name -ne ".gitkeep" } | ForEach-Object {
+        Remove-Item -Recurse -Force -LiteralPath $_.FullName
+    }
+}
+
 function Export-Project {
     if (-not $Export) {
         return
@@ -107,10 +131,11 @@ function Export-Project {
         $GodotBin = "godot"
     }
 
+    Clear-ExportDirectory
     $ExportDir = Join-Path $RootDir "rm_synapse\Export\windows"
-    New-Item -ItemType Directory -Force -Path $ExportDir | Out-Null
     $ExportPath = Join-Path $ExportDir "rmsynapse.exe"
 
+    Clear-LegacyVideoPlugin
     & $GodotBin --headless --path (Join-Path $RootDir "rm_synapse") `
         --export-release "Windows Desktop" $ExportPath
 }
