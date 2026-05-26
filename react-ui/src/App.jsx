@@ -283,6 +283,7 @@ export default function App() {
           stats={statsState}
           leftRobots={leftRobots}
           rightRobots={rightRobots}
+          robotLevels={uiState.robotLevels}
           uiSizing={effectiveUiSizing}
           match={uiState.match}
           links={uiState.links}

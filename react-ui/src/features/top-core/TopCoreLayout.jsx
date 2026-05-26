@@ -308,7 +308,7 @@ function ScoreTimeCore({ roundLabel, match, timeLeft, scores }) {
   );
 }
 
-function RobotSlot({ robot, team }) {
+function RobotSlot({ robot, team, level }) {
   const isRed = team === 'red';
   const maxHp = Number(robot.max ?? robot.maxHp) > 0 ? Number(robot.max ?? robot.maxHp) : 1;
   const hasHp = robot.hp != null && Number.isFinite(Number(robot.hp));
@@ -318,6 +318,8 @@ function RobotSlot({ robot, team }) {
   const isOffline = !hasHp || robot.isOffline || robot.status === 'offline';
   const isLow = hasHp && !isDead && hpPercent < 30;
   const tags = Array.isArray(robot.tags) ? robot.tags : [];
+  const safeLevel = Number(level ?? robot.level);
+  const levelLabel = Number.isFinite(safeLevel) && safeLevel > 0 ? `LV.${Math.trunc(safeLevel)}` : 'LV.--';
   const fillClass = isRed ? 'bg-red-600/40' : 'bg-blue-600/40';
   const edgeGlow = isRed
     ? 'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.95)]'
@@ -345,9 +347,14 @@ function RobotSlot({ robot, team }) {
       )}
       <div className="relative z-10 flex h-full flex-col justify-between px-2 py-1.5">
         <div className="flex items-start justify-between gap-1">
-          <span className={`font-orbitron text-[14px] font-black leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.75)] ${isDead || isOffline ? 'text-neutral-500' : 'text-white/80'}`}>
-            {robot.id}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className={`font-orbitron text-[14px] font-black leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.75)] ${isDead || isOffline ? 'text-neutral-500' : 'text-white/80'}`}>
+              {robot.id}
+            </span>
+            <span className={`rounded border px-1 py-[1px] font-orbitron text-[8px] font-black leading-none ${isDead || isOffline ? 'border-neutral-700 bg-black/35 text-neutral-500' : isRed ? 'border-red-300/30 bg-red-950/45 text-red-100' : 'border-blue-300/30 bg-blue-950/45 text-blue-100'}`}>
+              {levelLabel}
+            </span>
+          </div>
           <div className="flex max-w-[52px] flex-col items-end gap-[2px]">
             {isDead && <Skull size={13} className="text-neutral-500" />}
             {robot.outdated && <span className="rounded bg-yellow-500/20 px-1 text-[7px] font-black leading-none text-yellow-300">OLD</span>}
@@ -375,11 +382,13 @@ function RobotSlot({ robot, team }) {
   );
 }
 
-function RobotStrip({ robots, team }) {
+function RobotStrip({ robots, team, levels }) {
+  const sideLevels = levels ?? {};
+
   return (
     <div className={`flex min-w-0 flex-1 gap-2 ${team === 'blue' ? 'justify-end' : 'justify-start'}`}>
       {robots.map((robot) => (
-        <RobotSlot key={`${team}-${robot.id}`} robot={robot} team={team} />
+        <RobotSlot key={`${team}-${robot.id}`} robot={robot} team={team} level={sideLevels[robot.id]} />
       ))}
     </div>
   );
@@ -441,6 +450,7 @@ export default function TopCoreLayout({
   stats,
   leftRobots,
   rightRobots,
+  robotLevels,
   uiSizing,
   match,
   links,
@@ -539,9 +549,9 @@ export default function TopCoreLayout({
       </div>
 
       <div className="mt-2 flex w-full items-center justify-between gap-4">
-        <RobotStrip robots={leftRobots} team="red" />
+        <RobotStrip robots={leftRobots} team="red" levels={robotLevels?.red} />
         <EcoHub labels={labels} stats={stats} maxValues={maxValues} />
-        <RobotStrip robots={rightRobots} team="blue" />
+        <RobotStrip robots={rightRobots} team="blue" levels={robotLevels?.blue} />
       </div>
     </div>
   );

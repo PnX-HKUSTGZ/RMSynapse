@@ -314,6 +314,13 @@ func _copy_file(source_path: String, target_path: String) -> bool:
 	return true
 
 func _write_imported_texture_png(source_path: String, target_path: String) -> bool:
+	if FileAccess.file_exists(source_path):
+		var raw_image := Image.load_from_file(source_path)
+		if raw_image != null:
+			var raw_err: int = raw_image.save_png(target_path)
+			if raw_err == OK:
+				return true
+			push_error("Cannot write raw web PNG asset: %s (error=%s)" % [target_path, str(raw_err)])
 	var texture := ResourceLoader.load(source_path) as Texture2D
 	if texture != null:
 		var image: Image = texture.get_image()
@@ -322,13 +329,6 @@ func _write_imported_texture_png(source_path: String, target_path: String) -> bo
 			if err == OK:
 				return true
 			push_error("Cannot write web PNG asset: %s (error=%s)" % [target_path, str(err)])
-	if FileAccess.file_exists(source_path):
-		var raw_image := Image.load_from_file(source_path)
-		if raw_image != null:
-			var raw_err: int = raw_image.save_png(target_path)
-			if raw_err == OK:
-				return true
-			push_error("Cannot write raw web PNG asset: %s (error=%s)" % [target_path, str(raw_err)])
 	if FileAccess.file_exists(target_path):
 		return true
 	push_error("Cannot prepare web PNG asset: %s" % source_path)

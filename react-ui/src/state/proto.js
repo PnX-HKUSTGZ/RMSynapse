@@ -144,11 +144,29 @@ function getExistingRobotMax(defaultRobots, id) {
   return toNonNegativeInt(robot?.max, 1) || 1;
 }
 
+function getExistingRobotLevel(defaultRobots, id) {
+  const robot = defaultRobots.find((item) => Number(item.id) === Number(id));
+  return toNonNegativeInt(robot?.level, 0);
+}
+
+function getRobotSideKey(robotId) {
+  const numericId = Number(robotId);
+  if (!Number.isFinite(numericId) || numericId <= 0) return null;
+  return numericId >= 100 ? 'blue' : 'red';
+}
+
+function getRobotDisplayId(robotId) {
+  const numericId = Number(robotId);
+  if (!Number.isFinite(numericId) || numericId <= 0) return 0;
+  return numericId >= 100 ? numericId - 100 : numericId;
+}
+
 function buildRobotSideFromHealth(healthValues, offset, defaultRobots) {
   return GLOBAL_UNIT_ROBOT_IDS.map((id, index) => ({
     id,
     hp: toNonNegativeInt(healthValues[offset + index]),
     max: getExistingRobotMax(defaultRobots, id),
+    level: getExistingRobotLevel(defaultRobots, id),
   }));
 }
 
@@ -351,6 +369,11 @@ function buildProtoPatch(data) {
 
   if (isPlainObject(data.RobotStaticStatus)) {
     const source = data.RobotStaticStatus;
+    const robotId = toNonNegativeInt(source.robot_id);
+    const robotLevel = toNonNegativeInt(source.level);
+    const sideKey = getRobotSideKey(robotId);
+    const displayId = getRobotDisplayId(robotId);
+
     patch.maxValues = {
       mechaHp: toNonNegativeInt(source.max_health),
       mechaBoost: toNonNegativeInt(source.max_buffer_energy),
@@ -371,6 +394,13 @@ function buildProtoPatch(data) {
       maxBufferEnergy: toNonNegativeInt(source.max_buffer_energy),
       maxPower: toNonNegativeInt(source.max_power),
     };
+    if (sideKey && displayId > 0) {
+      patch.robotLevels = {
+        [sideKey]: {
+          [displayId]: robotLevel,
+        },
+      };
+    }
     patch.centerHud = {
       maxHeat: toNonNegativeInt(source.max_heat),
     };
