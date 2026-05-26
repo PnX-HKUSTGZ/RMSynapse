@@ -122,6 +122,10 @@ function Clear-ExportDirectory {
     }
 }
 
+function Clear-GodotExtensionCache {
+    Remove-Item -Force -LiteralPath (Join-Path $RootDir "rm_synapse\.godot\extension_list.cfg") -ErrorAction SilentlyContinue
+}
+
 function Export-Project {
     if (-not $Export) {
         return
@@ -136,6 +140,7 @@ function Export-Project {
     $ExportPath = Join-Path $ExportDir "rmsynapse.exe"
 
     Clear-LegacyVideoPlugin
+    Clear-GodotExtensionCache
     & $GodotBin --headless --path (Join-Path $RootDir "rm_synapse") `
         --export-release "Windows Desktop" $ExportPath
 }

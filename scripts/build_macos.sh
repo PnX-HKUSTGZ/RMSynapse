@@ -161,6 +161,10 @@ clean_export_dir() {
   find "${ROOT_DIR}/rm_synapse/Export/macos" -mindepth 1 ! -name ".gitkeep" -exec rm -rf {} +
 }
 
+clean_godot_extension_cache() {
+  rm -f "${ROOT_DIR}/rm_synapse/.godot/extension_list.cfg"
+}
+
 export_project() {
   if [[ "${RUN_EXPORT}" -eq 0 ]]; then
     return
@@ -172,6 +176,7 @@ export_project() {
 
   clean_legacy_video_plugin
   clean_export_dir
+  clean_godot_extension_cache
   "${GODOT_BIN}" --headless --path "${ROOT_DIR}/rm_synapse" \
     --export-release "macOS" "${ROOT_DIR}/rm_synapse/Export/macos/rmsynapse.dmg"
 }

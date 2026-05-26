@@ -154,6 +154,22 @@ clean_export_dir() {
   find "${ROOT_DIR}/rm_synapse/Export/linux" -mindepth 1 ! -name ".gitkeep" -exec rm -rf {} +
 }
 
+clean_godot_extension_cache() {
+  rm -f "${ROOT_DIR}/rm_synapse/.godot/extension_list.cfg"
+}
+
+fix_export_permissions() {
+  local executable
+  for executable in \
+    "${ROOT_DIR}/rm_synapse/Export/linux/rmsynapse.x86_64" \
+    "${ROOT_DIR}/rm_synapse/Export/linux/gdcef_helper" \
+    "${ROOT_DIR}/rm_synapse/Export/linux/chrome-sandbox"; do
+    if [[ -e "${executable}" ]]; then
+      chmod +x "${executable}"
+    fi
+  done
+}
+
 export_project() {
   if [[ "${RUN_EXPORT}" -eq 0 ]]; then
     return
@@ -161,8 +177,10 @@ export_project() {
 
   clean_legacy_video_plugin
   clean_export_dir
+  clean_godot_extension_cache
   "${GODOT_BIN}" --headless --path "${ROOT_DIR}/rm_synapse" \
     --export-release "Linux" "${ROOT_DIR}/rm_synapse/Export/linux/rmsynapse.x86_64"
+  fix_export_permissions
 }
 
 run_lfs_pull
