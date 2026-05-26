@@ -10,16 +10,12 @@ using namespace rm_video_gd;
 
 namespace {
 constexpr const char* kLogTag = "rm_video_gd.RMVideoCanvas";
-const char* kShaderPath = "res://bin/video_yuv.gdshader";
+const char* kShaderPath = "res://addons/rm_video_decoder/video_yuv.gdshader";
 }
 
 RMVideoCanvas::~RMVideoCanvas() {
     extractor_.stop();
-    RenderingServer* rs = RenderingServer::get_singleton();
-    if (rs) {
-        if (tex_y_.is_valid()) rs->free_rid(tex_y_);
-        if (tex_uv_.is_valid()) rs->free_rid(tex_uv_);
-    }
+    release_textures();
 }
 
 void RMVideoCanvas::_bind_methods() {
@@ -33,6 +29,7 @@ void RMVideoCanvas::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_force_rgba", "force"), &RMVideoCanvas::set_force_rgba);
     ClassDB::bind_method(D_METHOD("get_no_frame_timeout"), &RMVideoCanvas::get_no_frame_timeout);
     ClassDB::bind_method(D_METHOD("set_no_frame_timeout", "seconds"), &RMVideoCanvas::set_no_frame_timeout);
+    ClassDB::bind_method(D_METHOD("get_status"), &RMVideoCanvas::get_status);
     ClassDB::bind_method(D_METHOD("get_placeholder_texture"), &RMVideoCanvas::get_placeholder_texture);
     ClassDB::bind_method(D_METHOD("set_placeholder_texture", "texture"), &RMVideoCanvas::set_placeholder_texture);
     // ClassDB::bind_method(D_METHOD("get_placeholder_color"), &RMVideoCanvas::get_placeholder_color);
@@ -64,6 +61,7 @@ void RMVideoCanvas::_ready() {
     }
     RM_LOGI(kLogTag, "RMVideoCanvas ready. Port=%d", port_);
     running_ = true;
+    log_status(true);
     ensure_texture_rect();
 
     // Prepare material with shader
@@ -79,12 +77,15 @@ void RMVideoCanvas::_ready() {
 }
 
 void RMVideoCanvas::set_port(int p) {
+    if (port_ == p) {
+        RM_LOGI(kLogTag, "Port unchanged: %d", port_);
+        return;
+    }
     RM_LOGI(kLogTag, "Set port from %d to %d (will restart extractor)", port_, p);
     port_ = p;
-    extractor_.stop();
     extractor_.set_port(port_);
     if (running_) {
-        if (!extractor_.init()) {
+        if (!extractor_.restart()) {
             RM_LOGE(kLogTag, "Re-init VideoCore failed after port change");
             running_ = false;
         }
@@ -151,22 +152,29 @@ Ref<Texture2D> RMVideoCanvas::get_fallback_placeholder() {
 }
 
 void RMVideoCanvas::_process(double delta) {
+    rm::common::log::godot::flush_pending();
+
     // Defensive: ensure the TextureRect exists even if _ready wasn't called for some reason.
     ensure_texture_rect();
     if (!running_) {
         RM_LOGW(kLogTag, "Not running; skip frame");
         return;
     }
+
+    status_log_elapsed_ += delta;
+    if (status_log_elapsed_ >= 5.0) {
+        status_log_elapsed_ = 0.0;
+        log_status(false);
+    }
+
     RenderingServer* rs = RenderingServer::get_singleton();
-    if (!rs) {
-        RM_LOGE(kLogTag, "RenderingServer singleton is null");
-        return;
+    RenderingDevice* rd = rs ? rs->get_rendering_device() : nullptr;
+    static bool logged_no_rendering_device = false;
+    if (!rd && !logged_no_rendering_device) {
+        RM_LOGW(kLogTag, "RenderingDevice is unavailable; using ImageTexture RGBA fallback");
+        logged_no_rendering_device = true;
     }
-    RenderingDevice* rd = rs->get_rendering_device();
-    if (!rd) {
-        RM_LOGE(kLogTag, "RenderingDevice is null");
-        return;
-    }
+
     static int idle_counter = 0;
     if (!extractor_.poll(frame_)) {
         if (++idle_counter % 120 == 0) {
@@ -191,12 +199,20 @@ void RMVideoCanvas::_process(double delta) {
     }
 
     if (frame_.layout == RMVideoDecoder::YuvFrameExtractor::UVLayout::RGBA) {
-        ensure_textures_rgba(rd, frame_.width, frame_.height);
-        upload_frame_rgba(rd, frame_);
-        if (rect_) {
-            rect_->set_texture(tex_rgba_res_);
+        if (rd) {
+            ensure_textures_rgba(rd, frame_.width, frame_.height);
+            upload_frame_rgba(rd, frame_);
+            if (rect_) {
+                rect_->set_texture(tex_rgba_res_);
+            }
+        } else {
+            upload_frame_rgba_image_texture(frame_);
         }
     } else {
+        if (!rd) {
+            RM_LOGW(kLogTag, "Skipping non-RGBA frame because RenderingDevice is unavailable");
+            return;
+        }
         ensure_textures(rd, frame_.width, frame_.height);
         upload_frame(rd, frame_);
         if (rect_) {
@@ -396,11 +412,95 @@ void RMVideoCanvas::upload_frame_rgba(RenderingDevice* rd, const RMVideoDecoder:
     // RM_LOGD(kLogTag, "Updated RGBA frame %dx%d (%d bytes)", f.width, f.height, (int)f.rgba.size());
 }
 
+void RMVideoCanvas::upload_frame_rgba_image_texture(const RMVideoDecoder::YuvFrameExtractor::Frame& f) {
+    if (f.width <= 0 || f.height <= 0 || f.rgba.empty()) {
+        RM_LOGE(kLogTag, "Invalid RGBA fallback frame %dx%d (%d bytes)", f.width, f.height, static_cast<int>(f.rgba.size()));
+        return;
+    }
+
+    PackedByteArray data;
+    data.resize(static_cast<int64_t>(f.rgba.size()));
+    std::memcpy(data.ptrw(), f.rgba.data(), f.rgba.size());
+
+    Ref<Image> image = Image::create_from_data(f.width, f.height, false, Image::FORMAT_RGBA8, data);
+    if (!image.is_valid() || image->is_empty()) {
+        RM_LOGE(kLogTag, "Failed to create RGBA fallback Image");
+        return;
+    }
+
+    if (!image_rgba_tex_.is_valid() || f.width != tex_w_ || f.height != tex_h_) {
+        image_rgba_tex_ = ImageTexture::create_from_image(image);
+        if (!image_rgba_tex_.is_valid()) {
+            RM_LOGE(kLogTag, "Failed to create RGBA fallback ImageTexture");
+            return;
+        }
+        tex_w_ = f.width;
+        tex_h_ = f.height;
+        if (rect_) {
+            rect_->set_material(Ref<Material>());
+            rect_->set_texture(image_rgba_tex_);
+            set_display_mode(display_mode_);
+        }
+        apply_display_layout();
+        RM_LOGI(kLogTag, "Created RGBA fallback ImageTexture %dx%d", f.width, f.height);
+        return;
+    }
+
+    image_rgba_tex_->update(image);
+    if (rect_ && rect_->get_texture() != image_rgba_tex_) {
+        rect_->set_material(Ref<Material>());
+        rect_->set_texture(image_rgba_tex_);
+    }
+}
+
+void RMVideoCanvas::_exit_tree() {
+    running_ = false;
+    extractor_.stop();
+    release_textures();
+}
+
 void RMVideoCanvas::update_shader_params() {
     if (!material_.is_valid()) return;
     material_->set_shader_parameter("use_bt601", use_bt601_);
     material_->set_shader_parameter("use_tv_range", use_tv_range_);
     // RM_LOGD(kLogTag, "Shader params: bt601=%d tv_range=%d", use_bt601_, use_tv_range_);
+}
+
+void RMVideoCanvas::log_status(bool force) {
+    const uint64_t packets = extractor_.get_packet_count();
+    const uint64_t decoded = extractor_.get_decoded_frame_count();
+    const bool changed = packets != last_status_packet_count_ || decoded != last_status_decoded_frame_count_;
+    if (!force && !changed && packets > 0) {
+        return;
+    }
+    RM_LOGI(kLogTag,
+            "Video status: running=%d udp_ok=%d packets=%llu decoded=%llu dropped=%llu decode_errors=%llu pending_frames=%llu",
+            running_ ? 1 : 0,
+            extractor_.is_udp_ok() ? 1 : 0,
+            static_cast<unsigned long long>(packets),
+            static_cast<unsigned long long>(decoded),
+            static_cast<unsigned long long>(extractor_.get_dropped_packet_count()),
+            static_cast<unsigned long long>(extractor_.get_decode_error_count()),
+            static_cast<unsigned long long>(extractor_.get_active_frame_context_count()));
+    last_status_packet_count_ = packets;
+    last_status_decoded_frame_count_ = decoded;
+}
+
+Dictionary RMVideoCanvas::get_status() const {
+    Dictionary status;
+    status["port"] = port_;
+    status["running"] = running_;
+    status["streaming"] = streaming_;
+    status["udp_ok"] = extractor_.is_udp_ok();
+    status["packet_count"] = static_cast<int64_t>(extractor_.get_packet_count());
+    status["decoded_frame_count"] = static_cast<int64_t>(extractor_.get_decoded_frame_count());
+    status["dropped_packet_count"] = static_cast<int64_t>(extractor_.get_dropped_packet_count());
+    status["decode_error_count"] = static_cast<int64_t>(extractor_.get_decode_error_count());
+    status["pending_frame_contexts"] = static_cast<int64_t>(extractor_.get_active_frame_context_count());
+    status["force_rgba"] = force_rgba_;
+    status["texture_width"] = tex_w_;
+    status["texture_height"] = tex_h_;
+    return status;
 }
 
 void RMVideoCanvas::set_display_mode(int m) {
@@ -429,4 +529,24 @@ void RMVideoCanvas::apply_display_layout() {
             rect_->set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
             break;
     }
+}
+
+void RMVideoCanvas::release_textures() {
+    RenderingServer* rs = RenderingServer::get_singleton();
+    if (rs) {
+        if (tex_y_.is_valid()) rs->free_rid(tex_y_);
+        if (tex_uv_.is_valid()) rs->free_rid(tex_uv_);
+        if (tex_rgba_.is_valid()) rs->free_rid(tex_rgba_);
+    }
+    tex_y_ = RID();
+    tex_uv_ = RID();
+    tex_rgba_ = RID();
+    tex_y_res_.unref();
+    tex_uv_res_.unref();
+    tex_rgba_res_.unref();
+    image_rgba_tex_.unref();
+    material_.unref();
+    placeholder_generated_.unref();
+    tex_w_ = 0;
+    tex_h_ = 0;
 }

@@ -14,6 +14,7 @@
 #include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/color.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 
 #include "yuv_frame_extractor.hpp"
 #include <rm_common/godot_log_sink.hpp>
@@ -34,6 +35,7 @@ public:
     ~RMVideoCanvas() override;
 
     void _ready();
+    void _exit_tree();
     void _process(double delta);
 
     int get_port() const { return port_; }
@@ -50,6 +52,7 @@ public:
 
     double get_no_frame_timeout() const { return no_frame_timeout_s_; }
     void set_no_frame_timeout(double s) { no_frame_timeout_s_ = s; }
+    godot::Dictionary get_status() const;
 
     godot::Ref<godot::Texture2D> get_placeholder_texture() const { return placeholder_tex_; }
     void set_placeholder_texture(const godot::Ref<godot::Texture2D>& t) { placeholder_tex_ = t; }
@@ -69,10 +72,13 @@ private:
     void upload_frame(godot::RenderingDevice* rd, const RMVideoDecoder::YuvFrameExtractor::Frame& f);
     void ensure_textures_rgba(godot::RenderingDevice* rd, int w, int h);
     void upload_frame_rgba(godot::RenderingDevice* rd, const RMVideoDecoder::YuvFrameExtractor::Frame& f);
+    void upload_frame_rgba_image_texture(const RMVideoDecoder::YuvFrameExtractor::Frame& f);
     void update_shader_params();
     void apply_display_layout();
+    void log_status(bool force);
     void show_placeholder();
     void hide_placeholder();
+    void release_textures();
     godot::Ref<godot::Texture2D> get_fallback_placeholder();
 
     RMVideoDecoder::YuvFrameExtractor extractor_;
@@ -84,6 +90,9 @@ private:
     bool placeholder_visible_ = false;
     double no_frame_timeout_s_ = 1.0;
     double no_frame_elapsed_ = 0.0;
+    double status_log_elapsed_ = 0.0;
+    uint64_t last_status_packet_count_ = 0;
+    uint64_t last_status_decoded_frame_count_ = 0;
     int tex_w_ = 0;
     int tex_h_ = 0;
     bool use_bt601_ = false;
@@ -97,6 +106,7 @@ private:
     godot::Ref<godot::Texture2DRD> tex_y_res_;
     godot::Ref<godot::Texture2DRD> tex_uv_res_;
     godot::Ref<godot::Texture2DRD> tex_rgba_res_;
+    godot::Ref<godot::ImageTexture> image_rgba_tex_;
     godot::Ref<godot::Texture2D> placeholder_tex_;
     godot::Ref<godot::Texture2D> placeholder_generated_;
     godot::Color placeholder_color_ {0.1f, 0.1f, 0.1f, 1.0f};

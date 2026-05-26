@@ -6,6 +6,7 @@ build/
 /plugins/rm_video_decoder/*.o
 /plugins/rm_video_decoder/*.os
 /plugins/rm_video_decoder/src/*.o
+/plugins/rm_video_decoder/godot/*.o
 /plugins/rm_video_decoder/godot/*.os
 /godot-cpp/bin/
 /godot-cpp/gen/
@@ -38,3 +39,6 @@ rm_synapse/Export/**
 !/rm_synapse/addons/godot_cef/
 !/rm_synapse/addons/godot_cef/**/
 !/rm_synapse/addons/godot_cef/**
+!/rm_synapse/addons/rm_video_decoder/
+!/rm_synapse/addons/rm_video_decoder/**/
+!/rm_synapse/addons/rm_video_decoder/**

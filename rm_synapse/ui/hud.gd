@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 @onready var web = $CefTexture
-@onready var map_web = $CefMap
+var map_web: Node = null
 
 enum MessagePriority {
 	LOW = 0,
@@ -22,7 +22,6 @@ var page_ready := false
 var update_rate := 0.0
 var acc := 0.0
 
-var event = EventService.new()
 var hud_data_bridge = HudDataBridge.new()
 var hud_operation_bridge = HudOperationBridge.new()
 var keyboard_mouse_sender = KeyboardMouseControlSender.new()
@@ -56,6 +55,9 @@ var _right_button_down := false
 var _mid_button_down := false
 var _pressed_key_bits: Dictionary = {}
 var _pending_map_payloads: Array[Dictionary] = []
+var _last_video_settings_key := ""
+var _pending_web_eval_payloads: Array[Dictionary] = []
+var _shutting_down := false
 
 const KEYBOARD_BIT_BY_PHYSICAL_KEY := {
 	KEY_W: 0,
@@ -133,6 +135,8 @@ func _ready():
 	set_process(true)
 	set_process_input(true)
 	_setup_debug_log_file_dialog()
+	_configure_cef_node(web, "hud")
+	_ensure_child_node(adapter_getter)
 
 	if web and web.has_signal("load_finished"):
 		web.load_finished.connect(func(_url: String, status: int) -> void:
@@ -145,29 +149,19 @@ func _ready():
 		)
 	_connect_cef_ipc_signals(web, "hud")
 	_connect_cef_debug_signals(web, "hud")
-	if map_web and map_web.has_signal("load_finished"):
-		map_web.load_finished.connect(func(_url: String, status: int) -> void:
-			_map_page_ready = _is_successful_cef_load(status)
-			print("CEF map load_finished status=", status, " map_page_ready=", _map_page_ready)
-			if _map_page_ready:
-				_push_map_snapshot()
-				_flush_pending_map_payloads()
-		)
-	_connect_cef_ipc_signals(map_web, "map")
-	_connect_cef_debug_signals(map_web, "map")
-	_navigate_webview_urls()
+	_navigate_webview_urls.call_deferred()
 
-	hud_data_bridge.adapter_getter = adapter_getter
+	_assign_adapter_getter(hud_data_bridge)
 	if hud_data_bridge.get_parent() == null:
 		add_child(hud_data_bridge)
 	_bind_bridge_signals()
 
-	hud_operation_bridge.adapter_getter = adapter_getter
+	_assign_adapter_getter(hud_operation_bridge)
 	if hud_operation_bridge.get_parent() == null:
 		add_child(hud_operation_bridge)
 	if not hud_operation_bridge.operation_status.is_connected(_on_operation_status):
 		hud_operation_bridge.operation_status.connect(_on_operation_status)
-	keyboard_mouse_sender.adapter_getter = adapter_getter
+	_assign_adapter_getter(keyboard_mouse_sender)
 	keyboard_mouse_sender.auto_start = keyboard_mouse_transport_enabled
 	if keyboard_mouse_sender.get_parent() == null:
 		add_child(keyboard_mouse_sender)
@@ -175,6 +169,17 @@ func _ready():
 		keyboard_mouse_sender.stop_sending()
 	_set_control_focus(true)
 	_try_bind_transport_signals()
+
+func _exit_tree() -> void:
+	_shutting_down = true
+	_pending_web_eval_payloads.clear()
+	if hud_operation_bridge != null and hud_operation_bridge.operation_status.is_connected(_on_operation_status):
+		hud_operation_bridge.operation_status.disconnect(_on_operation_status)
+	if keyboard_mouse_sender != null:
+		keyboard_mouse_sender.stop_sending()
+	_shutdown_web_server()
+	_shutdown_cef_node(web, "hud")
+	_shutdown_cef_node(map_web, "map")
 
 func _is_successful_cef_load(status: int) -> bool:
 	return status == 0 or (status >= 200 and status < 400)
@@ -192,35 +197,67 @@ func _initialize_webview_urls() -> void:
 
 func _assign_initial_webview_urls() -> void:
 	var index_url := _web_runtime_url(WEB_INDEX_FILE)
-	var map_url := _web_runtime_url(WEB_MAP_FILE)
 	var web_node := get_node_or_null("CefTexture")
-	var map_node := get_node_or_null("CefMap")
 	if web_node != null:
 		web_node.set("url", index_url)
-	if map_node != null:
-		map_node.set("url", map_url)
 
 func _navigate_webview_urls() -> void:
 	if not _web_runtime_ready:
 		_initialize_webview_urls()
 		return
 	var index_url := _web_runtime_url(WEB_INDEX_FILE)
-	var map_url := _web_runtime_url(WEB_MAP_FILE)
 	if web != null:
 		_load_cef_url(web, index_url)
-	if map_web != null:
-		_load_cef_url(map_web, map_url)
+	if map_web != null and map_web.visible:
+		_load_cef_url(map_web, _web_runtime_url(WEB_MAP_FILE))
 
 func _load_cef_url(target: Object, url: String) -> void:
+	var current_url := str(target.get("url"))
+	if current_url == url:
+		return
 	print("CEF load url: ", url)
 	target.set("url", url)
 	if target.has_method("set_url_property"):
 		target.call("set_url_property", url)
-		target.call_deferred("set_url_property", url)
 	if target.has_method("_deferred_create_browser"):
 		target.call_deferred("_deferred_create_browser")
-	if target.has_method("reload_ignore_cache"):
-		target.call_deferred("reload_ignore_cache")
+
+func _configure_cef_node(target: Object, source: String) -> void:
+	if target == null:
+		return
+	if _set_object_property_if_exists(target, "enable_accelerated_osr", false):
+		print("CEF ", source, " accelerated OSR disabled")
+
+func _ensure_map_web() -> Node:
+	if map_web != null:
+		return map_web
+	var created: Object = ClassDB.instantiate("CefTexture")
+	if not (created is Node):
+		push_warning("Cannot create map CEF page.")
+		return null
+	map_web = created
+	map_web.name = "CefMap"
+	map_web.visible = false
+	map_web.set("url", "")
+	_configure_cef_node(map_web, "map")
+	add_child(map_web)
+	if map_web.has_signal("load_finished"):
+		map_web.load_finished.connect(func(_url: String, status: int) -> void:
+			_map_page_ready = _is_successful_cef_load(status)
+			print("CEF map load_finished status=", status, " map_page_ready=", _map_page_ready)
+			if _map_page_ready:
+				_push_map_snapshot()
+				_flush_pending_map_payloads()
+		)
+	_connect_cef_ipc_signals(map_web, "map")
+	_connect_cef_debug_signals(map_web, "map")
+	return map_web
+
+func _shutdown_cef_node(target: Object, source: String) -> void:
+	if target == null:
+		return
+	if target.has_method("stop_loading"):
+		target.call("stop_loading")
 
 func _prepare_web_runtime_dir() -> bool:
 	if not _ensure_dir(WEB_RUNTIME_DIR):
@@ -342,6 +379,17 @@ func _poll_web_server() -> void:
 		_serve_web_request(peer, str(item.request))
 		peer.disconnect_from_host()
 		_web_clients.remove_at(index)
+
+func _shutdown_web_server() -> void:
+	for item in _web_clients:
+		var peer: StreamPeerTCP = item.get("peer")
+		if peer != null:
+			peer.disconnect_from_host()
+	_web_clients.clear()
+	if _web_server != null:
+		_web_server.stop()
+		_web_server = null
+		_web_server_port = 0
 
 func _serve_web_request(peer: StreamPeerTCP, request: String) -> void:
 	var first_line := request.split("\r\n", false, 1)[0]
@@ -497,6 +545,7 @@ func _on_cef_console_message(level: int, message: String, source_url: String, li
 
 func _process(delta: float) -> void:
 	_poll_web_server()
+	_flush_web_eval_payloads()
 
 	if keyboard_mouse_transport_enabled:
 		_update_keyboard_mouse_sender()
@@ -510,6 +559,24 @@ func _process(delta: float) -> void:
 	if _link_push_elapsed >= 1.0:
 		_link_push_elapsed = 0.0
 		_push_link_status()
+
+func _flush_web_eval_payloads() -> void:
+	if _shutting_down or _pending_web_eval_payloads.is_empty():
+		return
+	var pending := _pending_web_eval_payloads.duplicate(true)
+	_pending_web_eval_payloads.clear()
+	for item in pending:
+		var target: Object = item.get("target")
+		var function_name := str(item.get("function_name", ""))
+		var payload: Dictionary = item.get("payload", {})
+		if target == null or function_name.is_empty():
+			continue
+		if function_name == "godotMapPush" and (map_web == null or target != map_web or not _map_page_ready or not map_web.visible):
+			continue
+		if function_name == "godotPush" and (target != web or not page_ready):
+			continue
+		var json := JSON.stringify(payload)
+		target.call("eval", "if (window.%s) { window.%s(%s); }" % [function_name, function_name, json])
 
 func _bind_bridge_signals() -> void:
 	for signal_name in BRIDGE_SIGNAL_TO_PROTO_KEY.keys():
@@ -587,12 +654,10 @@ func _on_web_ipc_message(message, source: String = "hud") -> void:
 			return
 		if operation_type == "mapClick":
 			if source != "map" or map_web == null or not map_web.visible:
-				push_warning("Ignore mapClick from inactive source: %s" % source)
 				return
 			_send_map_click(operation)
 			return
 		if source == "map":
-			push_warning("Ignore non-map operation from map page: %s" % operation_type)
 			return
 		_write_debug_log("ui_operation", {
 			"source": source,
@@ -802,12 +867,17 @@ func _is_map_toggle_event(input_event) -> bool:
 
 func _toggle_map_page() -> void:
 	if map_web == null:
+		_ensure_map_web()
+	if map_web == null:
 		return
 	map_web.visible = not map_web.visible
 	if map_web.visible:
+		_load_cef_url(map_web, _web_runtime_url(WEB_MAP_FILE))
 		map_web.move_to_front()
 		_push_map_snapshot()
 		_flush_pending_map_payloads()
+	else:
+		_map_page_ready = false
 	_refresh_control_focus()
 	print("Toggle map UI:", map_web.visible)
 
@@ -1061,6 +1131,16 @@ func _apply_video_settings(video_settings) -> void:
 	var port := int(clamp(float(video_settings.get("port", 3334)), MIN_PORT, MAX_PORT))
 	var host := str(video_settings.get("host", "0.0.0.0")).strip_edges()
 	var source_url := _build_endpoint_url(video_settings, "udp")
+	var settings_key := JSON.stringify({
+		"enabled": enabled,
+		"host": host,
+		"port": port,
+		"source_url": source_url
+	})
+	if settings_key == _last_video_settings_key:
+		_log_video_status(video_node, "unchanged")
+		return
+	_last_video_settings_key = settings_key
 	_set_first_existing_property(video_node, ["enabled", "active", "auto_start"], enabled)
 	_set_first_existing_property(video_node, ["host", "bind_host", "listen_host", "ip", "address"], host)
 	_set_first_existing_property(video_node, ["port", "udp_port", "listen_port", "server_port"], port)
@@ -1077,6 +1157,12 @@ func _apply_video_settings(video_settings) -> void:
 		video_node.call("start")
 	elif not enabled and video_node.has_method("stop"):
 		video_node.call("stop")
+	_log_video_status(video_node, "applied")
+
+func _log_video_status(video_node: Object, reason: String) -> void:
+	if video_node == null or not video_node.has_method("get_status"):
+		return
+	print("Video settings ", reason, ": ", video_node.call("get_status"))
 
 func _apply_input_settings(input_settings) -> void:
 	if not (input_settings is Dictionary):
@@ -1134,6 +1220,20 @@ func _set_object_property_if_exists(target: Object, property_name: String, value
 			target.set(property_name, value)
 			return true
 	return false
+
+func _ensure_child_node(node: Node) -> void:
+	if node != null and node.get_parent() == null:
+		add_child(node)
+
+func _assign_adapter_getter(owner: Object) -> void:
+	if owner == null:
+		return
+	var previous = owner.get("adapter_getter")
+	if previous == adapter_getter:
+		return
+	owner.set("adapter_getter", adapter_getter)
+	if previous is Node and previous.get_parent() == null:
+		previous.free()
 
 func _refresh_control_focus() -> void:
 	var map_open: bool = map_web != null and map_web.visible
@@ -1315,16 +1415,15 @@ func _spawn_mock_message():
 	add_message(sample["text"], sample["duration"], sample["priority"], sample["tag"])
 
 func push_payload(payload: Dictionary) -> void:
-	if not page_ready:
+	if _shutting_down or not page_ready:
 		print("CEF page not ready, skip push")
 		return
 	if web:
 		var json := JSON.stringify(payload)
 		print("Pushing HUD payload bytes=", json.length())
-		web.eval("if (window.godotPush) { window.godotPush(" + json + "); }")
+		_pending_web_eval_payloads.append({"target": web, "function_name": "godotPush", "payload": payload})
 
 func push_map_payload(payload: Dictionary) -> void:
-	if not _map_page_ready or map_web == null or not map_web.visible:
+	if _shutting_down or not _map_page_ready or map_web == null or not map_web.visible:
 		return
-	var json := JSON.stringify(payload)
-	map_web.eval("if (window.godotMapPush) { window.godotMapPush(" + json + "); }")
+	_pending_web_eval_payloads.append({"target": map_web, "function_name": "godotMapPush", "payload": payload})

@@ -25,10 +25,20 @@ constexpr std::string_view kLogTag = "rm_video_decoder.VideoCore";
 
 #ifdef _WIN32
 std::string socketErrorMessage(int errorCode = WSAGetLastError()) {
-    char* message = nullptr;
+    wchar_t* message = nullptr;
     const DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-    const DWORD len = FormatMessageA(flags, nullptr, static_cast<DWORD>(errorCode), 0, reinterpret_cast<char*>(&message), 0, nullptr);
-    std::string result = len > 0 && message ? std::string(message, len) : ("Winsock error " + std::to_string(errorCode));
+    const DWORD len = FormatMessageW(flags, nullptr, static_cast<DWORD>(errorCode), 0, reinterpret_cast<wchar_t*>(&message), 0, nullptr);
+    std::string result;
+    if (len > 0 && message) {
+        const int utf8_len = WideCharToMultiByte(CP_UTF8, 0, message, static_cast<int>(len), nullptr, 0, nullptr, nullptr);
+        if (utf8_len > 0) {
+            result.resize(static_cast<size_t>(utf8_len));
+            WideCharToMultiByte(CP_UTF8, 0, message, static_cast<int>(len), result.data(), utf8_len, nullptr, nullptr);
+        }
+    }
+    if (result.empty()) {
+        result = "Winsock error " + std::to_string(errorCode);
+    }
     if (message) {
         LocalFree(message);
     }
@@ -272,6 +282,7 @@ bool VideoCore::setupUdpSocket(){
         return false;
     }
 
+    RM_LOGI(kLogTag, "UDP socket bound on 0.0.0.0:%d", port_);
     return true;
 
 }
@@ -339,6 +350,7 @@ void VideoCore::networkLoop() {
         const int received = recvfrom(static_cast<SOCKET>(sockfd_), reinterpret_cast<char*>(buffer), BUF_SIZE, 0, nullptr, nullptr);
 
         if (received > 0) {
+            packet_count_.fetch_add(1, std::memory_order_relaxed);
             // 收到数据，正常处理
             processPacket(buffer, static_cast<size_t>(received));
             if (!last_udp_ok) {
@@ -366,13 +378,17 @@ void VideoCore::networkLoop() {
 // 协议解析与重组 (Assembler)
 void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
     ParsedPacketHeader header{};
-    if (!parsePacketHeader(buffer, len, kMaxFrameBytes, header)) return;
+    if (!parsePacketHeader(buffer, len, kMaxFrameBytes, header)) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        return;
+    }
 
     const uint16_t frameSeq = header.frame_seq;
     const uint16_t fragSeq = header.fragment_seq;
     const uint32_t totalSize = header.total_size;
 
     if (totalSize == 0 || totalSize > kMaxFrameBytes) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
         RM_LOGW_STREAM(kLogTag, "Dropping packet: unreasonable total_size=" << totalSize << " for frame_seq=" << frameSeq);
         return;
     }
@@ -381,6 +397,7 @@ void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
     const uint8_t* payloadData = buffer + sizeof(VideoPacketHeader);
 
     if (payloadLen == 0 || payloadLen > totalSize) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
         RM_LOGW_STREAM(kLogTag, "Dropping packet: payloadLen=" << payloadLen << " totalSize=" << totalSize
                                                                << " frame_seq=" << frameSeq);
         return;
@@ -398,6 +415,7 @@ void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
         if (frameData.size() >= targetCtx.total_size) break;
     }
     if (frameData.size() < targetCtx.total_size) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
         targetCtx.reset();
         return;
     }
@@ -437,6 +455,7 @@ VideoCore::FrameContext& VideoCore::getOrCreateFrameContext(uint16_t frameSeq, u
     const uint16_t droppedSeq = oldestIt->frame_seq;
     oldestIt->reset();
     oldestIt->markActive(frameSeq, totalSize);
+    dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
     RM_LOGW_STREAM(kLogTag, "All FrameContext slots are busy. Dropping frame_seq " << droppedSeq
                                                                                    << " and reusing slot for frame_seq "
                                                                                    << frameSeq);
@@ -472,6 +491,7 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
     );
 
     if (!buf_ref) {
+        decode_error_count_.fetch_add(1, std::memory_order_relaxed);
         RM_LOGE(kLogTag, "Failed to create AVBufferRef.");
         delete persistent_vector;
         return;
@@ -491,6 +511,7 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
     av_packet_unref(ffmpeg_ctx_->avPacket_);
 
     if (ret < 0) {
+        decode_error_count_.fetch_add(1, std::memory_order_relaxed);
         RM_LOGE_STREAM(kLogTag, "Error sending packet: " << ret);
         return;
     }
@@ -501,13 +522,25 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
         if (ret == 0) {
             // 成功解码
             triple_buffer_->swapWriteToReadyBuffers();
+            decoded_frame_count_.fetch_add(1, std::memory_order_relaxed);
         } else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
             break; 
         } else {
+            decode_error_count_.fetch_add(1, std::memory_order_relaxed);
             RM_LOGE_STREAM(kLogTag, "Error during decoding: " << ret);
             break;
         }
     }
+}
+
+size_t VideoCore::getActiveFrameContextCount() const {
+    size_t count = 0;
+    for (const auto& ctx : buffers_) {
+        if (ctx.isActive()) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 bool VideoCore::restartUdp() {
@@ -517,6 +550,7 @@ bool VideoCore::restartUdp() {
     if(!setupUdpSocket()){
         return false;
     }
+    start();
     return true;
 }
 

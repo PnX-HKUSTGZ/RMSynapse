@@ -3,6 +3,7 @@ import os
 import platform as host_platform
 import re
 import shutil
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -10,16 +11,50 @@ from SCons.Errors import UserError
 from SCons.Script import ARGUMENTS, Action, Copy, Default, Dir, File, SConscript
 
 PLUGIN_ARGUMENT_KEYS = {
+    "addon_output",
     "copy_ffmpeg_runtime",
     "ffmpeg_include",
     "ffmpeg_libpath",
     "ffmpeg_root",
     "ffmpeg_runtime_dir",
     "opencv_root",
+    "static_ffmpeg",
     "use_pkg_config",
     "with_test",
 }
 PLUGIN_ARGUMENTS = {}
+FFMPEG_PACKAGES = ["libavcodec", "libavutil", "libswscale"]
+FFMPEG_LIBS = ["avcodec", "avutil", "swscale"]
+WINDOWS_SYSTEM_DLLS = {
+    "advapi32.dll",
+    "avicap32.dll",
+    "bcrypt.dll",
+    "cfgmgr32.dll",
+    "comctl32.dll",
+    "comdlg32.dll",
+    "crypt32.dll",
+    "dnsapi.dll",
+    "dwrite.dll",
+    "gdi32.dll",
+    "imm32.dll",
+    "iphlpapi.dll",
+    "kernel32.dll",
+    "msvcrt.dll",
+    "msvfw32.dll",
+    "ntdll.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "rpcrt4.dll",
+    "secur32.dll",
+    "shell32.dll",
+    "shlwapi.dll",
+    "user32.dll",
+    "usp10.dll",
+    "version.dll",
+    "winmm.dll",
+    "wsock32.dll",
+    "ws2_32.dll",
+}
 
 
 def as_bool(value, default=False):
@@ -101,7 +136,13 @@ def find_existing_lib(lib_dirs, names):
     return None
 
 
-def ffmpeg_library_names(base, platform_name, is_msvc):
+def ffmpeg_library_names(base, platform_name, is_msvc, prefer_static=False):
+    if prefer_static:
+        if platform_name == "windows":
+            if is_msvc:
+                return [f"{base}.lib", f"lib{base}.lib"]
+            return [f"lib{base}.a"]
+        return [f"lib{base}.a"]
     if platform_name == "windows":
         if is_msvc:
             return [f"{base}.lib", f"lib{base}.lib", f"{base}.dll.a", f"lib{base}.dll.a", f"lib{base}.a"]
@@ -132,7 +173,134 @@ def require_macos_universal_libraries(found_libs):
             raise UserError(f"arch=universal requires universal FFmpeg libraries; {name} is {result.stdout.strip()}")
 
 
-def discover_ffmpeg_manual(env, this_dir, platform_name):
+def pkg_config_static_library_dirs(packages):
+    dirs = []
+    if shutil.which("pkg-config") is None:
+        return dirs
+    commands = [
+        ["pkg-config", "--libs-only-L", *packages],
+    ]
+    for package in packages:
+        commands.append(["pkg-config", "--variable=libdir", package])
+    for command in commands:
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            continue
+        for token in shlex.split(result.stdout):
+            path = token[2:] if token.startswith("-L") else token
+            if path:
+                candidate = normalize_path(path)
+                if candidate and candidate not in dirs:
+                    dirs.append(candidate)
+    return dirs
+
+
+def append_pkg_config_static_deps(env, packages, skip_libs):
+    if shutil.which("pkg-config") is None:
+        return
+    result = subprocess.run(
+        ["pkg-config", "--libs", "--static", *packages],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return
+    skip_flags = {f"-l{name}" for name in skip_libs}
+    flags = [token for token in shlex.split(result.stdout) if token not in skip_flags]
+    if flags:
+        env.MergeFlags(flags)
+
+
+def pe_imported_dll_names(path):
+    objdump = shutil.which("objdump")
+    if not objdump:
+        return []
+    result = subprocess.run(
+        [objdump, "-p", str(path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    names = []
+    for line in result.stdout.splitlines():
+        match = re.search(r"DLL Name:\s*(\S+)", line)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def find_runtime_dependency(dll_name, search_dirs):
+    for search_dir in search_dirs:
+        if not search_dir or not search_dir.is_dir():
+            continue
+        candidate = search_dir / dll_name
+        if candidate.exists():
+            return candidate
+        lower_name = dll_name.lower()
+        for child in search_dir.glob("*.dll"):
+            if child.name.lower() == lower_name:
+                return child
+    return None
+
+
+def collect_windows_runtime_dependencies(entry_paths, search_dirs):
+    collected = []
+    queued = list(entry_paths)
+    seen = {path.name.lower() for path in queued if path}
+
+    while queued:
+        current = queued.pop(0)
+        for dll_name in pe_imported_dll_names(current):
+            dll_key = dll_name.lower()
+            if dll_key in WINDOWS_SYSTEM_DLLS or dll_key.startswith("api-ms-win-"):
+                continue
+            if dll_key in seen:
+                continue
+            dependency = find_runtime_dependency(dll_name, search_dirs)
+            if not dependency:
+                continue
+            seen.add(dll_key)
+            collected.append(dependency)
+            queued.append(dependency)
+
+    return collected
+
+
+def configure_ffmpeg_static_pkg_config(env, packages):
+    if not pkg_config_exists(packages):
+        return False
+    env.ParseConfig("pkg-config --cflags " + " ".join(packages))
+    lib_dirs = pkg_config_static_library_dirs(packages)
+    lib_dirs.extend([
+        Path("/usr/lib/x86_64-linux-gnu"),
+        Path("/usr/lib/aarch64-linux-gnu"),
+        Path("/usr/lib"),
+        Path("/usr/local/lib"),
+    ])
+    found_libs = {
+        lib: find_existing_lib(lib_dirs, ffmpeg_library_names(lib, env["platform"], bool(env.get("is_msvc", False)), True))
+        for lib in FFMPEG_LIBS
+    }
+    missing = [lib for lib, path in found_libs.items() if not path]
+    if missing:
+        raise UserError("static_ffmpeg=yes requested, but static FFmpeg libraries were not found: " + ", ".join(missing))
+    env.AppendUnique(LIBS=[File(str(found_libs[lib])) for lib in FFMPEG_LIBS])
+    append_pkg_config_static_deps(env, packages, FFMPEG_LIBS)
+    return True
+
+
+def discover_ffmpeg_manual(env, this_dir, platform_name, prefer_static=False):
     root = normalize_path(plugin_arg("ffmpeg_root", os.environ.get("FFMPEG_ROOT") or os.environ.get("VCPKG_INSTALLED_DIR")))
     include_arg = normalize_path(plugin_arg("ffmpeg_include", os.environ.get("FFMPEG_INCLUDE_DIR")))
     libpath_arg = plugin_arg("ffmpeg_libpath", os.environ.get("FFMPEG_LIB_DIR"))
@@ -168,11 +336,10 @@ def discover_ffmpeg_manual(env, this_dir, platform_name):
             candidate_root / "bin",
         ])
 
-    libs = ["avcodec", "avutil", "swscale"]
     is_msvc = bool(env.get("is_msvc", False))
     found_libs = {
-        lib: find_existing_lib(lib_dirs, ffmpeg_library_names(lib, platform_name, is_msvc))
-        for lib in libs
+        lib: find_existing_lib(lib_dirs, ffmpeg_library_names(lib, platform_name, is_msvc, prefer_static))
+        for lib in FFMPEG_LIBS
     }
 
     missing = []
@@ -184,24 +351,32 @@ def discover_ffmpeg_manual(env, this_dir, platform_name):
             "FFmpeg discovery failed. Missing: "
             + ", ".join(missing)
             + ". Install FFmpeg dev files or pass ffmpeg_root/ffmpeg_include/ffmpeg_libpath."
+            + (" static_ffmpeg=yes requires static libraries." if prefer_static else "")
         )
     if platform_name == "macos" and env["arch"] == "universal":
         require_macos_universal_libraries(found_libs)
 
     env.AppendUnique(CPPPATH=[str(include_dir)])
-    env.AppendUnique(LIBS=[File(str(found_libs[lib])) for lib in libs])
+    env.AppendUnique(LIBS=[File(str(found_libs[lib])) for lib in FFMPEG_LIBS])
+    if prefer_static:
+        append_pkg_config_static_deps(env, FFMPEG_PACKAGES, FFMPEG_LIBS)
     return True
 
 
 def configure_ffmpeg(env, this_dir, platform_name):
-    packages = ["libavcodec", "libavutil", "libswscale"]
     mode = plugin_arg("use_pkg_config", "auto").lower()
     if mode not in ("auto", "yes", "no"):
         raise UserError("use_pkg_config must be one of: auto, yes, no")
 
+    if as_bool(plugin_arg("static_ffmpeg", "no")):
+        if mode != "no" and configure_ffmpeg_static_pkg_config(env, FFMPEG_PACKAGES):
+            return
+        discover_ffmpeg_manual(env, this_dir, platform_name, True)
+        return
+
     prefer_pkg_config = platform_name in ("linux", "macos")
     if mode == "yes" or (mode == "auto" and prefer_pkg_config):
-        if configure_pkg_config(env, packages, required=(mode == "yes"), label="FFmpeg"):
+        if configure_pkg_config(env, FFMPEG_PACKAGES, required=(mode == "yes"), label="FFmpeg"):
             return
         if mode == "yes":
             return
@@ -214,6 +389,8 @@ def configure_compiler_flags(env, platform_name):
         env.AppendUnique(CXXFLAGS=["/std:c++17", "/EHsc"])
     else:
         env.AppendUnique(CXXFLAGS=["-std=c++17", "-fexceptions"])
+        if platform_name != "macos":
+            env.AppendUnique(LINKFLAGS=["-static-libgcc", "-static-libstdc++"])
 
 
 def configure_platform_libs(env, platform_name):
@@ -231,9 +408,18 @@ def shared_library_name(env):
     return "librm_video_decoder.so"
 
 
+def platform_output_dir(env):
+    arch = env["arch"]
+    if env["platform"] == "windows":
+        return "windows-" + arch
+    if env["platform"] == "macos":
+        return "macos-" + arch
+    return "linux-" + arch
+
+
 def runtime_patterns(platform_name):
     if platform_name == "windows":
-        return ["av*.dll", "sw*.dll"]
+        return ["avcodec*.dll", "avutil*.dll", "swscale*.dll", "swresample*.dll"]
     if platform_name == "macos":
         return ["libav*.dylib", "libav*.*.dylib", "libsw*.dylib", "libsw*.*.dylib"]
     return ["libav*.so*", "libsw*.so*"]
@@ -281,6 +467,8 @@ def configure_ffmpeg_runtime_copy(env, rm_synapse_bin):
         raise UserError("copy_ffmpeg_runtime must be one of: auto, yes, no")
     if mode == "no":
         return []
+    if as_bool(plugin_arg("static_ffmpeg", "no")) and mode == "auto":
+        return []
 
     runtime_dir = normalize_path(plugin_arg("ffmpeg_runtime_dir", ""))
     ffmpeg_root = normalize_path(plugin_arg("ffmpeg_root", os.environ.get("FFMPEG_ROOT", "")))
@@ -305,6 +493,10 @@ def configure_ffmpeg_runtime_copy(env, rm_synapse_bin):
             raise UserError("copy_ffmpeg_runtime=yes requires ffmpeg_runtime_dir or ffmpeg_root/bin")
         return []
 
+    dependency_search_dirs = [runtime_dir]
+    path_value = os.environ.get("PATH", "")
+    dependency_search_dirs.extend(split_paths(path_value))
+
     runtime_sources = []
     seen_targets = set()
     for pattern in runtime_patterns(env["platform"]):
@@ -312,6 +504,13 @@ def configure_ffmpeg_runtime_copy(env, rm_synapse_bin):
             if source.name in seen_targets:
                 continue
             seen_targets.add(source.name)
+            runtime_sources.append(source)
+
+    if env["platform"] == "windows":
+        for source in collect_windows_runtime_dependencies(runtime_sources, dependency_search_dirs):
+            if source.name.lower() in seen_targets:
+                continue
+            seen_targets.add(source.name.lower())
             runtime_sources.append(source)
 
     copied_names = sorted({source.name for source in runtime_sources})
@@ -375,10 +574,11 @@ if (ARGUMENTS.get("platform") == "macos" or (not ARGUMENTS.get("platform") and h
 this_dir = Path(str(Dir(".").abspath))
 repo_root = this_dir.parent.parent
 godot_cpp_dir = repo_root / "godot-cpp"
-rm_synapse_bin = repo_root / "rm_synapse" / "bin"
+addon_dir = normalize_path(plugin_arg("addon_output", "")) or (repo_root / "rm_synapse" / "addons" / "rm_video_decoder")
 
 env = SConscript(str(godot_cpp_dir / "SConstruct"))
 platform_name = env["platform"]
+addon_bin = addon_dir / "bin" / platform_output_dir(env)
 
 env.AppendUnique(CPPPATH=[
     str(this_dir / "include"),
@@ -400,19 +600,19 @@ gd_sources = [
 ]
 
 gd_lib = env.SharedLibrary(
-    target=str(rm_synapse_bin / shared_library_name(env)),
+    target=str(addon_bin / shared_library_name(env)),
     source=gd_sources + core_objs_shared,
 )
 
 gdext_src = this_dir / "godot" / "rm_video_decoder.gdextension"
-gdext_dst = rm_synapse_bin / "rm_video_decoder.gdextension"
+gdext_dst = addon_dir / "rm_video_decoder.gdextension"
 gdext_copy = env.Command(str(gdext_dst), str(gdext_src), [Copy("$TARGET", "$SOURCE")])
 
 shader_src = this_dir / "godot" / "shaders" / "video_yuv.gdshader"
-shader_dst = rm_synapse_bin / "video_yuv.gdshader"
+shader_dst = addon_dir / "video_yuv.gdshader"
 shader_copy = env.Command(str(shader_dst), str(shader_src), [Copy("$TARGET", "$SOURCE")])
 
-runtime_copy_targets = configure_ffmpeg_runtime_copy(env, rm_synapse_bin)
+runtime_copy_targets = configure_ffmpeg_runtime_copy(env, addon_bin)
 if platform_name == "macos" and env.get("RM_FFMPEG_RUNTIME_NAMES"):
     env.AddPostAction(gd_lib, Action(macos_rewrite_plugin_dependencies_action, "Rewriting macOS FFmpeg dependency paths: $TARGET"))
 

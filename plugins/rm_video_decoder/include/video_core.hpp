@@ -11,6 +11,7 @@
 #include <map>
 #include <chrono>
 #include <cstdint>
+#include <cstddef>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -75,6 +76,11 @@ public:
 
     bool isUdpOk() const { return udp_ok_.load(); }
     bool isRunning() const { return running_.load(); }
+    uint64_t getPacketCount() const { return packet_count_.load(); }
+    uint64_t getDecodedFrameCount() const { return decoded_frame_count_.load(); }
+    uint64_t getDroppedPacketCount() const { return dropped_packet_count_.load(); }
+    uint64_t getDecodeErrorCount() const { return decode_error_count_.load(); }
+    size_t getActiveFrameContextCount() const;
 
     // 重启 UDP 套接字
     bool restartUdp();
@@ -223,6 +229,10 @@ private:
     std::atomic<bool> running_{false};
 
     std::atomic<bool> udp_ok_{false};
+    std::atomic<uint64_t> packet_count_{0};
+    std::atomic<uint64_t> decoded_frame_count_{0};
+    std::atomic<uint64_t> dropped_packet_count_{0};
+    std::atomic<uint64_t> decode_error_count_{0};
 
     // 接收线程
     std::thread receive_thread_;

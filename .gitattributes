@@ -1,1 +1,2 @@
 rm_synapse/addons/godot_cef/** filter=lfs diff=lfs merge=lfs -text
+rm_synapse/addons/rm_video_decoder/** filter=lfs diff=lfs merge=lfs -text

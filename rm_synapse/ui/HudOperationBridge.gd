@@ -30,6 +30,9 @@ func _ready() -> void:
 	_attach_services()
 	_bind_status_signals()
 
+func _exit_tree() -> void:
+	_free_services()
+
 func handle_operation(operation) -> void:
 	if not (operation is Dictionary):
 		_emit_immediate(STATUS_FAILED, "无效操作", "invalid", -1)
@@ -79,10 +82,25 @@ func _attach_services() -> void:
 	for service in _get_services():
 		if service == null:
 			continue
-		if service.get("adapter_getter") != null:
-			service.set("adapter_getter", adapter_getter)
+		_replace_service_adapter_getter(service)
 		if service.get_parent() == null:
 			add_child(service)
+
+func _replace_service_adapter_getter(service: Node) -> void:
+	if service.get("adapter_getter") == null:
+		return
+	var previous = service.get("adapter_getter")
+	if previous == adapter_getter:
+		return
+	service.set("adapter_getter", adapter_getter)
+	if previous is Node and previous.get_parent() == null:
+		previous.free()
+
+func _free_services() -> void:
+	for service in _get_services():
+		if service != null and is_instance_valid(service) and service.get_parent() == self:
+			remove_child(service)
+			service.free()
 
 func _get_services() -> Array[Node]:
 	return [

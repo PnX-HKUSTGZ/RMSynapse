@@ -134,6 +134,7 @@ func _process(delta: float) -> void:
 
 func _exit_tree() -> void:
 	_disconnect_adapter_signals()
+	_free_services()
 
 func _attach_services() -> void:
 	for service in _get_state_services():
@@ -168,10 +169,25 @@ func _get_state_services() -> Array[Node]:
 func _attach_service(service: Node) -> void:
 	if service == null:
 		return
-	if service.get("adapter_getter") != null:
-		service.set("adapter_getter", adapter_getter)
+	_replace_service_adapter_getter(service)
 	if service.get_parent() == null:
 		add_child(service)
+
+func _replace_service_adapter_getter(service: Node) -> void:
+	if service.get("adapter_getter") == null:
+		return
+	var previous = service.get("adapter_getter")
+	if previous == adapter_getter:
+		return
+	service.set("adapter_getter", adapter_getter)
+	if previous is Node and previous.get_parent() == null:
+		previous.free()
+
+func _free_services() -> void:
+	for service in _get_state_services():
+		if service != null and is_instance_valid(service) and service.get_parent() == self:
+			remove_child(service)
+			service.free()
 
 func _bind_service_signals() -> void:
 	_connect_state_service_signal(game_status_service, "game_status_updated", "game_status_updated")

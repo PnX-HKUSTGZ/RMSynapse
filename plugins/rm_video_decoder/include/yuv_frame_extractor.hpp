@@ -48,6 +48,12 @@ public:
     }
 
     bool is_running() const { return core_.isRunning(); }
+    bool is_udp_ok() const { return core_.isUdpOk(); }
+    uint64_t get_packet_count() const { return core_.getPacketCount(); }
+    uint64_t get_decoded_frame_count() const { return core_.getDecodedFrameCount(); }
+    uint64_t get_dropped_packet_count() const { return core_.getDroppedPacketCount(); }
+    uint64_t get_decode_error_count() const { return core_.getDecodeErrorCount(); }
+    size_t get_active_frame_context_count() const { return core_.getActiveFrameContextCount(); }
 
     void stop() { core_.stop(); }
 

@@ -1,12 +1,61 @@
 [configuration]
 entry_symbol="rm_video_decoder_gdextension_init"
 compatibility_minimum="4.1"
-reloadable=true
+reloadable=false
 
 [libraries]
-linux.debug="res://bin/librm_video_decoder.so"
-linux.release="res://bin/librm_video_decoder.so"
-windows.debug="res://bin/rm_video_decoder.dll"
-windows.release="res://bin/rm_video_decoder.dll"
-macos.debug="res://bin/librm_video_decoder.dylib"
-macos.release="res://bin/librm_video_decoder.dylib"
+linux.x86_64="bin/linux-x86_64/librm_video_decoder.so"
+windows.x86_64="bin/windows-x86_64/rm_video_decoder.dll"
+macos.arm64="bin/macos-arm64/librm_video_decoder.dylib"
+macos.x86_64="bin/macos-x86_64/librm_video_decoder.dylib"
+macos="bin/macos-universal/librm_video_decoder.dylib"
+
+[dependencies]
+windows.x86_64={
+    "bin/windows-x86_64/MSVCP140.dll": "",
+    "bin/windows-x86_64/SvtAv1Enc.dll": "",
+    "bin/windows-x86_64/VCRUNTIME140.dll": "",
+    "bin/windows-x86_64/VCRUNTIME140_1.dll": "",
+    "bin/windows-x86_64/aom.dll": "",
+    "bin/windows-x86_64/avcodec-61.dll": "",
+    "bin/windows-x86_64/avutil-59.dll": "",
+    "bin/windows-x86_64/cairo.dll": "",
+    "bin/windows-x86_64/charset.dll": "",
+    "bin/windows-x86_64/dav1d.dll": "",
+    "bin/windows-x86_64/ffi-8.dll": "",
+    "bin/windows-x86_64/fontconfig-1.dll": "",
+    "bin/windows-x86_64/freetype.dll": "",
+    "bin/windows-x86_64/fribidi-0.dll": "",
+    "bin/windows-x86_64/gdk_pixbuf-2.0-0.dll": "",
+    "bin/windows-x86_64/gio-2.0-0.dll": "",
+    "bin/windows-x86_64/glib-2.0-0.dll": "",
+    "bin/windows-x86_64/gmodule-2.0-0.dll": "",
+    "bin/windows-x86_64/gobject-2.0-0.dll": "",
+    "bin/windows-x86_64/graphite2.dll": "",
+    "bin/windows-x86_64/harfbuzz.dll": "",
+    "bin/windows-x86_64/iconv.dll": "",
+    "bin/windows-x86_64/intl-8.dll": "",
+    "bin/windows-x86_64/jpeg8.dll": "",
+    "bin/windows-x86_64/libcrypto-3-x64.dll": "",
+    "bin/windows-x86_64/libexpat.dll": "",
+    "bin/windows-x86_64/liblzma.dll": "",
+    "bin/windows-x86_64/libmp3lame.dll": "",
+    "bin/windows-x86_64/libpng16.dll": "",
+    "bin/windows-x86_64/libx264-164.dll": "",
+    "bin/windows-x86_64/libx265.dll": "",
+    "bin/windows-x86_64/libxml2.dll": "",
+    "bin/windows-x86_64/ogg.dll": "",
+    "bin/windows-x86_64/openh264-7.dll": "",
+    "bin/windows-x86_64/opus.dll": "",
+    "bin/windows-x86_64/pango-1.0-0.dll": "",
+    "bin/windows-x86_64/pangocairo-1.0-0.dll": "",
+    "bin/windows-x86_64/pangoft2-1.0-0.dll": "",
+    "bin/windows-x86_64/pangowin32-1.0-0.dll": "",
+    "bin/windows-x86_64/pcre2-8.dll": "",
+    "bin/windows-x86_64/pixman-1-0.dll": "",
+    "bin/windows-x86_64/rsvg-2.0-vs17.dll": "",
+    "bin/windows-x86_64/swresample-5.dll": "",
+    "bin/windows-x86_64/swscale-8.dll": "",
+    "bin/windows-x86_64/vorbis.dll": "",
+    "bin/windows-x86_64/zlib.dll": "",
+}
