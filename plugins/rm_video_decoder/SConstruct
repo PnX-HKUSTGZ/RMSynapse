@@ -80,6 +80,15 @@ def plugin_arg(key, default=None):
     return PLUGIN_ARGUMENTS.get(key, default)
 
 
+def mode_arg(key, default="auto"):
+    value = str(plugin_arg(key, default)).strip().lower()
+    if value in ("1", "true", "on"):
+        return "yes"
+    if value in ("0", "false", "off"):
+        return "no"
+    return value
+
+
 def default_vcpkg_triplet(platform_name, arch, use_mingw=False):
     triplet = os.environ.get("VCPKG_DEFAULT_TRIPLET", "")
     if triplet:
@@ -365,7 +374,7 @@ def discover_ffmpeg_manual(env, this_dir, platform_name, prefer_static=False):
 
 
 def configure_ffmpeg(env, this_dir, platform_name):
-    mode = plugin_arg("use_pkg_config", "auto").lower()
+    mode = mode_arg("use_pkg_config", "auto")
     if mode not in ("auto", "yes", "no"):
         raise UserError("use_pkg_config must be one of: auto, yes, no")
 
@@ -463,7 +472,7 @@ def macos_rewrite_plugin_dependencies_action(target, source, env):
 
 
 def configure_ffmpeg_runtime_copy(env, rm_synapse_bin):
-    mode = plugin_arg("copy_ffmpeg_runtime", "auto").lower()
+    mode = mode_arg("copy_ffmpeg_runtime", "auto")
     if mode not in ("auto", "yes", "no"):
         raise UserError("copy_ffmpeg_runtime must be one of: auto, yes, no")
     if mode == "no":
