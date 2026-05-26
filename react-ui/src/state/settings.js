@@ -34,6 +34,24 @@ export const DEFAULT_HUD_SETTINGS = {
   },
 };
 
+export const MQTT_CLIENT_ID_OPTIONS = [
+  { value: '', label: '未指定' },
+  { value: '1', label: '红方英雄 1' },
+  { value: '2', label: '红方工程 2' },
+  { value: '3', label: '红方步兵 3' },
+  { value: '4', label: '红方步兵 4' },
+  { value: '5', label: '红方步兵 5' },
+  { value: '6', label: '红方空中 6' },
+  { value: '101', label: '蓝方英雄 101' },
+  { value: '102', label: '蓝方工程 102' },
+  { value: '103', label: '蓝方步兵 103' },
+  { value: '104', label: '蓝方步兵 104' },
+  { value: '105', label: '蓝方步兵 105' },
+  { value: '106', label: '蓝方空中 106' },
+];
+
+const MQTT_CLIENT_ID_VALUES = new Set(MQTT_CLIENT_ID_OPTIONS.map((option) => option.value));
+
 function toNumber(value, fallback) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -67,6 +85,14 @@ function normalizeString(value, fallback = '') {
   return typeof value === 'string' ? value.trim() : fallback;
 }
 
+function normalizeMqttClientId(value, fallback = '') {
+  const normalized = typeof value === 'number' && Number.isFinite(value)
+    ? String(Math.trunc(value))
+    : normalizeString(value, fallback);
+
+  return MQTT_CLIENT_ID_VALUES.has(normalized) ? normalized : fallback;
+}
+
 function normalizeNetworkSettings(source) {
   const defaults = DEFAULT_HUD_SETTINGS.network;
 
@@ -74,7 +100,7 @@ function normalizeNetworkSettings(source) {
     mqtt: {
       host: normalizeString(source?.mqtt?.host, defaults.mqtt.host) || defaults.mqtt.host,
       port: Math.trunc(clamp(toNumber(source?.mqtt?.port, defaults.mqtt.port), 1, 65535)),
-      clientId: normalizeString(source?.mqtt?.clientId, defaults.mqtt.clientId),
+      clientId: normalizeMqttClientId(source?.mqtt?.clientId, defaults.mqtt.clientId),
     },
     video: {
       port: Math.trunc(clamp(toNumber(source?.video?.port, defaults.video.port), 1, 65535)),

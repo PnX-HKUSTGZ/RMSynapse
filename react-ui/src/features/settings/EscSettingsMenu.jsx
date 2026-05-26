@@ -17,7 +17,12 @@ import {
   Zap,
 } from 'lucide-react';
 import { emitGodotOperation } from '../../bridge/godot';
-import { DEFAULT_HUD_SETTINGS, DEFAULT_MQTT_BROKER_HOST, normalizeHudSettings } from '../../state/settings';
+import {
+  DEFAULT_HUD_SETTINGS,
+  DEFAULT_MQTT_BROKER_HOST,
+  MQTT_CLIENT_ID_OPTIONS,
+  normalizeHudSettings,
+} from '../../state/settings';
 
 const HOTKEY_ROWS = [
   { key: 'heal', label: '买血', icon: HeartPulse },
@@ -36,22 +41,6 @@ const MODIFIER_CODES = new Set([
   'ShiftLeft',
   'ShiftRight',
 ]);
-
-const CLIENT_ID_OPTIONS = [
-  { value: '', label: '未指定' },
-  { value: '1', label: '红方英雄 1' },
-  { value: '2', label: '红方工程 2' },
-  { value: '3', label: '红方步兵 3' },
-  { value: '4', label: '红方步兵 4' },
-  { value: '6', label: '红方空中 6' },
-  { value: '7', label: '红方哨兵 7' },
-  { value: '101', label: '蓝方英雄 101' },
-  { value: '102', label: '蓝方工程 102' },
-  { value: '103', label: '蓝方步兵 103' },
-  { value: '104', label: '蓝方步兵 104' },
-  { value: '106', label: '蓝方空中 106' },
-  { value: '107', label: '蓝方哨兵 107' },
-];
 
 function formatScale(value) {
   return `${Math.round(Number(value) * 100)}%`;
@@ -358,7 +347,7 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
                 label="Client ID"
                 icon={Server}
                 value={normalized.network.mqtt.clientId}
-                options={CLIENT_ID_OPTIONS}
+                options={MQTT_CLIENT_ID_OPTIONS}
                 onChange={(clientId) => updateNetwork('mqtt', { clientId })}
               />
             </div>
