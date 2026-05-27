@@ -59,6 +59,9 @@ var _pending_map_payloads: Array[Dictionary] = []
 var _last_video_settings_key := ""
 var _active_mqtt_connection_key := ""
 var _pending_mqtt_connection_key := ""
+var _pending_mqtt_client_id := ""
+var _mqtt_connection_state := "disconnected"
+var _mqtt_connection_reason := ""
 var _pending_web_eval_payloads: Array[Dictionary] = []
 var _shutting_down := false
 
@@ -233,21 +236,21 @@ func _load_cef_url(target: Object, url: String) -> void:
 func _configure_cef_node(target: Object, source: String) -> void:
 	if target == null:
 		return
-	_set_first_existing_property(target, ["custom_minimum_size", "size"], HUD_CANVAS_SIZE)
 	if target is Control:
-		target.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_set_top_left_layout(target)
 		target.position = Vector2.ZERO
-		target.size = HUD_CANVAS_SIZE
+		target.size = _hud_viewport_size()
+		target.mouse_filter = Control.MOUSE_FILTER_STOP
+		target.focus_mode = Control.FOCUS_ALL
 	if _set_object_property_if_exists(target, "enable_accelerated_osr", false):
 		print("CEF ", source, " accelerated OSR disabled")
 
 func _configure_hud_canvas() -> void:
 	if hud_viewport == null:
 		return
-	hud_viewport.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	hud_viewport.custom_minimum_size = HUD_CANVAS_SIZE
-	hud_viewport.size = HUD_CANVAS_SIZE
+	_set_top_left_layout(hud_viewport)
 	hud_viewport.clip_contents = true
+	hud_viewport.mouse_filter = Control.MOUSE_FILTER_PASS
 	_update_hud_canvas_transform()
 	var root := get_viewport()
 	if root != null and not root.size_changed.is_connected(_update_hud_canvas_transform):
@@ -256,14 +259,38 @@ func _configure_hud_canvas() -> void:
 func _update_hud_canvas_transform() -> void:
 	if hud_viewport == null:
 		return
-	var visible_size := get_viewport().get_visible_rect().size
+	var visible_size := _hud_viewport_size()
+	_set_top_left_layout(hud_viewport)
+	hud_viewport.position = Vector2.ZERO
+	hud_viewport.scale = Vector2.ONE
+	hud_viewport.custom_minimum_size = visible_size
+	hud_viewport.size = visible_size
+	if web is Control:
+		var web_control := web as Control
+		_set_top_left_layout(web_control)
+		web_control.position = Vector2.ZERO
+		web_control.size = visible_size
+	if map_web is Control:
+		var map_control := map_web as Control
+		_set_top_left_layout(map_control)
+		map_control.position = Vector2.ZERO
+		map_control.size = visible_size
+
+func _set_top_left_layout(control: Control) -> void:
+	control.set_anchors_preset(Control.PRESET_TOP_LEFT, false)
+	control.anchor_left = 0.0
+	control.anchor_top = 0.0
+	control.anchor_right = 0.0
+	control.anchor_bottom = 0.0
+	control.offset_left = 0.0
+	control.offset_top = 0.0
+
+func _hud_viewport_size() -> Vector2:
+	var root := get_viewport()
+	var visible_size := root.get_visible_rect().size if root != null else HUD_CANVAS_SIZE
 	if visible_size.x <= 0.0 or visible_size.y <= 0.0:
-		return
-	var canvas_scale: float = minf(visible_size.x / HUD_CANVAS_SIZE.x, visible_size.y / HUD_CANVAS_SIZE.y)
-	var scaled_size: Vector2 = HUD_CANVAS_SIZE * canvas_scale
-	var offset: Vector2 = (visible_size - scaled_size) * 0.5
-	hud_viewport.scale = Vector2(canvas_scale, canvas_scale)
-	hud_viewport.position = Vector2(max(offset.x, 0.0), max(offset.y, 0.0))
+		return HUD_CANVAS_SIZE
+	return visible_size
 
 func _ensure_map_web() -> Node:
 	if map_web != null:
@@ -757,6 +784,7 @@ func _try_bind_transport_signals() -> void:
 	if transport == null:
 		_transport = null
 		_mqtt_connected = false
+		_mqtt_connection_state = "disconnected"
 		return
 	var adapter := adapter_getter.get_adapter_silent()
 	if adapter != null and adapter.has_method("is_transport_bound") and not adapter.is_transport_bound(transport):
@@ -765,6 +793,8 @@ func _try_bind_transport_signals() -> void:
 		adapter.message_sent.connect(_on_debug_message_sent)
 	_transport = transport
 	_mqtt_connected = transport.is_broker_connected()
+	if _mqtt_connected:
+		_mqtt_connection_state = "connected"
 	if not transport.connected.is_connected(_on_transport_connected):
 		transport.connected.connect(_on_transport_connected)
 	if not transport.disconnected.is_connected(_on_transport_disconnected):
@@ -779,16 +809,24 @@ func _try_bind_transport_signals() -> void:
 
 func _on_transport_connected() -> void:
 	_mqtt_connected = true
+	_pending_mqtt_connection_key = ""
+	_pending_mqtt_client_id = ""
+	_mqtt_connection_state = "connected"
+	_mqtt_connection_reason = ""
 	_write_debug_log("link", {"state": "connected"})
 	_push_link_status()
 
 func _on_transport_disconnected(_reason = "") -> void:
 	_mqtt_connected = false
+	_mqtt_connection_state = "disconnected"
+	_mqtt_connection_reason = str(_reason)
 	_write_debug_log("link", {"state": "disconnected", "reason": str(_reason)})
 	_push_link_status()
 
 func _on_transport_failed(_reason = "") -> void:
 	_mqtt_connected = false
+	_mqtt_connection_state = "failed"
+	_mqtt_connection_reason = str(_reason)
 	_write_debug_log("link", {"state": "failed", "reason": str(_reason)})
 	_push_link_status()
 
@@ -799,13 +837,45 @@ func _push_link_status() -> void:
 	var has_data := _last_data_update_msec > 0
 	var data_outdated := has_data and now - _last_data_update_msec > 1500
 	var data_status := "ok" if has_data else "warning"
+	var mqtt_status := _build_mqtt_status_payload(now)
 	push_payload({
 		"links": [
 			{"name": "MQTT", "status": "ok" if _mqtt_connected else "warning", "outdated": false},
 			{"name": "VIDEO", "status": "warning", "outdated": false},
 			{"name": "DATA", "status": data_status, "outdated": data_outdated}
-		]
+		],
+		"networkStatus": {
+			"mqtt": mqtt_status
+		}
 	})
+
+func _build_mqtt_status_payload(now: int) -> Dictionary:
+	var transport := _transport
+	if transport == null:
+		transport = adapter_getter.get_transport()
+	var connected := false
+	var broker_url := ""
+	var client_id := ""
+	if transport != null:
+		connected = transport.is_broker_connected()
+		broker_url = str(transport.broker_url)
+		client_id = str(transport.client_id)
+		_mqtt_connected = connected
+	var state := _mqtt_connection_state
+	if connected:
+		state = "connected"
+	elif state.is_empty() or state == "connected":
+		state = "disconnected"
+	return {
+		"connected": connected,
+		"state": state,
+		"clientId": client_id,
+		"pendingClientId": _pending_mqtt_client_id,
+		"brokerUrl": _canonical_mqtt_broker_url(broker_url),
+		"pending": not _pending_mqtt_connection_key.is_empty(),
+		"reason": _mqtt_connection_reason,
+		"updatedAt": now
+	}
 
 func _normalize_bridge_value(proto_key: String, value):
 	if value == null:
@@ -1143,6 +1213,7 @@ func _apply_mqtt_settings(mqtt_settings, apply_connection: bool = false) -> void
 		return
 	var broker_url := _build_endpoint_url(mqtt_settings, "tcp")
 	var connection_key := _build_mqtt_connection_key(mqtt_settings, broker_url)
+	var requested_client_id := str(mqtt_settings.get("clientId", "")).strip_edges()
 	var previous_key := _active_mqtt_connection_key
 	if previous_key.is_empty():
 		previous_key = _build_mqtt_connection_key_from_transport(transport)
@@ -1171,6 +1242,9 @@ func _apply_mqtt_settings(mqtt_settings, apply_connection: bool = false) -> void
 	_try_bind_transport_signals()
 	if apply_connection:
 		_pending_mqtt_connection_key = ""
+		_pending_mqtt_client_id = requested_client_id
+		_mqtt_connection_state = "connecting"
+		_mqtt_connection_reason = ""
 		_active_mqtt_connection_key = connection_key
 		if transport.is_broker_connected():
 			print("MQTT settings applied; restarting connection: ", broker_url)
@@ -1178,13 +1252,17 @@ func _apply_mqtt_settings(mqtt_settings, apply_connection: bool = false) -> void
 		else:
 			print("MQTT settings applied; connecting broker: ", broker_url)
 			transport.connect_to_broker()
+		_push_link_status()
 		return
 	if connection_changed:
 		_pending_mqtt_connection_key = connection_key
+		_pending_mqtt_client_id = requested_client_id
 		print("MQTT connection settings updated; waiting for Apply & Reconnect: ", broker_url)
 	else:
 		_pending_mqtt_connection_key = ""
+		_pending_mqtt_client_id = ""
 		print("MQTT settings updated without reconnect: ", broker_url)
+	_push_link_status()
 
 func _apply_video_settings(video_settings) -> void:
 	if not (video_settings is Dictionary):
@@ -1194,12 +1272,16 @@ func _apply_video_settings(video_settings) -> void:
 	var transfer_node := _find_first_node_by_name(root, "TransferImage")
 	if transfer_node is CanvasItem:
 		transfer_node.visible = enabled
+	if transfer_node is Control:
+		_set_mouse_filter_recursive(transfer_node, Control.MOUSE_FILTER_IGNORE)
 	var video_node := _find_first_node_by_name(root, "RMVideoCanvas")
 	if video_node == null:
 		push_warning("Cannot apply video settings: RMVideoCanvas not found.")
 		return
 	if video_node is CanvasItem:
 		video_node.visible = enabled
+	if video_node is Control:
+		_set_mouse_filter_recursive(video_node, Control.MOUSE_FILTER_IGNORE)
 	var port := int(clamp(float(video_settings.get("port", 3334)), MIN_PORT, MAX_PORT))
 	var host := str(video_settings.get("host", "0.0.0.0")).strip_edges()
 	var source_url := _build_endpoint_url(video_settings, "udp")
@@ -1229,7 +1311,15 @@ func _apply_video_settings(video_settings) -> void:
 		video_node.call("start")
 	elif not enabled and video_node.has_method("stop"):
 		video_node.call("stop")
+	if video_node is Control:
+		_set_mouse_filter_recursive(video_node, Control.MOUSE_FILTER_IGNORE)
 	_log_video_status(video_node, "applied")
+
+func _set_mouse_filter_recursive(node: Node, mouse_filter: int) -> void:
+	if node is Control:
+		node.mouse_filter = mouse_filter
+	for child in node.get_children():
+		_set_mouse_filter_recursive(child, mouse_filter)
 
 func _log_video_status(video_node: Object, reason: String) -> void:
 	if video_node == null or not video_node.has_method("get_status"):

@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Check,
+  ChevronDown,
   Crosshair,
   Eye,
   FileText,
@@ -13,6 +15,8 @@ import {
   Server,
   SlidersHorizontal,
   Video,
+  Wifi,
+  WifiOff,
   X,
   Zap,
 } from 'lucide-react';
@@ -104,23 +108,148 @@ function TextInputRow({ label, icon: Icon, value, onChange, type = 'text', place
 }
 
 function SelectRow({ label, icon: Icon, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const selectedOption = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (buttonRef.current?.contains(event.target) || menuRef.current?.contains(event.target)) {
+        return;
+      }
+      setOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const chooseOption = (nextValue) => {
+    onChange(nextValue);
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  const moveSelection = (direction) => {
+    const currentIndex = Math.max(0, options.findIndex((option) => option.value === value));
+    const nextIndex = (currentIndex + direction + options.length) % options.length;
+    chooseOption(options[nextIndex].value);
+  };
+
   return (
-    <label className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 text-xs text-slate-200">
-      <span className="flex min-w-0 items-center gap-2 font-bold">
+    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-start gap-x-3 gap-y-0 text-xs text-slate-200">
+      <span className="flex min-w-0 items-center gap-2 pt-1.5 font-bold">
         {Icon && <Icon size={14} className="shrink-0 text-cyan-300" />}
         <span className="truncate">{label}</span>
       </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-w-0 rounded border border-slate-700 bg-slate-950/90 px-2 py-1.5 font-mono text-xs text-slate-100 outline-none transition-colors focus:border-cyan-400/70"
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((nextOpen) => !nextOpen)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (!open) setOpen(true);
+            else moveSelection(1);
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (!open) setOpen(true);
+            else moveSelection(-1);
+          }
+        }}
+        className={`flex min-w-0 items-center justify-between gap-2 rounded border bg-slate-950/90 px-2 py-1.5 font-mono text-xs text-slate-100 outline-none transition-colors ${
+          open ? 'border-cyan-400/70' : 'border-slate-700 hover:border-slate-500'
+        }`}
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    </label>
+        <span className="truncate text-left">{selectedOption?.label ?? '-'}</span>
+        <ChevronDown size={14} className={`shrink-0 text-cyan-300 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          role="listbox"
+          className="col-start-2 z-20 mt-1 max-h-[420px] min-w-0 overflow-y-auto rounded border border-slate-700 bg-slate-950/95 py-1 font-mono text-xs text-slate-100 shadow-[0_18px_42px_rgba(0,0,0,0.72)]"
+        >
+          {options.map((option) => {
+            const selected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => chooseOption(option.value)}
+                className={`flex min-h-8 w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left transition-colors ${
+                  selected
+                    ? 'bg-cyan-500/18 text-cyan-50'
+                    : 'text-slate-200 hover:bg-slate-800/90 hover:text-white'
+                }`}
+              >
+                <span className="min-w-0 truncate">{option.label}</span>
+                {selected && <Check size={13} className="shrink-0 text-cyan-300" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
+}
+
+function StatusPill({ label, value, tone = 'idle', icon: Icon, title }) {
+  const toneClass = {
+    ok: 'border-emerald-400/45 bg-emerald-500/12 text-emerald-100',
+    warn: 'border-amber-400/45 bg-amber-500/12 text-amber-100',
+    error: 'border-red-400/45 bg-red-500/12 text-red-100',
+    info: 'border-cyan-400/45 bg-cyan-500/12 text-cyan-100',
+    idle: 'border-slate-700 bg-slate-900/70 text-slate-200',
+  }[tone] ?? 'border-slate-700 bg-slate-900/70 text-slate-200';
+
+  return (
+    <div
+      title={title}
+      className={`flex min-h-9 min-w-0 items-center gap-2 rounded border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] ${toneClass}`}
+    >
+      {Icon && <Icon size={13} className="shrink-0" />}
+      <span className="shrink-0 text-slate-400">{label}</span>
+      <span className="min-w-0 truncate font-mono text-xs tracking-normal text-current">{value || '-'}</span>
+    </div>
+  );
+}
+
+function resolveMqttState(mqttStatus) {
+  if (mqttStatus?.connected) {
+    return { label: 'CONNECTED', tone: 'ok', icon: Wifi };
+  }
+
+  const state = String(mqttStatus?.state ?? '').toLowerCase();
+  if (state === 'connecting') {
+    return { label: 'CONNECTING', tone: 'info', icon: Wifi };
+  }
+  if (state === 'failed') {
+    return { label: 'FAILED', tone: 'error', icon: WifiOff };
+  }
+  if (mqttStatus?.pending) {
+    return { label: 'PENDING', tone: 'warn', icon: WifiOff };
+  }
+  return { label: 'OFFLINE', tone: 'idle', icon: WifiOff };
 }
 
 function CheckboxRow({ label, icon: Icon, checked, onChange }) {
@@ -140,12 +269,20 @@ function CheckboxRow({ label, icon: Icon, checked, onChange }) {
   );
 }
 
-export default function EscSettingsMenu({ open, settings, onSettingsChange, onOpenChange }) {
+export default function EscSettingsMenu({ open, settings, networkStatus, onSettingsChange, onOpenChange }) {
   const [capturingAction, setCapturingAction] = useState(null);
 
   if (!open) return null;
 
   const normalized = normalizeHudSettings(settings);
+  const mqttStatus = networkStatus?.mqtt ?? {};
+  const currentClientId = String(mqttStatus.clientId ?? '').trim();
+  const pendingClientId = String(mqttStatus.pendingClientId ?? '').trim();
+  const selectedClientId = String(normalized.network.mqtt.clientId ?? '').trim();
+  const shownClientId = currentClientId || pendingClientId || selectedClientId || '-';
+  const clientIdPending = Boolean(mqttStatus.pending) && pendingClientId && pendingClientId !== currentClientId;
+  const clientIdLabel = clientIdPending ? `${currentClientId || '-'} > ${pendingClientId}` : shownClientId;
+  const mqttState = resolveMqttState(mqttStatus);
 
   const updateSettings = (patch) => {
     onSettingsChange?.(normalizeHudSettings({
@@ -253,8 +390,8 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
   };
 
   return (
-    <div className="pointer-events-auto fixed inset-0 z-[90] flex items-center justify-center bg-black/42 p-6 font-sans text-white backdrop-blur-[2px]">
-      <div className="max-h-[90vh] w-[min(640px,94vw)] overflow-hidden rounded-lg border border-slate-700 bg-slate-950/95 shadow-[0_0_44px_rgba(0,0,0,0.78)]">
+    <div className="pointer-events-auto absolute inset-0 z-[90] flex items-center justify-center bg-black/42 p-6 font-sans text-white backdrop-blur-[2px]">
+      <div className="flex max-h-[972px] w-[640px] max-w-[calc(100%-48px)] flex-col overflow-visible rounded-lg border border-slate-700 bg-slate-950/95 shadow-[0_0_44px_rgba(0,0,0,0.78)]">
         <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded border border-cyan-400/45 bg-cyan-500/12 text-cyan-200">
@@ -288,7 +425,7 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
           </div>
         </div>
 
-        <div className="max-h-[calc(90vh-66px)] space-y-5 overflow-y-auto p-5">
+        <div className="max-h-[906px] flex-1 space-y-5 overflow-y-auto overflow-x-visible p-5">
           <section className="space-y-3">
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Mouse</div>
             <SliderRow
@@ -351,7 +488,23 @@ export default function EscSettingsMenu({ open, settings, onSettingsChange, onOp
                 onChange={(clientId) => updateNetwork('mqtt', { clientId })}
               />
             </div>
-            <div className="flex justify-end">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <StatusPill
+                  label="ID"
+                  value={clientIdLabel}
+                  tone={clientIdPending ? 'warn' : 'info'}
+                  icon={Server}
+                  title={clientIdPending ? 'Client ID has changed and is waiting for Apply.' : 'Current MQTT client ID.'}
+                />
+                <StatusPill
+                  label="MQTT"
+                  value={mqttState.label}
+                  tone={mqttState.tone}
+                  icon={mqttState.icon}
+                  title={mqttStatus.reason || mqttStatus.brokerUrl || 'MQTT connection status.'}
+                />
+              </div>
               <button
                 type="button"
                 onClick={applyMqttConnection}

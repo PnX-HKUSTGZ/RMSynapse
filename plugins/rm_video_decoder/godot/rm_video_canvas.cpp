@@ -53,6 +53,7 @@ void RMVideoCanvas::_bind_methods() {
 
 void RMVideoCanvas::_ready() {
     rm::common::log::godot::install_global_sink();
+    set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
     extractor_.set_port(port_);
     extractor_.set_force_rgba(force_rgba_); // match standalone test by default
     if (!extractor_.init()) {
@@ -230,6 +231,7 @@ void RMVideoCanvas::ensure_texture_rect() {
         rect_->set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
         rect_->set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE); // keep size driven by parent layout
         rect_->set_modulate(Color(1, 1, 1, 1));
+        rect_->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
         add_child(rect_);
         set_display_mode(display_mode_);
     }

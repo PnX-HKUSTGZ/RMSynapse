@@ -44,6 +44,18 @@ const DEFAULT_UI_STATE = {
     { name: 'VIDEO', status: 'ok', outdated: false },
     { name: 'DATA', status: 'ok', outdated: false },
   ],
+  networkStatus: {
+    mqtt: {
+      connected: false,
+      state: 'disconnected',
+      clientId: '',
+      pendingClientId: '',
+      brokerUrl: '',
+      pending: false,
+      reason: '',
+      updatedAt: 0,
+    },
+  },
   commandPanel: {
     open: false,
   },

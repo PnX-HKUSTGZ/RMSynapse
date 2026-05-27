@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import MiniMapHUD from './features/mini-map/MiniMapHUD';
 import { emitGodotOperation } from './bridge/godot';
+import DesignCanvas from './components/DesignCanvas';
 import { useMapDebugState } from './hooks/useMapDebugState';
 import {
   buildRobotHpById,
@@ -25,14 +26,16 @@ export default function MapDebugApp() {
   );
 
   return (
-    <div className="hud-canvas relative overflow-hidden bg-transparent font-mono text-white">
-      <MiniMapHUD
-        miniMap={{ ...miniMapState, interactive: true, placement: 'center', showHeader: false }}
-        uiSizing={mapPageSizing}
-        robotHpById={robotHpById}
-        radarTargets={state.radarTargets}
-        onMapClick={(payload) => emitGodotOperation({ type: 'mapClick', ...payload }, '[map] click')}
-      />
+    <div className="hud-canvas bg-transparent font-mono text-white">
+      <DesignCanvas className="relative">
+        <MiniMapHUD
+          miniMap={{ ...miniMapState, interactive: true, placement: 'center', showHeader: false }}
+          uiSizing={mapPageSizing}
+          robotHpById={robotHpById}
+          radarTargets={state.radarTargets}
+          onMapClick={(payload) => emitGodotOperation({ type: 'mapClick', ...payload }, '[map] click')}
+        />
+      </DesignCanvas>
     </div>
   );
 }

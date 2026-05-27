@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emitGodotOperation } from './bridge/godot';
+import DesignCanvas from './components/DesignCanvas';
 import CenterCombatHUD from './features/center-hud/CenterCombatHUD';
 import CommandPanel from './features/command-panel/CommandPanel';
 import MessageCenter from './features/message-center/MessageCenter';
@@ -42,19 +43,19 @@ function swapSideMap(sideMap) {
   };
 }
 
-function resolveGlobalUnitDisplay(uiState, clientTeam) {
-  if (clientTeam !== 'blue' || uiState.globalUnit?.sideBasis !== 'ally_enemy') {
+function resolveGlobalUnitDisplay({ bases, outposts, robots, globalUnit }, clientTeam) {
+  if (clientTeam !== 'blue' || globalUnit?.sideBasis !== 'ally_enemy') {
     return {
-      bases: uiState.bases,
-      outposts: uiState.outposts,
-      robots: uiState.robots,
+      bases,
+      outposts,
+      robots,
     };
   }
 
   return {
-    bases: swapSideMap(uiState.bases),
-    outposts: swapSideMap(uiState.outposts),
-    robots: swapSideMap(uiState.robots),
+    bases: swapSideMap(bases),
+    outposts: swapSideMap(outposts),
+    robots: swapSideMap(robots),
   };
 }
 
@@ -98,7 +99,12 @@ export default function App() {
   const normalizedHudSettings = useMemo(() => normalizeHudSettings(hudSettings), [hudSettings]);
   const clientTeam = resolveClientTeam(normalizedHudSettings.network.mqtt.clientId || uiState.mecha?.robotId);
   const globalUnitDisplay = useMemo(
-    () => resolveGlobalUnitDisplay(uiState, clientTeam),
+    () => resolveGlobalUnitDisplay({
+      bases: uiState.bases,
+      outposts: uiState.outposts,
+      robots: uiState.robots,
+      globalUnit: uiState.globalUnit,
+    }, clientTeam),
     [uiState.bases, uiState.globalUnit, uiState.outposts, uiState.robots, clientTeam],
   );
   const { leftRobots, rightRobots } = resolveRobotSides(globalUnitDisplay.robots);
@@ -301,89 +307,92 @@ export default function App() {
   }, [uiState.messageCenter, normalizedHudSettings.ui.scale]);
 
   return (
-    <div className="hud-canvas relative flex flex-col items-center overflow-hidden pt-2 font-sans text-white select-none">
-      <div
-        className="absolute inset-0 flex flex-col items-center pt-2"
-        style={{ opacity: normalizedHudSettings.ui.opacity }}
-      >
-        <TopCoreLayout
-          roundLabel={uiState.roundLabel}
-          labels={uiState.labels}
-          baseStateMeta={uiState.baseStateMeta}
-          outpostStateMeta={uiState.outpostStateMeta}
-          maxValues={uiState.maxValues}
-          timeLeft={uiState.timeLeft}
-          scores={uiState.scores}
-          bases={globalUnitDisplay.bases}
-          outposts={globalUnitDisplay.outposts}
-          stats={statsState}
-          leftRobots={leftRobots}
-          rightRobots={rightRobots}
-          robotLevels={uiState.robotLevels}
-          uiSizing={effectiveUiSizing}
-          match={uiState.match}
-          links={uiState.links}
-          fallbackBaseStateMeta={DEFAULT_UI_STATE.baseStateMeta}
-          fallbackOutpostStateMeta={DEFAULT_UI_STATE.outpostStateMeta}
-        />
+    <div className="hud-canvas font-sans text-white select-none">
+      <DesignCanvas className="flex flex-col items-center pt-2">
+        <div
+          className="absolute inset-0 flex flex-col items-center pt-2"
+          style={{ opacity: normalizedHudSettings.ui.opacity }}
+        >
+          <TopCoreLayout
+            roundLabel={uiState.roundLabel}
+            labels={uiState.labels}
+            baseStateMeta={uiState.baseStateMeta}
+            outpostStateMeta={uiState.outpostStateMeta}
+            maxValues={uiState.maxValues}
+            timeLeft={uiState.timeLeft}
+            scores={uiState.scores}
+            bases={globalUnitDisplay.bases}
+            outposts={globalUnitDisplay.outposts}
+            stats={statsState}
+            leftRobots={leftRobots}
+            rightRobots={rightRobots}
+            robotLevels={uiState.robotLevels}
+            uiSizing={effectiveUiSizing}
+            match={uiState.match}
+            links={uiState.links}
+            fallbackBaseStateMeta={DEFAULT_UI_STATE.baseStateMeta}
+            fallbackOutpostStateMeta={DEFAULT_UI_STATE.outpostStateMeta}
+          />
 
-        <MessageCenter messageCenter={effectiveMessageCenter} />
-        <CommandPanel
-          commandPanel={uiState.commandPanel}
-          uiScale={normalizedHudSettings.ui.scale}
-          onCommandPanelOpenChange={(open) => {
-            setUiState((prev) => ({
-              ...prev,
-              commandPanel: {
-                ...(prev.commandPanel ?? {}),
-                open,
-              },
-            }));
-          }}
-          controls={uiState.controls}
-          stats={statsState}
-          mecha={uiState.mecha}
-          respawn={respawnState}
-          timeLeft={uiState.timeLeft}
-          performance={uiState.performance}
-          heroDeploy={uiState.heroDeploy}
-          rune={uiState.rune}
-          mechanisms={uiState.mechanisms}
-          commandStatus={uiState.commandStatus}
-          onAssemblyStart={startAssemblyTask}
-          resourceQuantities={resourceQuantities}
-          onResourceQuantitiesChange={setResourceQuantities}
-          hotkeys={normalizedHudSettings.hotkeys}
+          <MessageCenter messageCenter={effectiveMessageCenter} />
+          <CommandPanel
+            commandPanel={uiState.commandPanel}
+            uiScale={normalizedHudSettings.ui.scale}
+            onCommandPanelOpenChange={(open) => {
+              setUiState((prev) => ({
+                ...prev,
+                commandPanel: {
+                  ...(prev.commandPanel ?? {}),
+                  open,
+                },
+              }));
+            }}
+            controls={uiState.controls}
+            stats={statsState}
+            mecha={uiState.mecha}
+            respawn={respawnState}
+            timeLeft={uiState.timeLeft}
+            performance={uiState.performance}
+            heroDeploy={uiState.heroDeploy}
+            rune={uiState.rune}
+            mechanisms={uiState.mechanisms}
+            commandStatus={uiState.commandStatus}
+            onAssemblyStart={startAssemblyTask}
+            resourceQuantities={resourceQuantities}
+            onResourceQuantitiesChange={setResourceQuantities}
+            hotkeys={normalizedHudSettings.hotkeys}
+          />
+          {!isEngineer && <CenterCombatHUD centerHud={uiState.centerHud} uiSizing={effectiveUiSizing} />}
+          <MechaHUD
+            mecha={uiState.mecha}
+            maxValues={uiState.maxValues}
+            uiSizing={effectiveUiSizing}
+            modules={uiState.modules}
+            boostBuffs={uiState.boostBuffs}
+            isEngineer={isEngineer}
+            mechanisms={uiState.mechanisms}
+            assembly={uiState.assembly}
+            commandStatus={uiState.commandStatus}
+            assemblyTask={visibleAssemblyTask}
+            onAssemblyConfirm={confirmAssemblyTask}
+            onAssemblyCancel={cancelAssemblyTask}
+          />
+          <MiniMapHUD
+            miniMap={{ ...miniMapState, interactive: false }}
+            uiSizing={effectiveUiSizing}
+            robotHpById={robotHpById}
+            radarTargets={uiState.radarTargets}
+          />
+          {/* ReviveOverlay disabled: respawn operations are handled by the right command panel. */}
+        </div>
+        <EscSettingsMenu
+          open={settingsMenuOpen}
+          settings={normalizedHudSettings}
+          networkStatus={uiState.networkStatus}
+          onSettingsChange={setHudSettings}
+          onOpenChange={setSettingsMenuOpen}
         />
-        {!isEngineer && <CenterCombatHUD centerHud={uiState.centerHud} uiSizing={effectiveUiSizing} />}
-        <MechaHUD
-          mecha={uiState.mecha}
-          maxValues={uiState.maxValues}
-          uiSizing={effectiveUiSizing}
-          modules={uiState.modules}
-          boostBuffs={uiState.boostBuffs}
-          isEngineer={isEngineer}
-          mechanisms={uiState.mechanisms}
-          assembly={uiState.assembly}
-          commandStatus={uiState.commandStatus}
-          assemblyTask={visibleAssemblyTask}
-          onAssemblyConfirm={confirmAssemblyTask}
-          onAssemblyCancel={cancelAssemblyTask}
-        />
-        <MiniMapHUD
-          miniMap={{ ...miniMapState, interactive: false }}
-          uiSizing={effectiveUiSizing}
-          robotHpById={robotHpById}
-          radarTargets={uiState.radarTargets}
-        />
-        {/* ReviveOverlay disabled: respawn operations are handled by the right command panel. */}
-      </div>
-      <EscSettingsMenu
-        open={settingsMenuOpen}
-        settings={normalizedHudSettings}
-        onSettingsChange={setHudSettings}
-        onOpenChange={setSettingsMenuOpen}
-      />
+      </DesignCanvas>
     </div>
   );
 }
