@@ -11,7 +11,7 @@ RoboMaster 2026 自定义客户端（Godot 4.5 + MQTT/Protobuf + UDP 视频）�
 ## 功能亮点
 - Godot 4.5 场景/UI：包含比分、局阶段、全局单位状态、后勤/特殊机制、事件提示、伤害/复活、机器人运行/模块状态、Buff/处罚及远程控制面板，可直接接在 `/root/Mqtt/Adapter` 输出上。
 - 统一网络栈：AutoLoad `Mqtt` 聚合 `Adapter`、`Transport`、`ClientSetter`，使用 MQTT 二进制消息 + Protobuf 解码。
-- 自定义视频流：C++ GDExtension `RMVideoCanvas` 源码仍保留；当前导出使用 `Control` 占位，需重新编译视频插件后恢复画布节点。
+- 自定义视频流：C++ GDExtension `RMVideoCanvas` 从 `rm_synapse/addons/rm_video_decoder/` 加载，负责 UDP H.265 分片重组、FFmpeg 解码和 Godot 画布显示。
 - 上行策略：通过 `ProtocolAdapter` 发送键鼠、自定义控制、地图点击、买血/买弹/复活、部署、符文、装配、性能选择、空中支援、飞镖等命令。
 - 协议与生成：`rm_synapse/net/mqtt/proto/rm_custom.proto` 对齐 2026 自定义客户端协议，使用内置 Godobuf 插件生成 `rm_synapse/net/mqtt/proto/generated/rm_custom_pb.gd`。
 
@@ -27,12 +27,12 @@ RoboMaster 2026 自定义客户端（Godot 4.5 + MQTT/Protobuf + UDP 视频）�
 1) 准备：安装 Godot 4.5.x；有可访问的 MQTT Broker 以及机器人/裁判系统视频流（默认 H.265 UDP 端口 3334）。  
 2) 获取源码：`git clone <repo_url> && cd RMSynapse && git submodule update --init --recursive`。  
 3) 配置网络：在 ESC 设置中配置 MQTT Broker、Port、ClientID；默认场景也可在 `rm_synapse/net/mqtt/mqtt.tscn` 里调整 `Transport.broker_url`。  
-4) 配置视频：在 ESC 设置中配置图传端口；当前 `RMVideoCanvas` 插件二进制未启用，视频画布是占位节点。  
+4) 配置视频：在 ESC 设置中配置图传端口；默认 UDP 图传端口为 `3334`，视频插件随 `rm_synapse/addons/rm_video_decoder/` 一起分发。  
 5) 运行：`godot4 --path rm_synapse` 直接播放主场景；界面自动订阅 MQTT、显示数据并按当前设置发送交互命令。  
 6) 可选：使用导出产物 `rm_synapse/Export/linux/`、`rm_synapse/Export/windows/`、`rm_synapse/Export/macos/` 中对应平台文件启动。
 
 ## 编译与分发
-本项目的发布包由三部分组成：React HUD 静态资源、Godot 工程导出、可选的 `rm_video_decoder` C++ GDExtension。正式分发前建议在目标平台本机完成一次构建，因为 Godot CEF、FFmpeg 与动态库加载路径都和平台/架构强相关。
+本项目的发布包由三部分组成：React HUD 静态资源、Godot 工程导出、`rm_video_decoder` C++ GDExtension。正式分发前建议在目标平台或兼容 sysroot 中完成一次构建，因为 Godot CEF、FFmpeg、glibc 与动态库加载路径都和平台/架构强相关。
 
 ### 通用准备
 1) 拉取源码、LFS 大文件和子模块：
@@ -98,8 +98,29 @@ Windows PowerShell：
 - Linux/macOS：`--debug`、`--arch <arch>`、`--skip-ui`、`--skip-video`、`--export`、`--godot <path>`、`--lfs-pull`、`--ffmpeg-root <path>`、`--ffmpeg-runtime <path>`。
 - Windows：`-Debug`、`-Arch <arch>`、`-SkipUi`、`-SkipVideo`、`-Export`、`-GodotBin <path>`、`-LfsPull`、`-FfmpegRoot <path>`、`-FfmpegRuntimeDir <path>`。
 
+当前维护者常用分发命令：
+```powershell
+# Windows x86_64，使用本仓库 build/thirdparty 下的 FFmpeg shared 包。
+.\scripts\build_windows.ps1 `
+  -Toolchain mingw `
+  -GodotBin "D:\Users\18384\Desktop\Godot_v4.5.2-stable_mono_win64\Godot_v4.5.2-stable_mono_win64_console.exe" `
+  -FfmpegRoot (Resolve-Path "build\thirdparty\ffmpeg-n7.1-win64-gpl-shared").Path `
+  -CopyFfmpegRuntime yes `
+  -NoNpmCi `
+  -Export
+
+tar -czf rm_synapse/Export/windows.tar.gz -C rm_synapse/Export/windows .
+```
+
+```bash
+# Ubuntu 22.04 x86_64。必须在 Ubuntu 22.04 或更老兼容 sysroot 中构建插件，
+# 不要直接在 Ubuntu 24.04 主机上编译，否则可能引入 GLIBC_2.38+ 依赖。
+scripts/build_linux.sh --export --static-ffmpeg --no-npm-ci
+tar -czf rm_synapse/Export/linux.tar.gz -C rm_synapse/Export/linux .
+```
+
 ### 编译视频 GDExtension
-视频插件源码位于 `plugins/rm_video_decoder/`，SCons 构建完成后会把插件、`.gdextension` 和 shader 复制到 `rm_synapse/bin/`。如果只运行当前占位视频界面，可以跳过本节；如果要接 UDP H.265 图传，需要按目标平台编译。
+视频插件源码位于 `plugins/rm_video_decoder/`，SCons 构建完成后会把插件、`.gdextension` 和 shader 复制到 `rm_synapse/addons/rm_video_decoder/`。如果要接 UDP H.265 图传，需要按目标平台编译对应二进制。
 
 Ubuntu x86_64：
 ```bash
@@ -140,12 +161,12 @@ scons platform=windows target=template_release arch=x86_64 use_mingw=yes `
 ```
 
 插件输出文件名应为：
-- Linux：`rm_synapse/bin/librm_video_decoder.so`
-- Windows：`rm_synapse/bin/rm_video_decoder.dll`
-- macOS：`rm_synapse/bin/librm_video_decoder.dylib`
-- 共享资源：`rm_synapse/bin/rm_video_decoder.gdextension`、`rm_synapse/bin/video_yuv.gdshader`
+- Linux：`rm_synapse/addons/rm_video_decoder/bin/linux-x86_64/librm_video_decoder.so`
+- Windows：`rm_synapse/addons/rm_video_decoder/bin/windows-x86_64/rm_video_decoder.dll`
+- macOS：`rm_synapse/addons/rm_video_decoder/bin/macos-<arch>/librm_video_decoder.dylib`
+- 共享资源：`rm_synapse/addons/rm_video_decoder/rm_video_decoder.gdextension`、`rm_synapse/addons/rm_video_decoder/video_yuv.gdshader`
 
-FFmpeg 不在系统搜索路径时，可额外传入 `ffmpeg_include=<path>`、`ffmpeg_libpath=<path>`、`ffmpeg_runtime_dir=<path>`。Windows 默认会尝试从 `ffmpeg_root/bin` 复制 `av*.dll`、`sw*.dll` 到 `rm_synapse/bin/`；Linux/macOS 如需随包分发动态库，可显式使用 `copy_ffmpeg_runtime=yes ffmpeg_runtime_dir=<path>`。
+FFmpeg 不在系统搜索路径时，可额外传入 `ffmpeg_include=<path>`、`ffmpeg_libpath=<path>`、`ffmpeg_runtime_dir=<path>`。Windows 默认会尝试从 `ffmpeg_root/bin` 复制 `av*.dll`、`sw*.dll` 及其依赖到 `rm_synapse/addons/rm_video_decoder/bin/windows-x86_64/`；Linux/macOS 如需随包分发动态库，可显式使用 `copy_ffmpeg_runtime=yes ffmpeg_runtime_dir=<path>`。Ubuntu 22.04 分发推荐使用 `static_ffmpeg=yes copy_ffmpeg_runtime=no`，降低运行机 FFmpeg 依赖要求。
 
 ### CMake 验证构建
 CMake 入口只构建 `video_core` 和可选预览测试程序，不负责 Godot 插件发布。默认不依赖 OpenCV：
@@ -166,7 +187,7 @@ cmake --build build/rm_video_decoder-test
 - Godot 已安装对应平台 Export Templates。
 - `rm_synapse/ui/web/` 已是最新 React 构建产物。
 - `rm_synapse/addons/godot_cef/bin/<platform>/` 不是 LFS pointer。
-- 如果启用视频插件，`rm_synapse/bin/` 已有对应平台的 `rm_video_decoder` 动态库和 FFmpeg 运行时库。
+- `rm_synapse/addons/rm_video_decoder/bin/<platform>/` 已有对应平台的 `rm_video_decoder` 动态库；Windows 还需要同目录 FFmpeg 运行时库。
 
 Linux：
 ```bash
@@ -194,12 +215,12 @@ godot --headless --path rm_synapse --quit
 然后启动导出产物，确认 HUD 能显示、MQTT 设置能保存、无 CEF/GDExtension 缺失库报错。有视频流时打开 `rm_synapse/net/video_udp/transfer_image.tscn` 做一次画面烟测；无视频流时，只出现 UDP timeout 日志不视为失败。
 
 平台动态库检查命令：
-- Linux：`ldd rm_synapse/bin/librm_video_decoder.so`
-- Windows MSVC：`dumpbin /dependents rm_synapse\bin\rm_video_decoder.dll`
-- Windows MinGW：`objdump -p rm_synapse\bin\rm_video_decoder.dll`
-- macOS：`otool -L rm_synapse/bin/librm_video_decoder.dylib`
+- Linux：`ldd rm_synapse/addons/rm_video_decoder/bin/linux-x86_64/librm_video_decoder.so`
+- Windows MSVC：`dumpbin /dependents rm_synapse\addons\rm_video_decoder\bin\windows-x86_64\rm_video_decoder.dll`
+- Windows MinGW：`objdump -p rm_synapse\addons\rm_video_decoder\bin\windows-x86_64\rm_video_decoder.dll`
+- macOS：`otool -L rm_synapse/addons/rm_video_decoder/bin/macos-<arch>/librm_video_decoder.dylib`
 
-`rm_synapse/bin/`、`rm_synapse/Export/`、`godot-cpp/bin/` 和构建缓存默认被 `.gitignore` 排除。它们是本地构建/分发产物，不应作为源码改动提交。
+`rm_synapse/Export/`、`godot-cpp/bin/` 和构建缓存默认被 `.gitignore` 排除。`rm_synapse/addons/rm_video_decoder/` 使用 Git LFS 管理，可用于提交经过验证的插件二进制；普通导出目录仍不应作为源码改动提交。
 
 ## 网络与协议速览
 - 下行订阅（`ProtocolAdapter.DEFAULT_SUBSCRIBE_TOPICS` 默认）：`GameStatus`、`GlobalUnitStatus`、`GlobalLogisticsStatus`、`GlobalSpecialMechanism`、`Event`、`RobotInjuryStat`、`RobotRespawnStatus`、`RobotStaticStatus`、`RobotDynamicStatus`、`RobotModuleStatus`、`RobotPosition`、`Buff`、`PenaltyInfo`、`RobotPathPlanInfo`、`RadarInfoToClient`、`RobotPerformanceSelectionSync`、`DeployModeStatusSync`、`TechCoreMotionStateSync`、`RuneStatusSync`、`SentryStatusSync`、`DartSelectTargetStatusSync`、`SentryCtrlResult`、`AirSupportStatusSync`、`CustomByteBlock`。解码成功的消息会写入状态服务并逐类触发 `*_updated` 信号。  

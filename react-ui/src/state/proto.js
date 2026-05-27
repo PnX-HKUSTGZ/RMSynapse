@@ -319,6 +319,9 @@ function buildProtoPatch(data) {
 
   if (isPlainObject(data.GlobalUnitStatus)) {
     const source = data.GlobalUnitStatus;
+    patch.globalUnit = {
+      sideBasis: 'ally_enemy',
+    };
     patch.bases = {
       left: {
         hp: toNonNegativeInt(source.ally_base?.health),

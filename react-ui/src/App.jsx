@@ -27,6 +27,37 @@ import {
   saveHudSettings,
 } from './state/settings';
 
+function resolveClientTeam(clientId) {
+  const numeric = Number(clientId);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 'red';
+  return numeric >= 100 ? 'blue' : 'red';
+}
+
+function swapSideMap(sideMap) {
+  if (!sideMap) return sideMap;
+  return {
+    ...sideMap,
+    left: sideMap.right,
+    right: sideMap.left,
+  };
+}
+
+function resolveGlobalUnitDisplay(uiState, clientTeam) {
+  if (clientTeam !== 'blue' || uiState.globalUnit?.sideBasis !== 'ally_enemy') {
+    return {
+      bases: uiState.bases,
+      outposts: uiState.outposts,
+      robots: uiState.robots,
+    };
+  }
+
+  return {
+    bases: swapSideMap(uiState.bases),
+    outposts: swapSideMap(uiState.outposts),
+    robots: swapSideMap(uiState.robots),
+  };
+}
+
 function resolveRoleFromMecha(mecha, controls) {
   const robotId = Number(mecha?.robotId ?? mecha?.robot_id);
   if (robotId === 2 || robotId === 102) return 'engineer';
@@ -65,7 +96,12 @@ export default function App() {
   const [resourceQuantities, setResourceQuantities] = useState(DEFAULT_RESOURCE_QUANTITIES);
   const hotkeyTapRef = useRef({});
   const normalizedHudSettings = useMemo(() => normalizeHudSettings(hudSettings), [hudSettings]);
-  const { leftRobots, rightRobots } = resolveRobotSides(uiState.robots);
+  const clientTeam = resolveClientTeam(normalizedHudSettings.network.mqtt.clientId || uiState.mecha?.robotId);
+  const globalUnitDisplay = useMemo(
+    () => resolveGlobalUnitDisplay(uiState, clientTeam),
+    [uiState.bases, uiState.globalUnit, uiState.outposts, uiState.robots, clientTeam],
+  );
+  const { leftRobots, rightRobots } = resolveRobotSides(globalUnitDisplay.robots);
   const miniMapState = resolveMiniMapState(uiState.miniMap);
   const respawnState = resolveRespawnState(uiState.respawn);
   const statsState = resolveStatsState(uiState.stats);
@@ -265,7 +301,7 @@ export default function App() {
   }, [uiState.messageCenter, normalizedHudSettings.ui.scale]);
 
   return (
-    <div className="relative flex h-screen w-screen flex-col items-center overflow-hidden pt-2 font-sans text-white select-none">
+    <div className="hud-canvas relative flex flex-col items-center overflow-hidden pt-2 font-sans text-white select-none">
       <div
         className="absolute inset-0 flex flex-col items-center pt-2"
         style={{ opacity: normalizedHudSettings.ui.opacity }}
@@ -278,8 +314,8 @@ export default function App() {
           maxValues={uiState.maxValues}
           timeLeft={uiState.timeLeft}
           scores={uiState.scores}
-          bases={uiState.bases}
-          outposts={uiState.outposts}
+          bases={globalUnitDisplay.bases}
+          outposts={globalUnitDisplay.outposts}
           stats={statsState}
           leftRobots={leftRobots}
           rightRobots={rightRobots}

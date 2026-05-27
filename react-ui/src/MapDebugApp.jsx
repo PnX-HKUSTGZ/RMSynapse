@@ -25,7 +25,7 @@ export default function MapDebugApp() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-transparent font-mono text-white">
+    <div className="hud-canvas relative overflow-hidden bg-transparent font-mono text-white">
       <MiniMapHUD
         miniMap={{ ...miniMapState, interactive: true, placement: 'center', showHeader: false }}
         uiSizing={mapPageSizing}

@@ -229,6 +229,22 @@ def append_pkg_config_static_deps(env, packages, skip_libs):
         env.MergeFlags(flags)
 
 
+def propagate_build_environment(env):
+    if "ENV" not in env:
+        env["ENV"] = {}
+    env_vars = env["ENV"]
+    for key in (
+        "PATH",
+        "PKG_CONFIG",
+        "PKG_CONFIG_PATH",
+        "PKG_CONFIG_LIBDIR",
+        "PKG_CONFIG_SYSROOT_DIR",
+    ):
+        value = os.environ.get(key)
+        if value:
+            env_vars[key] = value
+
+
 def pe_imported_dll_names(path):
     objdump = shutil.which("objdump")
     if not objdump:
@@ -589,6 +605,7 @@ addon_dir = normalize_path(plugin_arg("addon_output", "")) or (repo_root / "rm_s
 env = SConscript(str(godot_cpp_dir / "SConstruct"))
 platform_name = env["platform"]
 addon_bin = addon_dir / "bin" / platform_output_dir(env)
+propagate_build_environment(env)
 
 env.AppendUnique(CPPPATH=[
     str(this_dir / "include"),

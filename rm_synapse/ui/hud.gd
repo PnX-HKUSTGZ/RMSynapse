@@ -1,6 +1,7 @@
 extends CanvasLayer
 
-@onready var web = $CefTexture
+@onready var hud_viewport: Control = $HudViewport
+@onready var web = $HudViewport/CefTexture
 var map_web: Node = null
 
 enum MessagePriority {
@@ -128,6 +129,7 @@ const WEB_FAVICON_FILE := "vite.svg"
 const WEB_SERVER_HOST := "127.0.0.1"
 const WEB_SERVER_PORT_START := 18180
 const WEB_SERVER_PORT_END := 18220
+const HUD_CANVAS_SIZE := Vector2(1920, 1080)
 
 func _enter_tree() -> void:
 	_initialize_webview_urls()
@@ -138,6 +140,7 @@ func _ready():
 	set_process(true)
 	set_process_input(true)
 	_setup_debug_log_file_dialog()
+	_configure_hud_canvas()
 	_configure_cef_node(web, "hud")
 	_ensure_child_node(adapter_getter)
 
@@ -200,7 +203,9 @@ func _initialize_webview_urls() -> void:
 
 func _assign_initial_webview_urls() -> void:
 	var index_url := _web_runtime_url(WEB_INDEX_FILE)
-	var web_node := get_node_or_null("CefTexture")
+	var web_node := get_node_or_null("HudViewport/CefTexture")
+	if web_node == null:
+		web_node = get_node_or_null("CefTexture")
 	if web_node != null:
 		web_node.set("url", index_url)
 
@@ -228,8 +233,37 @@ func _load_cef_url(target: Object, url: String) -> void:
 func _configure_cef_node(target: Object, source: String) -> void:
 	if target == null:
 		return
+	_set_first_existing_property(target, ["custom_minimum_size", "size"], HUD_CANVAS_SIZE)
+	if target is Control:
+		target.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		target.position = Vector2.ZERO
+		target.size = HUD_CANVAS_SIZE
 	if _set_object_property_if_exists(target, "enable_accelerated_osr", false):
 		print("CEF ", source, " accelerated OSR disabled")
+
+func _configure_hud_canvas() -> void:
+	if hud_viewport == null:
+		return
+	hud_viewport.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	hud_viewport.custom_minimum_size = HUD_CANVAS_SIZE
+	hud_viewport.size = HUD_CANVAS_SIZE
+	hud_viewport.clip_contents = true
+	_update_hud_canvas_transform()
+	var root := get_viewport()
+	if root != null and not root.size_changed.is_connected(_update_hud_canvas_transform):
+		root.size_changed.connect(_update_hud_canvas_transform)
+
+func _update_hud_canvas_transform() -> void:
+	if hud_viewport == null:
+		return
+	var visible_size := get_viewport().get_visible_rect().size
+	if visible_size.x <= 0.0 or visible_size.y <= 0.0:
+		return
+	var canvas_scale: float = minf(visible_size.x / HUD_CANVAS_SIZE.x, visible_size.y / HUD_CANVAS_SIZE.y)
+	var scaled_size: Vector2 = HUD_CANVAS_SIZE * canvas_scale
+	var offset: Vector2 = (visible_size - scaled_size) * 0.5
+	hud_viewport.scale = Vector2(canvas_scale, canvas_scale)
+	hud_viewport.position = Vector2(max(offset.x, 0.0), max(offset.y, 0.0))
 
 func _ensure_map_web() -> Node:
 	if map_web != null:
@@ -243,7 +277,10 @@ func _ensure_map_web() -> Node:
 	map_web.visible = false
 	map_web.set("url", "")
 	_configure_cef_node(map_web, "map")
-	add_child(map_web)
+	if hud_viewport != null:
+		hud_viewport.add_child(map_web)
+	else:
+		add_child(map_web)
 	if map_web.has_signal("load_finished"):
 		map_web.load_finished.connect(func(_url: String, status: int) -> void:
 			_map_page_ready = _is_successful_cef_load(status)
