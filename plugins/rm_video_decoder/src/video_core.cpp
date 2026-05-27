@@ -26,6 +26,7 @@ namespace RMVideoDecoder {
 namespace {
 constexpr std::string_view kLogTag = "rm_video_decoder.VideoCore";
 constexpr int kRequestedUdpReceiveBufferBytes = 20 * 1024 * 1024;
+constexpr size_t kMaxFrameContexts = 32;
 
 #ifdef _WIN32
 std::string socketErrorMessage(int errorCode = WSAGetLastError()) {
@@ -232,12 +233,30 @@ bool isHevcParameterNal(int nalType) {
     return nalType == 32 || nalType == 33 || nalType == 34;
 }
 
-bool isHevcIdrNal(int nalType) {
-    return nalType == 19 || nalType == 20 || nalType == 21;
+bool isHevcIrapNal(int nalType) {
+    return nalType >= 16 && nalType <= 21;
 }
 
 size_t hevcParameterIndex(int nalType) {
     return static_cast<size_t>(nalType - 32);
+}
+
+const char* hevcNalName(int nalType) {
+    switch (nalType) {
+        case 16: return "BLA_W_LP";
+        case 17: return "BLA_W_RADL";
+        case 18: return "BLA_N_LP";
+        case 19: return "IDR_W_RADL";
+        case 20: return "IDR_N_LP";
+        case 21: return "CRA_NUT";
+        case 32: return "VPS";
+        case 33: return "SPS";
+        case 34: return "PPS";
+        case 35: return "AUD";
+        case 39: return "PREFIX_SEI";
+        case 40: return "SUFFIX_SEI";
+        default: return "NAL";
+    }
 }
 
 std::string firstBytesHex(const std::vector<uint8_t>& data, size_t maxBytes = 24) {
@@ -261,12 +280,16 @@ std::string nalTypeSummary(const std::vector<HevcNalUnit>& units, size_t maxUnit
         if (i > 0) {
             oss << ",";
         }
-        oss << units[i].type;
+        oss << units[i].type << "(" << hevcNalName(units[i].type) << ")";
     }
     if (units.size() > count) {
         oss << ",...";
     }
     return oss.str();
+}
+
+const char* fragmentModeName(bool offsetMode) {
+    return offsetMode ? "byte-offset" : "ordinal";
 }
 } // namespace
 
@@ -420,7 +443,21 @@ bool VideoCore::setupUdpSocket(){
         return false;
     }
 
-    RM_LOGI(kLogTag, "UDP socket bound on 0.0.0.0:%d", port_);
+    int actualRcvbuf = 0;
+#ifdef _WIN32
+    int actualRcvbufLen = sizeof(actualRcvbuf);
+#else
+    socklen_t actualRcvbufLen = sizeof(actualRcvbuf);
+#endif
+    if (getsockopt(static_cast<SOCKET>(sockfd_), SOL_SOCKET, SO_RCVBUF, reinterpret_cast<char*>(&actualRcvbuf), &actualRcvbufLen) < 0) {
+        RM_LOGW(kLogTag, "Could not read UDP receive buffer size: %s", lastSocketErrorMessage().c_str());
+    }
+
+    RM_LOGI(kLogTag,
+            "UDP video receiver ready on 0.0.0.0:%d requested_rcvbuf=%d actual_rcvbuf=%d protocol=RoboMaster UDP HEVC AnnexB frame fragments mode=byte-offset header=frame_id:uint16 packet_id:uint16 frame_size:uint32 hevc_gate=wait_vps_sps_pps_then_irap",
+            port_,
+            kRequestedUdpReceiveBufferBytes,
+            actualRcvbuf);
     return true;
 
 }
@@ -499,13 +536,7 @@ void VideoCore::networkLoop() {
             setUdpStatus(true);
         } else {
             if (isRecvTimeoutError()) {
-                if (current_frame_.active && current_frame_.isComplete()) {
-                    finalizeCurrentFrame("UDP timeout complete");
-                } else if (current_frame_.active && current_frame_.isOutdated()) {
-                    dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-                    RM_LOGW_STREAM(kLogTag, "Dropping stale incomplete frame_seq=" << current_frame_.frame_seq);
-                    current_frame_.reset();
-                }
+                dropStaleFrameContexts();
                 if (last_udp_ok) {
                     RM_LOGW(kLogTag, "UDP recv timeout, no data received.");
                     last_udp_ok = false;
@@ -530,7 +561,9 @@ void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
 
     if (header_byte_order_ == HeaderByteOrder::Unknown) {
         header_byte_order_ = detectHeaderByteOrder(buffer, len, kMaxFrameBytes);
-        RM_LOGI(kLogTag, "Detected UDP video packet header byte order: %s", byteOrderName(header_byte_order_));
+        RM_LOGI(kLogTag,
+                "Detected UDP video packet header byte order: %s. Packet header is frame_id:uint16 packet_id:uint16 frame_size:uint32.",
+                byteOrderName(header_byte_order_));
     }
 
     ParsedPacketHeader header{};
@@ -548,54 +581,114 @@ void VideoCore::processPacket(const uint8_t* buffer, size_t len) {
 
     if (payloadLen == 0) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        RM_LOGW_STREAM(kLogTag, "Dropping empty UDP video packet frame_id=" << frameSeq
+                                                                            << " packet_id=" << fragSeq
+                                                                            << " frame_size=" << totalSize);
         return;
     }
 
     if (totalSize > kMaxFrameBytes) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        RM_LOGW_STREAM(kLogTag, "Dropping packet: frame_size=" << totalSize << " exceeds cap, frame_seq=" << frameSeq);
+        RM_LOGW_STREAM(kLogTag, "Dropping packet: frame_size=" << totalSize
+                                                               << " exceeds cap, frame_id=" << frameSeq
+                                                               << " packet_id=" << fragSeq
+                                                               << " payload_len=" << payloadLen);
         return;
     }
 
-    if (!current_frame_.active) {
-        current_frame_.markActive(frameSeq, totalSize);
-    } else if (current_frame_.frame_seq != frameSeq) {
-        const HeaderByteOrder orderBeforeFinalize = header_byte_order_;
-        finalizeCurrentFrame("frame rollover");
-        if (header_byte_order_ != orderBeforeFinalize &&
-            parsePacketHeader(buffer, len, header_byte_order_, header)) {
-            frameSeq = header.frame_seq;
-            fragSeq = header.fragment_seq;
-            totalSize = header.total_size;
-        }
-        current_frame_.markActive(frameSeq, totalSize);
-    } else if (current_frame_.total_size == 0 && totalSize > 0) {
-        current_frame_.total_size = totalSize;
+    const auto packetCount = packet_count_.load(std::memory_order_relaxed);
+    std::vector<uint8_t> payloadPrefix(payloadData, payloadData + std::min<size_t>(payloadLen, 16));
+    if (packetCount <= 8 || totalSize < payloadLen) {
+        RM_LOGI_STREAM(kLogTag, "UDP video packet frame_id=" << frameSeq
+                                                            << " packet_id=" << fragSeq
+                                                            << " payload_len=" << payloadLen
+                                                            << " frame_size=" << totalSize
+                                                            << " byte_order=" << byteOrderName(header_byte_order_)
+                                                            << " prefix_hex=" << firstBytesHex(payloadPrefix, 16));
     }
 
-    current_frame_.insertFragment(fragSeq, std::vector<uint8_t>(payloadData, payloadData + payloadLen));
-
-    if (current_frame_.received_size > kMaxFrameBytes) {
+    if (totalSize < payloadLen) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        RM_LOGW_STREAM(kLogTag, "Dropping frame_seq=" << current_frame_.frame_seq << " because assembled bytes exceed cap");
-        current_frame_.reset();
+        RM_LOGW_STREAM(kLogTag, "Dropping packet because frame_size is smaller than payload_len"
+                                << " frame_id=" << frameSeq
+                                << " packet_id=" << fragSeq
+                                << " frame_size=" << totalSize
+                                << " payload_len=" << payloadLen);
         return;
     }
 
-    if (current_frame_.isComplete()) {
-        finalizeCurrentFrame("frame size complete");
+    if (static_cast<uint32_t>(fragSeq) >= totalSize && totalSize > 0) {
+        RM_LOGW_STREAM(kLogTag, "UDP video packet_id is outside frame_size for official byte-offset mode"
+                                << " frame_id=" << frameSeq
+                                << " packet_id=" << fragSeq
+                                << " frame_size=" << totalSize
+                                << " payload_len=" << payloadLen
+                                << " prefix_hex=" << firstBytesHex(payloadPrefix, 16));
+    }
+
+    dropStaleFrameContexts();
+
+    auto frameIt = frame_contexts_.find(frameSeq);
+    if (frameIt == frame_contexts_.end()) {
+        if (frame_contexts_.size() >= kMaxFrameContexts) {
+            evictOldestFrameContext("context limit");
+        }
+        FrameContext frame;
+        frame.markActive(frameSeq, totalSize);
+        frameIt = frame_contexts_.emplace(frameSeq, std::move(frame)).first;
+        active_frame_context_count_.store(frame_contexts_.size(), std::memory_order_relaxed);
+    }
+
+    FrameContext& frame = frameIt->second;
+    if (frame.total_size == 0 && totalSize > 0) {
+        frame.total_size = totalSize;
+    } else if (totalSize > 0 && frame.total_size > 0 && frame.total_size != totalSize) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        RM_LOGW_STREAM(kLogTag, "Dropping active frame because frame_size changed inside one frame_id"
+                                << " frame_id=" << frameSeq
+                                << " old_size=" << frame.total_size
+                                << " new_size=" << totalSize
+                                << " packet_id=" << fragSeq);
+        frame_contexts_.erase(frameSeq);
+        active_frame_context_count_.store(frame_contexts_.size(), std::memory_order_relaxed);
+        return;
+    }
+
+    const size_t fragmentCountBefore = frame.fragments.size();
+    frame.insertFragment(fragSeq, std::vector<uint8_t>(payloadData, payloadData + payloadLen));
+    if (frame.fragments.size() == fragmentCountBefore) {
+        RM_LOGW_STREAM(kLogTag, "Ignoring duplicate UDP video fragment"
+                                << " frame_id=" << frameSeq
+                                << " packet_id=" << fragSeq
+                                << " payload_len=" << payloadLen
+                                << " fragments=" << frame.fragments.size());
+        return;
+    }
+
+    if (frame.received_size > kMaxFrameBytes) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        RM_LOGW_STREAM(kLogTag, "Dropping frame_id=" << frame.frame_seq << " because assembled bytes exceed cap");
+        frame_contexts_.erase(frameSeq);
+        active_frame_context_count_.store(frame_contexts_.size(), std::memory_order_relaxed);
+        return;
+    }
+
+    if (frame.isComplete()) {
+        finalizeFrameContext(frame, "frame size complete");
+        frame_contexts_.erase(frameSeq);
+        active_frame_context_count_.store(frame_contexts_.size(), std::memory_order_relaxed);
     }
 }
 
-bool VideoCore::assembleCurrentFrame(std::vector<uint8_t>& frameData) const {
-    if (!current_frame_.active || current_frame_.fragments.empty()) {
+bool VideoCore::assembleFrame(const FrameContext& frame, std::vector<uint8_t>& frameData, std::string* assembleMode) {
+    if (!frame.active || frame.fragments.empty()) {
         return false;
     }
 
     auto assembleOrdinalFragments = [&]() -> bool {
         uint16_t expected = 0;
         uint32_t assembledSize = 0;
-        for (const auto& fragPair : current_frame_.fragments) {
+        for (const auto& fragPair : frame.fragments) {
             if (fragPair.first != expected) {
                 return false;
             }
@@ -611,50 +704,91 @@ bool VideoCore::assembleCurrentFrame(std::vector<uint8_t>& frameData) const {
 
         frameData.clear();
         frameData.reserve(assembledSize);
-        for (const auto& fragPair : current_frame_.fragments) {
+        for (const auto& fragPair : frame.fragments) {
             frameData.insert(frameData.end(), fragPair.second.begin(), fragPair.second.end());
+        }
+        if (assembleMode) {
+            *assembleMode = fragmentModeName(false);
         }
         return !frameData.empty();
     };
 
     auto assembleByteOffsetFragments = [&]() -> bool {
-        if (current_frame_.total_size == 0 || current_frame_.total_size > kMaxFrameBytes) {
+        if (frame.total_size == 0 || frame.total_size > kMaxFrameBytes) {
             return false;
         }
 
         uint32_t expectedOffset = 0;
         frameData.clear();
-        frameData.reserve(current_frame_.total_size);
+        frameData.reserve(frame.total_size);
 
-        for (const auto& fragPair : current_frame_.fragments) {
+        for (const auto& fragPair : frame.fragments) {
             const uint32_t offset = fragPair.first;
             const auto& fragment = fragPair.second;
             if (offset != expectedOffset) {
+                RM_LOGW_STREAM(kLogTag, "UDP video byte-offset gap frame_id=" << frame.frame_seq
+                                                                              << " expected_offset=" << expectedOffset
+                                                                              << " packet_id=" << offset
+                                                                              << " fragment_size=" << fragment.size()
+                                                                              << " fragments=" << frame.fragments.size());
                 return false;
             }
-            if (fragment.size() > current_frame_.total_size - expectedOffset) {
+            if (fragment.size() > frame.total_size - expectedOffset) {
+                RM_LOGW_STREAM(kLogTag, "UDP video fragment exceeds frame_size frame_id=" << frame.frame_seq
+                                                                                         << " packet_id=" << offset
+                                                                                         << " fragment_size=" << fragment.size()
+                                                                                         << " expected_remaining=" << (frame.total_size - expectedOffset));
                 return false;
             }
             frameData.insert(frameData.end(), fragment.begin(), fragment.end());
             expectedOffset += static_cast<uint32_t>(fragment.size());
         }
 
+        if (expectedOffset != frame.total_size) {
+            RM_LOGW_STREAM(kLogTag, "UDP video byte-offset assembled size mismatch frame_id=" << frame.frame_seq
+                                                                                             << " assembled_size=" << expectedOffset
+                                                                                             << " frame_size=" << frame.total_size
+                                                                                             << " fragments=" << frame.fragments.size());
+            return false;
+        }
+        if (assembleMode) {
+            *assembleMode = fragmentModeName(true);
+        }
         return !frameData.empty();
     };
 
-    if (assembleOrdinalFragments()) {
+    if (assembleByteOffsetFragments()) {
+        if (!logged_byte_offset_fragment_mode_) {
+            RM_LOGI_STREAM(kLogTag, "Detected official UDP video fragment mode: byte-offset"
+                                    << " frame_id=" << frame.frame_seq
+                                    << " fragments=" << frame.fragments.size()
+                                    << " frame_size=" << frame.total_size);
+            logged_byte_offset_fragment_mode_ = true;
+        }
         return true;
     }
-    return assembleByteOffsetFragments();
+    if (assembleOrdinalFragments()) {
+        RM_LOGW_STREAM(kLogTag, "UDP video frame_id=" << frame.frame_seq
+                                                      << " assembled with legacy ordinal packet_id fallback; official mode is byte-offset.");
+        if (!logged_ordinal_fragment_mode_) {
+            RM_LOGW_STREAM(kLogTag, "Detected legacy UDP video fragment mode: ordinal packet_id fallback"
+                                    << " frame_id=" << frame.frame_seq
+                                    << " fragments=" << frame.fragments.size()
+                                    << " frame_size=" << frame.total_size);
+            logged_ordinal_fragment_mode_ = true;
+        }
+        return true;
+    }
+    return false;
 }
 
-bool VideoCore::currentFrameLooksByteSwapped() const {
-    if (current_frame_.fragments.size() < 2) {
+bool VideoCore::frameLooksByteSwapped(const FrameContext& frame) const {
+    if (frame.fragments.size() < 2) {
         return false;
     }
 
     uint16_t expected = 0;
-    for (const auto& fragPair : current_frame_.fragments) {
+    for (const auto& fragPair : frame.fragments) {
         if (fragPair.first % 256 != 0) {
             return false;
         }
@@ -669,22 +803,23 @@ bool VideoCore::currentFrameLooksByteSwapped() const {
     return true;
 }
 
-void VideoCore::finalizeCurrentFrame(const char* reason) {
-    if (!current_frame_.active) {
+void VideoCore::finalizeFrameContext(FrameContext& frame, const char* reason) {
+    if (!frame.active) {
         return;
     }
 
-    if (!current_frame_.hasFragments()) {
-        current_frame_.reset();
+    if (!frame.hasFragments()) {
+        frame.reset();
         return;
     }
 
     frames_seen_ += 1;
 
     std::vector<uint8_t> frameData;
-    if (!assembleCurrentFrame(frameData)) {
+    std::string assembleMode;
+    if (!assembleFrame(frame, frameData, &assembleMode)) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        if (currentFrameLooksByteSwapped()) {
+        if (frameLooksByteSwapped(frame)) {
             header_byte_order_ = header_byte_order_ == HeaderByteOrder::BigEndian
                                      ? HeaderByteOrder::LittleEndian
                                      : HeaderByteOrder::BigEndian;
@@ -692,34 +827,59 @@ void VideoCore::finalizeCurrentFrame(const char* reason) {
                     "Detected byte-swapped UDP shard sequence; switching video packet header byte order to %s",
                     byteOrderName(header_byte_order_));
         }
-        RM_LOGW_STREAM(kLogTag, "Dropping frame_seq=" << current_frame_.frame_seq
-                                                      << " because UDP fragments are not contiguous as ordinal or byte offsets");
-        current_frame_.reset();
+        RM_LOGW_STREAM(kLogTag, "Dropping frame_id=" << frame.frame_seq
+                                                     << " because UDP fragments are not contiguous as byte offsets or legacy ordinals"
+                                                     << " fragments=" << frame.fragments.size()
+                                                     << " received_size=" << frame.received_size
+                                                     << " frame_size=" << frame.total_size);
+        frame.reset();
         return;
     }
 
-    if (current_frame_.total_size > 0 && frameData.size() != current_frame_.total_size) {
+    if (frame.total_size > 0 && frameData.size() != frame.total_size) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
         incomplete_frames_ += 1;
-        RM_LOGW_STREAM(kLogTag, "Dropping incomplete frame_seq=" << current_frame_.frame_seq
+        RM_LOGW_STREAM(kLogTag, "Dropping incomplete frame_id=" << frame.frame_seq
                                                                  << " assembled_size=" << frameData.size()
-                                                                 << " expected_size=" << current_frame_.total_size
-                                                                 << " fragments=" << current_frame_.fragments.size());
-        current_frame_.reset();
+                                                                 << " expected_size=" << frame.total_size
+                                                                 << " fragments=" << frame.fragments.size()
+                                                                 << " assemble_mode=" << assembleMode);
+        frame.reset();
         return;
     }
 
     if (!logged_first_frame_) {
-        RM_LOGI_STREAM(kLogTag, "First assembled UDP video frame: frame_seq=" << current_frame_.frame_seq
+        RM_LOGI_STREAM(kLogTag, "First assembled UDP video frame: frame_id=" << frame.frame_seq
                                                                               << " bytes=" << frameData.size()
-                                                                              << " reason=" << reason);
+                                                                              << " fragments=" << frame.fragments.size()
+                                                                              << " assemble_mode=" << assembleMode
+                                                                              << " reason=" << reason
+                                                                              << " prefix_hex=" << firstBytesHex(frameData));
         logged_first_frame_ = true;
+    }
+
+    const uint16_t frameSeq = frame.frame_seq;
+    const size_t fragmentCount = frame.fragments.size();
+    const auto nowBeforeDecode = std::chrono::steady_clock::now();
+    const bool detailLogDue = frames_seen_ <= 8 ||
+                              last_frame_detail_log_.time_since_epoch().count() == 0 ||
+                              nowBeforeDecode - last_frame_detail_log_ >= std::chrono::seconds(2);
+    if (detailLogDue) {
+        const auto units = findHevcNalUnits(frameData);
+        RM_LOGI_STREAM(kLogTag, "Completed UDP video frame frame_id=" << frameSeq
+                                                                      << " fragments=" << fragmentCount
+                                                                      << " bytes=" << frameData.size()
+                                                                      << " assemble_mode=" << assembleMode
+                                                                      << " nal_types=" << nalTypeSummary(units)
+                                                                      << " cache=" << hevcParameterCacheSummary()
+                                                                      << " prefix_hex=" << firstBytesHex(frameData));
+        last_frame_detail_log_ = nowBeforeDecode;
     }
 
     frameData = prepareHevcAccessUnit(std::move(frameData));
     if (!frameData.empty()) {
         frames_ok_ += 1;
-        decodeFrame(std::move(frameData));
+        decodeFrame(std::move(frameData), frameSeq);
     }
 
     const auto now = std::chrono::steady_clock::now();
@@ -727,17 +887,71 @@ void VideoCore::finalizeCurrentFrame(const char* reason) {
         const auto packets = packet_count_.load(std::memory_order_relaxed);
         const auto decoded = decoded_frame_count_.load(std::memory_order_relaxed);
         const auto dropped = dropped_packet_count_.load(std::memory_order_relaxed);
+        const size_t pendingFrames = getActiveFrameContextCount() - (frame.active ? 1 : 0);
         RM_LOGI_STREAM(kLogTag, "UDP video stats: packets=" << packets
                                                             << " frames=" << frames_seen_
                                                             << " accepted=" << frames_ok_
                                                             << " decoded=" << decoded
                                                             << " dropped=" << dropped
                                                             << " incomplete_frames=" << incomplete_frames_
-                                                            << " stream_ready=" << (hevc_stream_ready_ ? 1 : 0));
+                                                            << " wait_params=" << hevc_waiting_param_frames_
+                                                            << " wait_irap=" << hevc_waiting_irap_frames_
+                                                            << " no_start_code=" << hevc_no_start_code_frames_
+                                                            << " decode_errors=" << decode_error_count_.load(std::memory_order_relaxed)
+                                                            << " pending_frames=" << pendingFrames
+                                                            << " stream_ready=" << (hevc_stream_ready_ ? 1 : 0)
+                                                            << " cache=" << hevcParameterCacheSummary()
+                                                            << " param_updates=" << hevc_param_update_frames_
+                                                            << " injected_params=" << hevc_injected_param_frames_);
         last_stats_log_ = now;
     }
 
-    current_frame_.reset();
+    frame.reset();
+}
+
+void VideoCore::dropStaleFrameContexts() {
+    for (auto it = frame_contexts_.begin(); it != frame_contexts_.end();) {
+        FrameContext& frame = it->second;
+        if (!frame.active || !frame.isOutdated()) {
+            ++it;
+            continue;
+        }
+
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        incomplete_frames_ += 1;
+        RM_LOGW_STREAM(kLogTag, "Dropping stale incomplete UDP video frame"
+                                << " frame_id=" << frame.frame_seq
+                                << " fragments=" << frame.fragments.size()
+                                << " received_size=" << frame.received_size
+                                << " frame_size=" << frame.total_size);
+        it = frame_contexts_.erase(it);
+    }
+    active_frame_context_count_.store(frame_contexts_.size(), std::memory_order_relaxed);
+}
+
+void VideoCore::evictOldestFrameContext(const char* reason) {
+    if (frame_contexts_.empty()) {
+        return;
+    }
+
+    auto oldest = frame_contexts_.begin();
+    for (auto it = frame_contexts_.begin(); it != frame_contexts_.end(); ++it) {
+        if (it->second.last_update < oldest->second.last_update) {
+            oldest = it;
+        }
+    }
+
+    dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+    incomplete_frames_ += 1;
+    RM_LOGW_STREAM(kLogTag, "Evicting incomplete UDP video frame context"
+                            << " frame_id=" << oldest->second.frame_seq
+                            << " reason=" << reason
+                            << " fragments=" << oldest->second.fragments.size()
+                            << " received_size=" << oldest->second.received_size
+                            << " frame_size=" << oldest->second.total_size
+                            << " active_contexts=" << frame_contexts_.size());
+    frame_contexts_.erase(oldest);
+    active_frame_context_count_.store(frame_contexts_.size(), std::memory_order_relaxed);
 }
 
 std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& frameData) {
@@ -748,55 +962,89 @@ std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& fra
     const auto units = findHevcNalUnits(frameData);
     const std::string nalSummary = nalTypeSummary(units);
     if (units.empty()) {
-        if (!hevc_stream_ready_) {
-            logWaitingForHevcParams(frameData, nalSummary);
-        }
-        return std::move(frameData);
+        hevc_no_start_code_frames_ += 1;
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        RM_LOGW_STREAM(kLogTag, "Dropping HEVC frame without AnnexB start code"
+                                << " bytes=" << frameData.size()
+                                << " no_start_code_frames=" << hevc_no_start_code_frames_
+                                << " cache=" << hevcParameterCacheSummary()
+                                << " prefix_hex=" << firstBytesHex(frameData));
+        return {};
     }
 
-    bool hasParam = false;
-    bool hasIdr = false;
+    bool hasIrap = false;
     bool hasVps = false;
     bool hasSps = false;
     bool hasPps = false;
+    bool updatedParam = false;
 
     for (const auto& unit : units) {
         if (isHevcParameterNal(unit.type)) {
-            hasParam = true;
             const size_t index = hevcParameterIndex(unit.type);
             if (index < hevc_parameter_sets_.size() && unit.end > unit.start && unit.end <= frameData.size()) {
                 hevc_parameter_sets_[index].assign(frameData.begin() + static_cast<std::ptrdiff_t>(unit.start),
                                                    frameData.begin() + static_cast<std::ptrdiff_t>(unit.end));
+                updatedParam = true;
             }
         }
         if (unit.type == 32) hasVps = true;
         if (unit.type == 33) hasSps = true;
         if (unit.type == 34) hasPps = true;
-        if (isHevcIdrNal(unit.type)) hasIdr = true;
+        if (isHevcIrapNal(unit.type)) hasIrap = true;
+    }
+
+    if (updatedParam) {
+        hevc_param_update_frames_ += 1;
+        const auto now = std::chrono::steady_clock::now();
+        if (hevc_param_update_frames_ <= 5 ||
+            last_hevc_param_log_.time_since_epoch().count() == 0 ||
+            now - last_hevc_param_log_ >= std::chrono::seconds(2)) {
+            RM_LOGI_STREAM(kLogTag, "HEVC parameter NAL received"
+                                    << " updates=" << hevc_param_update_frames_
+                                    << " nal_types=" << nalSummary
+                                    << " frame_has_vps=" << (hasVps ? 1 : 0)
+                                    << " frame_has_sps=" << (hasSps ? 1 : 0)
+                                    << " frame_has_pps=" << (hasPps ? 1 : 0)
+                                    << " cache=" << hevcParameterCacheSummary());
+            last_hevc_param_log_ = now;
+        }
     }
 
     const bool hadStreamReady = hevc_stream_ready_;
-    hevc_stream_ready_ = hevc_stream_ready_ || hasParam ||
-                         (!hevc_parameter_sets_[0].empty() &&
-                          !hevc_parameter_sets_[1].empty() &&
-                          !hevc_parameter_sets_[2].empty());
+    const bool paramsReady = hasCompleteHevcParameters();
+    hevc_stream_ready_ = hevc_stream_ready_ || (paramsReady && hasIrap);
 
     if (!hadStreamReady && hevc_stream_ready_) {
-        RM_LOGI(kLogTag, "HEVC stream parameters received; decoder can start accepting frames.");
+        RM_LOGI(kLogTag, "HEVC stream ready after VPS/SPS/PPS and IRAP frame. %s", hevcParameterCacheSummary().c_str());
     }
 
-    if (!hevc_stream_ready_ && !hasParam) {
+    if (!paramsReady) {
         dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
-        logWaitingForHevcParams(frameData, nalSummary);
+        logWaitingForHevcParams(frameData, nalSummary, "waiting for complete VPS/SPS/PPS");
         return {};
     }
 
-    if (hasIdr) {
+    if (!hevc_stream_ready_ && !hasIrap) {
+        dropped_packet_count_.fetch_add(1, std::memory_order_relaxed);
+        hevc_waiting_irap_frames_ += 1;
+        const auto now = std::chrono::steady_clock::now();
+        if (hevc_waiting_irap_frames_ <= 5 ||
+            last_hevc_wait_log_.time_since_epoch().count() == 0 ||
+            now - last_hevc_wait_log_ >= std::chrono::seconds(2)) {
+            RM_LOGW_STREAM(kLogTag, "Waiting for HEVC IRAP/I frame before decoding"
+                                    << " wait_irap_frames=" << hevc_waiting_irap_frames_
+                                    << " bytes=" << frameData.size()
+                                    << " nal_types=" << nalSummary
+                                    << " cache=" << hevcParameterCacheSummary()
+                                    << " prefix_hex=" << firstBytesHex(frameData));
+            last_hevc_wait_log_ = now;
+        }
+        return {};
+    }
+
+    if (hasIrap) {
         const bool frameHasAllParams = hasVps && hasSps && hasPps;
-        const bool cacheHasAllParams = !hevc_parameter_sets_[0].empty() &&
-                                       !hevc_parameter_sets_[1].empty() &&
-                                       !hevc_parameter_sets_[2].empty();
-        if (!frameHasAllParams && cacheHasAllParams) {
+        if (!frameHasAllParams && paramsReady) {
             std::vector<uint8_t> withHeaders;
             withHeaders.reserve(hevc_parameter_sets_[0].size() +
                                 hevc_parameter_sets_[1].size() +
@@ -806,6 +1054,11 @@ std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& fra
                 withHeaders.insert(withHeaders.end(), param.begin(), param.end());
             }
             withHeaders.insert(withHeaders.end(), frameData.begin(), frameData.end());
+            hevc_injected_param_frames_ += 1;
+            RM_LOGI_STREAM(kLogTag, "Prepended cached HEVC VPS/SPS/PPS before IRAP frame"
+                                    << " nal_types=" << nalSummary
+                                    << " cache=" << hevcParameterCacheSummary()
+                                    << " injected_frames=" << hevc_injected_param_frames_);
             return withHeaders;
         }
     }
@@ -813,7 +1066,21 @@ std::vector<uint8_t> VideoCore::prepareHevcAccessUnit(std::vector<uint8_t>&& fra
     return std::move(frameData);
 }
 
-void VideoCore::logWaitingForHevcParams(const std::vector<uint8_t>& frameData, const std::string& nalSummary) {
+bool VideoCore::hasCompleteHevcParameters() const {
+    return !hevc_parameter_sets_[0].empty() &&
+           !hevc_parameter_sets_[1].empty() &&
+           !hevc_parameter_sets_[2].empty();
+}
+
+std::string VideoCore::hevcParameterCacheSummary() const {
+    std::ostringstream oss;
+    oss << "vps=" << hevc_parameter_sets_[0].size()
+        << " sps=" << hevc_parameter_sets_[1].size()
+        << " pps=" << hevc_parameter_sets_[2].size();
+    return oss.str();
+}
+
+void VideoCore::logWaitingForHevcParams(const std::vector<uint8_t>& frameData, const std::string& nalSummary, const char* reason) {
     hevc_waiting_param_frames_ += 1;
 
     const auto now = std::chrono::steady_clock::now();
@@ -822,15 +1089,18 @@ void VideoCore::logWaitingForHevcParams(const std::vector<uint8_t>& frameData, c
         now - last_hevc_wait_log_ >= std::chrono::seconds(2)) {
         RM_LOGW_STREAM(kLogTag, "Waiting for HEVC VPS/SPS/PPS before decoding"
                                 << " wait_frames=" << hevc_waiting_param_frames_
+                                << " reason=" << reason
                                 << " bytes=" << frameData.size()
                                 << " nal_types=" << nalSummary
+                                << " cache=" << hevcParameterCacheSummary()
                                 << " prefix_hex=" << firstBytesHex(frameData));
         last_hevc_wait_log_ = now;
     }
 }
 
 void VideoCore::resetStreamState() {
-    current_frame_.reset();
+    frame_contexts_.clear();
+    active_frame_context_count_.store(0, std::memory_order_relaxed);
     header_byte_order_ = HeaderByteOrder::Unknown;
     for (auto& param : hevc_parameter_sets_) {
         param.clear();
@@ -841,11 +1111,19 @@ void VideoCore::resetStreamState() {
     frames_ok_ = 0;
     incomplete_frames_ = 0;
     hevc_waiting_param_frames_ = 0;
+    hevc_waiting_irap_frames_ = 0;
+    hevc_no_start_code_frames_ = 0;
+    hevc_param_update_frames_ = 0;
+    hevc_injected_param_frames_ = 0;
+    logged_byte_offset_fragment_mode_ = false;
+    logged_ordinal_fragment_mode_ = false;
     last_stats_log_ = {};
     last_hevc_wait_log_ = {};
+    last_frame_detail_log_ = {};
+    last_hevc_param_log_ = {};
 }
 
-void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
+void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData, uint16_t frameSeq) {
     if (frameData.empty()) return;
 
     // padding
@@ -875,7 +1153,7 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
 
     if (!buf_ref) {
         decode_error_count_.fetch_add(1, std::memory_order_relaxed);
-        RM_LOGE(kLogTag, "Failed to create AVBufferRef.");
+        RM_LOGE(kLogTag, "Failed to create AVBufferRef for frame_id=%u bytes=%zu.", frameSeq, actual_size);
         delete persistent_vector;
         return;
     }
@@ -895,7 +1173,11 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
 
     if (ret < 0) {
         decode_error_count_.fetch_add(1, std::memory_order_relaxed);
-        RM_LOGE_STREAM(kLogTag, "Error sending packet: " << ret);
+        RM_LOGE_STREAM(kLogTag, "FFmpeg avcodec_send_packet failed"
+                                << " frame_id=" << frameSeq
+                                << " bytes=" << actual_size
+                                << " ret=" << ret
+                                << " decode_errors=" << decode_error_count_.load(std::memory_order_relaxed));
         return;
     }
 
@@ -910,14 +1192,17 @@ void VideoCore::decodeFrame(std::vector<uint8_t>&& frameData) {
             break; 
         } else {
             decode_error_count_.fetch_add(1, std::memory_order_relaxed);
-            RM_LOGE_STREAM(kLogTag, "Error during decoding: " << ret);
+            RM_LOGE_STREAM(kLogTag, "FFmpeg avcodec_receive_frame failed"
+                                    << " frame_id=" << frameSeq
+                                    << " ret=" << ret
+                                    << " decode_errors=" << decode_error_count_.load(std::memory_order_relaxed));
             break;
         }
     }
 }
 
 size_t VideoCore::getActiveFrameContextCount() const {
-    return current_frame_.isActive() ? 1 : 0;
+    return active_frame_context_count_.load(std::memory_order_relaxed);
 }
 
 bool VideoCore::restartUdp() {

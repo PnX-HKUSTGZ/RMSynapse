@@ -111,14 +111,18 @@ private:
     void networkLoop();
     // 协议解析与拼包
     void processPacket(const uint8_t* buffer, size_t len);
-    void finalizeCurrentFrame(const char* reason);
-    bool assembleCurrentFrame(std::vector<uint8_t>& frameData) const;
-    bool currentFrameLooksByteSwapped() const;
+    void finalizeFrameContext(FrameContext& frame, const char* reason);
+    bool assembleFrame(const FrameContext& frame, std::vector<uint8_t>& frameData, std::string* assembleMode = nullptr);
+    bool frameLooksByteSwapped(const FrameContext& frame) const;
+    void dropStaleFrameContexts();
+    void evictOldestFrameContext(const char* reason);
     std::vector<uint8_t> prepareHevcAccessUnit(std::vector<uint8_t>&& frameData);
-    void logWaitingForHevcParams(const std::vector<uint8_t>& frameData, const std::string& nalSummary);
+    bool hasCompleteHevcParameters() const;
+    std::string hevcParameterCacheSummary() const;
+    void logWaitingForHevcParams(const std::vector<uint8_t>& frameData, const std::string& nalSummary, const char* reason);
     void resetStreamState();
     // FFmpeg 解码
-    void decodeFrame(std::vector<uint8_t>&& frameData);
+    void decodeFrame(std::vector<uint8_t>&& frameData, uint16_t frameSeq);
     // 拼包：获取/创建上下文槽位
 
     inline void setUdpStatus(bool s) { udp_ok_.store(s); }
@@ -253,7 +257,8 @@ private:
     std::thread receive_thread_;
     
     // 拼包缓冲区（支持乱序/丢包时多帧并发）
-    FrameContext current_frame_{};
+    std::map<uint16_t, FrameContext> frame_contexts_;
+    std::atomic<size_t> active_frame_context_count_{0};
     HeaderByteOrder header_byte_order_ = HeaderByteOrder::Unknown;
     std::array<std::vector<uint8_t>, 3> hevc_parameter_sets_{};
     bool hevc_stream_ready_ = false;
@@ -262,8 +267,16 @@ private:
     uint64_t frames_ok_ = 0;
     uint64_t incomplete_frames_ = 0;
     uint64_t hevc_waiting_param_frames_ = 0;
+    uint64_t hevc_waiting_irap_frames_ = 0;
+    uint64_t hevc_no_start_code_frames_ = 0;
+    uint64_t hevc_param_update_frames_ = 0;
+    uint64_t hevc_injected_param_frames_ = 0;
+    bool logged_byte_offset_fragment_mode_ = false;
+    bool logged_ordinal_fragment_mode_ = false;
     std::chrono::steady_clock::time_point last_stats_log_{};
     std::chrono::steady_clock::time_point last_hevc_wait_log_{};
+    std::chrono::steady_clock::time_point last_frame_detail_log_{};
+    std::chrono::steady_clock::time_point last_hevc_param_log_{};
 };
 
 } // namespace RMVideoDecoder

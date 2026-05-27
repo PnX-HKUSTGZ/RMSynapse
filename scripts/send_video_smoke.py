@@ -93,6 +93,7 @@ def send_frames(
     packet_size: int,
     frame_delay: float,
     byte_order: str,
+    fragment_mode: str,
     loop: bool,
 ) -> None:
     fmt = "<HHI" if byte_order == "le" else ">HHI"
@@ -103,14 +104,19 @@ def send_frames(
     sent_packets = 0
     started = time.time()
 
-    print(f"Sending {len(frames)} HEVC frames to udp://{host}:{port} ({byte_order})")
+    print(f"Sending {len(frames)} HEVC frames to udp://{host}:{port} ({byte_order}, {fragment_mode})")
     print("Press Ctrl+C to stop.")
     try:
         while True:
             for frame in frames:
                 for shard_id, start in enumerate(range(0, len(frame), packet_size)):
                     chunk = frame[start : start + packet_size]
-                    header = struct.pack(fmt, frame_id & 0xFFFF, shard_id & 0xFFFF, len(frame))
+                    packet_id = start if fragment_mode == "offset" else shard_id
+                    if packet_id > 0xFFFF:
+                        raise SystemExit(
+                            f"packet_id={packet_id} does not fit uint16. Reduce --packet-size or use shorter frames."
+                        )
+                    header = struct.pack(fmt, frame_id & 0xFFFF, packet_id & 0xFFFF, len(frame))
                     sock.sendto(header + chunk, addr)
                     sent_packets += 1
                     time.sleep(0.001)
@@ -143,7 +149,8 @@ def main() -> int:
     parser.add_argument("--size", default="640x360")
     parser.add_argument("--packet-size", type=int, default=1400)
     parser.add_argument("--frame-delay", type=float, default=1.0 / 15.0)
-    parser.add_argument("--byte-order", choices=("le", "be"), default="le")
+    parser.add_argument("--byte-order", choices=("le", "be"), default="be")
+    parser.add_argument("--fragment-mode", choices=("offset", "ordinal"), default="offset")
     parser.add_argument("--loop", action="store_true")
     parser.add_argument("--no-generate", action="store_true")
     args = parser.parse_args()
@@ -165,6 +172,7 @@ def main() -> int:
         packet_size=args.packet_size,
         frame_delay=args.frame_delay,
         byte_order=args.byte_order,
+        fragment_mode=args.fragment_mode,
         loop=args.loop,
     )
     return 0
