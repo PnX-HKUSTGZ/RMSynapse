@@ -98,6 +98,9 @@ function Build-Video {
         else {
             & python -m SCons @Args
         }
+        if ($LASTEXITCODE -ne 0) {
+            throw "SCons failed with exit code $LASTEXITCODE."
+        }
     }
     finally {
         Pop-Location
@@ -149,6 +152,9 @@ function Export-Project {
     Clear-GodotExtensionCache
     & $GodotBin --headless --path (Join-Path $RootDir "rm_synapse") `
         --export-release "Windows Desktop" $ExportPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Godot export failed with exit code $LASTEXITCODE."
+    }
 }
 
 Invoke-LfsPull

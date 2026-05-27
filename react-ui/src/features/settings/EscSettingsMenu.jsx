@@ -527,6 +527,12 @@ export default function EscSettingsMenu({ open, settings, networkStatus, onSetti
                 onChange={(port) => updateNetwork('video', { port })}
                 placeholder="3334"
               />
+              <CheckboxRow
+                label="Rotate 180"
+                icon={RotateCcw}
+                checked={normalized.network.video.rotate180}
+                onChange={(rotate180) => updateNetwork('video', { rotate180 })}
+              />
             </div>
           </section>
 

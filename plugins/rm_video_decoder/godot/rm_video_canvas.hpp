@@ -63,6 +63,9 @@ public:
     int get_display_mode() const { return display_mode_; }
     void set_display_mode(int m);
 
+    bool get_rotate_180() const { return rotate_180_; }
+    void set_rotate_180(bool enabled);
+
 protected:
     static void _bind_methods();
 
@@ -75,6 +78,7 @@ private:
     void upload_frame_rgba_image_texture(const RMVideoDecoder::YuvFrameExtractor::Frame& f);
     void update_shader_params();
     void apply_display_layout();
+    void apply_texture_orientation();
     void log_status(bool force);
     void show_placeholder();
     void hide_placeholder();
@@ -99,6 +103,7 @@ private:
     bool use_tv_range_ = false;
     bool force_rgba_ = true;
     int display_mode_ = DISPLAY_ADAPTIVE;
+    bool rotate_180_ = false;
 
     godot::RID tex_y_;
     godot::RID tex_uv_;

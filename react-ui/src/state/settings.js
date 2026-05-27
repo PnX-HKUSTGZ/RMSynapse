@@ -25,6 +25,7 @@ export const DEFAULT_HUD_SETTINGS = {
     },
     video: {
       port: 3334,
+      rotate180: false,
     },
   },
   logging: {
@@ -104,6 +105,7 @@ function normalizeNetworkSettings(source) {
     },
     video: {
       port: Math.trunc(clamp(toNumber(source?.video?.port, defaults.video.port), 1, 65535)),
+      rotate180: source?.video?.rotate180 === true,
     },
   };
 }

@@ -36,6 +36,8 @@ void RMVideoCanvas::_bind_methods() {
     // ClassDB::bind_method(D_METHOD("set_placeholder_color", "color"), &RMVideoCanvas::set_placeholder_color);
     ClassDB::bind_method(D_METHOD("get_display_mode"), &RMVideoCanvas::get_display_mode);
     ClassDB::bind_method(D_METHOD("set_display_mode", "mode"), &RMVideoCanvas::set_display_mode);
+    ClassDB::bind_method(D_METHOD("get_rotate_180"), &RMVideoCanvas::get_rotate_180);
+    ClassDB::bind_method(D_METHOD("set_rotate_180", "enabled"), &RMVideoCanvas::set_rotate_180);
 
     ADD_PROPERTY(PropertyInfo(Variant::INT, "port"), "set_port", "get_port");
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_bt601"), "set_use_bt601", "get_use_bt601");
@@ -45,6 +47,7 @@ void RMVideoCanvas::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "placeholder_texture", PROPERTY_HINT_RESOURCE_TYPE, "Texture2D"), "set_placeholder_texture", "get_placeholder_texture");
     // ADD_PROPERTY(PropertyInfo(Variant::COLOR, "placeholder_color"), "set_placeholder_color", "get_placeholder_color");
     ADD_PROPERTY(PropertyInfo(Variant::INT, "display_mode", PROPERTY_HINT_ENUM, "Adaptive(keep_aspect),Stretch,Original"), "set_display_mode", "get_display_mode");
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rotate_180"), "set_rotate_180", "get_rotate_180");
 
     // Signal when stream state changes (true = has frames, false = placeholder)
     ClassDB::add_signal(get_class_static(), MethodInfo("stream_state_changed",
@@ -234,6 +237,7 @@ void RMVideoCanvas::ensure_texture_rect() {
         rect_->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
         add_child(rect_);
         set_display_mode(display_mode_);
+        apply_texture_orientation();
     }
 }
 
@@ -500,9 +504,19 @@ Dictionary RMVideoCanvas::get_status() const {
     status["decode_error_count"] = static_cast<int64_t>(extractor_.get_decode_error_count());
     status["pending_frame_contexts"] = static_cast<int64_t>(extractor_.get_active_frame_context_count());
     status["force_rgba"] = force_rgba_;
+    status["rotate_180"] = rotate_180_;
     status["texture_width"] = tex_w_;
     status["texture_height"] = tex_h_;
     return status;
+}
+
+void RMVideoCanvas::set_rotate_180(bool enabled) {
+    if (rotate_180_ == enabled) {
+        return;
+    }
+    rotate_180_ = enabled;
+    apply_texture_orientation();
+    RM_LOGI(kLogTag, "Video display rotate_180 set to %d", rotate_180_ ? 1 : 0);
 }
 
 void RMVideoCanvas::set_display_mode(int m) {
@@ -531,6 +545,13 @@ void RMVideoCanvas::apply_display_layout() {
             rect_->set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
             break;
     }
+    apply_texture_orientation();
+}
+
+void RMVideoCanvas::apply_texture_orientation() {
+    if (!rect_) return;
+    rect_->set_flip_h(rotate_180_);
+    rect_->set_flip_v(rotate_180_);
 }
 
 void RMVideoCanvas::release_textures() {

@@ -1282,6 +1282,8 @@ func _apply_video_settings(video_settings) -> void:
 		video_node.visible = enabled
 	if video_node is Control:
 		_set_mouse_filter_recursive(video_node, Control.MOUSE_FILTER_IGNORE)
+	var rotate_180 := bool(video_settings.get("rotate180", video_settings.get("rotate_180", false)))
+	_apply_video_display_settings(video_node, rotate_180)
 	var port := int(clamp(float(video_settings.get("port", 3334)), MIN_PORT, MAX_PORT))
 	var host := str(video_settings.get("host", "0.0.0.0")).strip_edges()
 	var source_url := _build_endpoint_url(video_settings, "udp")
@@ -1314,6 +1316,14 @@ func _apply_video_settings(video_settings) -> void:
 	if video_node is Control:
 		_set_mouse_filter_recursive(video_node, Control.MOUSE_FILTER_IGNORE)
 	_log_video_status(video_node, "applied")
+
+func _apply_video_display_settings(video_node: Object, rotate_180: bool) -> void:
+	if video_node == null:
+		return
+	if video_node.has_method("set_rotate_180"):
+		video_node.call("set_rotate_180", rotate_180)
+		return
+	_set_first_existing_property(video_node, ["rotate_180", "rotate180"], rotate_180)
 
 func _set_mouse_filter_recursive(node: Node, mouse_filter: int) -> void:
 	if node is Control:
