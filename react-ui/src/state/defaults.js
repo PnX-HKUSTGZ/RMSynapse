@@ -64,6 +64,10 @@ const DEFAULT_UI_STATE = {
   },
   mechanisms: {
     effects: [],
+    fortress: {
+      effects: [],
+      lastUpdateMsec: 0,
+    },
     techCore: {
       maximumDifficultyLevel: 0,
       basicState: 0,
@@ -119,6 +123,21 @@ const DEFAULT_UI_STATE = {
     type: 0,
     effectSec: 0,
     totalCount: 0,
+    isYellowCard: false,
+    isRedCard: false,
+    interfaceBlocked: false,
+  },
+  event: {
+    id: 0,
+    param: '',
+    category: '',
+    level: '',
+    lastUpdateMsec: 0,
+    timestamp: 0,
+  },
+  fortress: {
+    left: { outpostEverDestroyed: false },
+    right: { outpostEverDestroyed: false },
   },
   modules: {},
   injury: {
@@ -338,6 +357,8 @@ const DEFAULT_UI_STATE = {
     isDead: false,
     countdown: 10,
     reviveCost: 500,
+    canFreeRespawn: false,
+    canPayRespawn: false,
     scale: 0.8,
     minScale: 0.4,
     maxScale: 3,

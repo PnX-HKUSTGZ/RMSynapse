@@ -329,6 +329,8 @@ export default function App() {
             robotLevels={uiState.robotLevels}
             uiSizing={effectiveUiSizing}
             match={uiState.match}
+            mechanisms={uiState.mechanisms}
+            fortress={uiState.fortress}
             links={uiState.links}
             fallbackBaseStateMeta={DEFAULT_UI_STATE.baseStateMeta}
             fallbackOutpostStateMeta={DEFAULT_UI_STATE.outpostStateMeta}
@@ -376,6 +378,9 @@ export default function App() {
             assemblyTask={visibleAssemblyTask}
             onAssemblyConfirm={confirmAssemblyTask}
             onAssemblyCancel={cancelAssemblyTask}
+            activeRole={activeRole}
+            resourceActions={resourceActions}
+            hotkeys={normalizedHudSettings.hotkeys}
           />
           <MiniMapHUD
             miniMap={{ ...miniMapState, interactive: false }}

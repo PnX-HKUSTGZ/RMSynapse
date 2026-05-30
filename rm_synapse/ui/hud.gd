@@ -99,6 +99,7 @@ const BRIDGE_SIGNAL_TO_PROTO_KEY := {
 	"buff_updated": "Buff",
 	"penalty_info_updated": "PenaltyInfo",
 	"robot_path_plan_info_updated": "RobotPathPlanInfo",
+	"map_click_info_received": "MapClickInfo",
 	"radar_info_updated": "RadarInfoToClient",
 	"robot_performance_selection_sync_updated": "RobotPerformanceSelectionSync",
 	"deploy_mode_status_sync_updated": "DeployModeStatusSync",
@@ -894,6 +895,23 @@ func _normalize_bridge_value(proto_key: String, value):
 			data_bytes = value.call("get_data")
 		if data_bytes is PackedByteArray:
 			return {"data": _bytes_to_int_array(data_bytes)}
+	if proto_key == "MapClickInfo":
+		if value is Object:
+			var robot_id_bytes = PackedByteArray()
+			if value.has_method("get_robot_id"):
+				var raw_robot_id = value.call("get_robot_id")
+				if raw_robot_id is PackedByteArray:
+					robot_id_bytes = raw_robot_id
+			return {
+				"is_send_all": int(value.call("get_is_send_all")) if value.has_method("get_is_send_all") else 0,
+				"robot_id": _bytes_to_int_array(robot_id_bytes),
+				"mode": int(value.call("get_mode")) if value.has_method("get_mode") else 0,
+				"enemy_id": int(value.call("get_enemy_id")) if value.has_method("get_enemy_id") else 0,
+				"ascii": int(value.call("get_ascii")) if value.has_method("get_ascii") else 0,
+				"type": int(value.call("get_type")) if value.has_method("get_type") else 0,
+				"map_x": float(value.call("get_map_x")) if value.has_method("get_map_x") else 0.0,
+				"map_y": float(value.call("get_map_y")) if value.has_method("get_map_y") else 0.0
+			}
 	if value is Dictionary or value is Array:
 		return value
 	if value is PackedByteArray:

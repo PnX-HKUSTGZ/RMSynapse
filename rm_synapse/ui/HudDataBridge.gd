@@ -39,6 +39,8 @@ class_name HudDataBridge
 #   fields: penalty_type,penalty_effect_sec,total_penalty_num,last_update_msec
 # - robot_path_plan_info_updated / get_robot_path_plan_info_state -> RobotPathPlanInfoState
 #   fields: intention,start_pos_x,start_pos_y,offsets(Array[PathPointOffset{dx,dy}]),sender_id,last_update_msec
+# - map_click_info_received / get_last_map_click_info_message -> MapClickInfo(proto message)
+#   proto fields: is_send_all,robot_id,mode,enemy_id,ascii,type,map_x,map_y
 # - radar_info_updated / get_radar_info_state -> RadarInfoToClientState
 #   fields: targets(Array[RadarTargetState{target_robot_id,target_pos_x,target_pos_y,is_high_light}]),radar_single_robot_info,
 #           target_robot_id,target_pos_x,target_pos_y,torward_angle,is_high_light,last_update_msec
@@ -76,6 +78,7 @@ signal robot_position_updated(state)
 signal buff_updated(state)
 signal penalty_info_updated(state)
 signal robot_path_plan_info_updated(state)
+signal map_click_info_received(message)
 signal radar_info_updated(state)
 signal robot_performance_selection_sync_updated(state)
 signal deploy_mode_status_sync_updated(state)
@@ -115,6 +118,7 @@ var adapter_getter = MQTTProtocolAdapterGetter.new()
 var _bound_adapter: ProtocolAdapter = null
 var _adapter_bind_retry_elapsed: float = 0.0
 var _last_event_message = null
+var _last_map_click_info_message = null
 var _last_custom_byte_block_message = null
 
 func _ready() -> void:
@@ -233,12 +237,14 @@ func _try_bind_adapter_signals() -> void:
 		return
 	_bound_adapter = adapter
 	_connect_adapter_signal("event_message", "event_received")
+	_connect_adapter_signal("map_click_info", "map_click_info_received")
 	_connect_adapter_signal("custom_byte_block", "custom_byte_block_received")
 
 func _disconnect_adapter_signals() -> void:
 	if _bound_adapter == null:
 		return
 	_disconnect_adapter_signal("event_message", "event_received")
+	_disconnect_adapter_signal("map_click_info", "map_click_info_received")
 	_disconnect_adapter_signal("custom_byte_block", "custom_byte_block_received")
 	_bound_adapter = null
 
@@ -259,6 +265,8 @@ func _disconnect_adapter_signal(adapter_signal: StringName, bridge_signal: Strin
 func _relay_adapter_signal(message, bridge_signal: String) -> void:
 	if bridge_signal == "event_received":
 		_last_event_message = message
+	elif bridge_signal == "map_click_info_received":
+		_last_map_click_info_message = message
 	elif bridge_signal == "custom_byte_block_received":
 		_last_custom_byte_block_message = message
 	emit_signal(bridge_signal, message)
@@ -336,6 +344,9 @@ func get_air_support_status_sync_state():
 
 func get_last_event_message():
 	return _last_event_message
+
+func get_last_map_click_info_message():
+	return _last_map_click_info_message
 
 func get_last_custom_byte_block_message():
 	return _last_custom_byte_block_message

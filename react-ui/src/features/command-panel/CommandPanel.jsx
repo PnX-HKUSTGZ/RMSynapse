@@ -307,13 +307,14 @@ function ResourceControls({
   const {
     directCost,
     remoteCost,
-    dead,
+    remoteQty,
     healCost,
     reviveCost,
     canDirectAmmo,
     canRemoteAmmo,
     canHeal,
     canRevive,
+    canConfirmRespawn,
     directAmmoOperation,
     remoteAmmoOperation,
     healOperation,
@@ -389,12 +390,12 @@ function ResourceControls({
 
       <div className="mt-2 grid grid-cols-2 gap-2">
         <IconButton disabled={!canRemoteAmmo} onClick={sendRemoteAmmo} icon={Send}>
-          {labelWithHotkey(`远程补弹 · ${formatCost(remoteCost)}`, remoteAmmoHint)}
+          {labelWithHotkey(`远程补弹(${remoteQty}) · ${formatCost(remoteCost)}`, remoteAmmoHint)}
         </IconButton>
         <IconButton disabled={!canHeal} onClick={() => sendOperation(healOperation, healOperation.command)} icon={Shield}>
           {labelWithHotkey(`买血 · ${formatCost(healCost)}`, healHint)}
         </IconButton>
-        <IconButton disabled={!dead} onClick={() => sendOperation({ type: 'commonCommand', command: 'confirmRespawn', param: 0 }, 'confirmRespawn')} icon={RotateCw}>确认复活</IconButton>
+        <IconButton disabled={!canConfirmRespawn} onClick={() => sendOperation({ type: 'commonCommand', command: 'confirmRespawn', param: 0 }, 'confirmRespawn')} icon={RotateCw}>确认复活</IconButton>
         <IconButton disabled={!canRevive} onClick={() => sendOperation(reviveOperation, reviveOperation.command, reviveOperation.param)} icon={Zap}>
           {labelWithHotkey(`立即复活 · ${formatCost(reviveCost)}`, reviveHint)}
         </IconButton>

@@ -16,6 +16,7 @@ const HANDLED_PROTO_KEYS = [
   'Buff',
   'PenaltyInfo',
   'RobotPathPlanInfo',
+  'MapClickInfo',
   'RadarInfoToClient',
   'TechCoreMotionStateSync',
   'RobotPerformanceSelectionSync',
@@ -161,6 +162,17 @@ function getRobotDisplayId(robotId) {
   return numericId >= 100 ? numericId - 100 : numericId;
 }
 
+function playerIdForRobotId(robotId) {
+  const numericId = Number(robotId);
+  if (!Number.isFinite(numericId) || numericId <= 0) return null;
+  return numericId >= 100 ? `blue-${numericId - 100}` : `red-${numericId}`;
+}
+
+function toSignedInt(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : fallback;
+}
+
 function buildRobotSideFromHealth(healthValues, offset, defaultRobots) {
   return GLOBAL_UNIT_ROBOT_IDS.map((id, index) => ({
     id,
@@ -189,13 +201,17 @@ function normalizeMechanismEffects(effects) {
 }
 
 function normalizeRadarTarget(source, index = 0) {
+  const highlightState = toNonNegativeInt(source.is_high_light);
   return {
     robotId: toNonNegativeInt(source.target_robot_id ?? RADAR_ROBOT_IDS[index]),
     x: (toFiniteNumber(source.target_pos_x) / MAP_PROTOCOL_MAX) * 100,
     y: (toFiniteNumber(source.target_pos_y) / MAP_PROTOCOL_MAX) * 100,
     angle: toFiniteNumber(source.torward_angle ?? 0),
-    highlighted: toBoolean(source.is_high_light),
-    timestamp: toNonNegativeInt(source.last_update_msec, Date.now()),
+    highlightState,
+    highlighted: highlightState > 0,
+    locatorOffline: highlightState === 2,
+    lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    timestamp: Date.now(),
   };
 }
 
@@ -207,6 +223,25 @@ function normalizeMapPosition(source) {
     z: toFiniteNumber(source.z),
     yaw: toFiniteNumber(source.yaw),
     lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+  };
+}
+
+function normalizeMapClickInfo(source) {
+  const robotId = source.robot_id;
+  const robotIds = Array.isArray(robotId)
+    ? robotId
+    : Array.from(robotId ?? []);
+  return {
+    isSendAll: toNonNegativeInt(source.is_send_all),
+    robotIds,
+    mode: toNonNegativeInt(source.mode),
+    enemyId: toNonNegativeInt(source.enemy_id),
+    ascii: toNonNegativeInt(source.ascii),
+    type: toNonNegativeInt(source.type),
+    mapX: toFiniteNumber(source.map_x),
+    mapY: toFiniteNumber(source.map_y),
+    lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+    timestamp: Date.now(),
   };
 }
 
@@ -300,11 +335,15 @@ function buildProtoPatch(data) {
     const totalRounds = toNonNegativeInt(source.total_rounds);
     const currentStage = toNonNegativeInt(source.current_stage);
 
-    patch.timeLeft = toNonNegativeInt(source.stage_countdown_sec);
+    const stageElapsed = toSignedInt(source.stage_elapsed_sec);
+    const countdown = toSignedInt(source.stage_countdown_sec);
+    patch.timeLeft = countdown >= 0 ? countdown : null;
     patch.match = {
       currentStage,
       stageLabel: STAGE_LABELS[currentStage] ?? `阶段 ${currentStage}`,
-      stageElapsedSec: toNonNegativeInt(source.stage_elapsed_sec),
+      stageElapsedSec: stageElapsed >= 0 ? stageElapsed : -1,
+      elapsedValid: stageElapsed >= 0,
+      countdownValid: countdown >= 0,
       isPaused: Boolean(source.is_paused),
     };
     patch.scores = {
@@ -367,6 +406,10 @@ function buildProtoPatch(data) {
     const source = data.GlobalSpecialMechanism;
     patch.mechanisms = {
       effects: normalizeMechanismEffects(source.effects),
+      fortress: {
+        effects: normalizeMechanismEffects(source.effects),
+        lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+      },
     };
   }
 
@@ -457,15 +500,21 @@ function buildProtoPatch(data) {
   }
 
   if (isPlainObject(data.RobotPosition)) {
+    const currentPosition = normalizeMapPosition(data.RobotPosition);
     patch.miniMap = {
-      currentPosition: normalizeMapPosition(data.RobotPosition),
+      currentPosition,
+      currentPlayerId: playerIdForRobotId(currentPosition.robotId) ?? undefined,
     };
   }
 
   if (isPlainObject(data.Buff)) {
     const source = data.Buff;
     const buffType = toNonNegativeInt(source.buff_type);
-    const meta = BUFF_TYPE_META[buffType] ?? {
+    const buffLevel = toSignedInt(source.buff_level);
+    const buffValue = buffLevel !== 0 ? `${buffLevel > 0 ? '+' : ''}${buffLevel}%` : undefined;
+    const meta = buffType === 2 && buffLevel < 0
+      ? { type: 'armorBreak', name: '易伤', value: buffValue }
+      : BUFF_TYPE_META[buffType] ?? {
       type: `buff-${buffType}`,
       name: `BUFF ${buffType}`,
     };
@@ -476,8 +525,11 @@ function buildProtoPatch(data) {
         ...meta,
         time: toFiniteNumber(source.buff_left_time),
         maxTime: toFiniteNumber(source.buff_max_time),
-        level: toNonNegativeInt(source.buff_level),
+        level: buffLevel,
+        value: buffValue ?? meta.value,
         robotId: toNonNegativeInt(source.robot_id),
+        active: toFiniteNumber(source.buff_left_time) !== 0,
+        timestamp: Date.now(),
       },
     ];
   }
@@ -490,6 +542,9 @@ function buildProtoPatch(data) {
       totalCount: toNonNegativeInt(source.total_penalty_num),
       lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
     };
+    patch.penalty.isYellowCard = patch.penalty.type === 1 || patch.penalty.type === 2;
+    patch.penalty.isRedCard = patch.penalty.type === 3;
+    patch.penalty.interfaceBlocked = patch.penalty.isYellowCard || patch.penalty.isRedCard;
 
     if (patch.penalty.type > 0) {
       const timestamp = Date.now();
@@ -520,6 +575,10 @@ function buildProtoPatch(data) {
       senderId: toNonNegativeInt(source.sender_id),
       lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
     };
+  }
+
+  if (isPlainObject(data.MapClickInfo)) {
+    patch.mapClickInfo = normalizeMapClickInfo(data.MapClickInfo);
   }
 
   if (isPlainObject(data.RadarInfoToClient)) {
@@ -638,6 +697,11 @@ function buildProtoPatch(data) {
       isDead: Boolean(source.is_pending_respawn),
       countdown: Math.max(total - current, 0),
       reviveCost: toNonNegativeInt(source.gold_cost_for_respawn),
+      totalProgress: total,
+      currentProgress: current,
+      canFreeRespawn: toBoolean(source.can_free_respawn),
+      canPayRespawn: toBoolean(source.can_pay_for_respawn),
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
     };
   }
 
@@ -665,6 +729,14 @@ function buildProtoPatch(data) {
     const timestamp = Date.now();
     eventMessageSeq += 1;
     const eventMeta = buildEventMessageMeta(eventId, param);
+    patch.event = {
+      id: eventId,
+      param,
+      category: eventMeta.category,
+      level: eventMeta.level,
+      lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
+      timestamp,
+    };
     patch.messageCenter = {
       items: [
         {

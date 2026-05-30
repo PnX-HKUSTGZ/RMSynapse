@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { resolveBoostBuffs, resolveMechaState, resolveUiSizing, toPercent } from '../../state';
+import { formatCost } from '../command-panel/resourceActions';
 import EngineeringAssemblyTaskCard from '../assembly/EngineeringAssemblyTaskCard';
 import StatusBuffList from '../buffs/StatusBuffList';
 
@@ -84,6 +85,86 @@ function normalizeModules(modules) {
   };
 }
 
+function formatHotkeyCode(code) {
+  if (code?.startsWith('Key')) return code.slice(3);
+  if (code?.startsWith('Digit')) return code.slice(5);
+  if (code?.startsWith('Numpad')) return `N${code.slice(6)}`;
+  return String(code ?? '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\s+/g, '') || '';
+}
+
+function formatDoubleTapHint(hotkeys, action) {
+  if (!hotkeys?.enabled) return '';
+  const key = formatHotkeyCode(hotkeys?.[action]);
+  if (!key) return '';
+  return key.length === 1 ? `${key}${key}` : `${key}x2`;
+}
+
+function PurchaseHintCard({ title, amount, cost, hotkey, enabled, icon: Icon, className = '' }) {
+  const mutedClass = enabled
+    ? 'border-cyan-400/45 bg-slate-950/78 text-white shadow-[0_0_14px_rgba(34,211,238,0.16)]'
+    : 'border-slate-700/80 bg-slate-950/58 text-slate-500 grayscale';
+  const accentClass = enabled ? 'text-cyan-300' : 'text-slate-600';
+
+  return (
+    <div className={`min-h-[42px] rounded-md border px-2.5 py-1.5 backdrop-blur-md ${mutedClass} ${className}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {Icon && <Icon size={13} className={accentClass} />}
+          <span className="truncate text-[10px] font-black tracking-wider">{title}</span>
+        </div>
+        <span className={`shrink-0 rounded border px-1.5 py-[1px] font-orbitron text-[9px] font-black ${enabled ? 'border-yellow-400/35 bg-yellow-400/10 text-yellow-200' : 'border-slate-700 bg-black/20 text-slate-500'}`}>
+          {hotkey || '--'}
+        </span>
+      </div>
+      <div className="mt-1 flex items-baseline justify-between gap-2 font-orbitron">
+        <span className="text-[11px] font-black text-slate-200">{amount}</span>
+        <span className={`text-[11px] font-black ${enabled ? 'text-yellow-300' : 'text-slate-500'}`}>{formatCost(cost)}</span>
+      </div>
+    </div>
+  );
+}
+
+function PurchaseHintPanel({ activeRole, resourceActions, hotkeys }) {
+  if (activeRole !== 'hero' && activeRole !== 'infantry') return null;
+  if (!resourceActions?.supported) return null;
+
+  const directLabel = activeRole === 'hero' ? '买弹' : '买弹';
+  const ammoUnit = activeRole === 'hero' ? '42mm' : '17mm';
+  const healHotkey = formatDoubleTapHint(hotkeys, 'heal');
+  const directHotkey = formatDoubleTapHint(hotkeys, 'directAmmo');
+  const remoteHotkey = formatDoubleTapHint(hotkeys, 'remoteAmmo');
+
+  return (
+    <div className="grid w-full grid-cols-2 gap-1.5 px-1">
+      <PurchaseHintCard
+        title="远程买血"
+        amount="HP"
+        cost={resourceActions.healCost}
+        hotkey={healHotkey}
+        enabled={resourceActions.canHeal}
+        icon={Heart}
+        className="col-span-2"
+      />
+      <PurchaseHintCard
+        title={`远程买弹(${resourceActions.remoteQty})`}
+        amount={ammoUnit}
+        cost={resourceActions.remoteCost}
+        hotkey={remoteHotkey}
+        enabled={resourceActions.canRemoteAmmo}
+        icon={Radio}
+      />
+      <PurchaseHintCard
+        title={`${directLabel}(${resourceActions.activeQty})`}
+        amount={ammoUnit}
+        cost={resourceActions.directCost}
+        hotkey={directHotkey}
+        enabled={resourceActions.canDirectAmmo}
+        icon={Crosshair}
+      />
+    </div>
+  );
+}
+
 export default function MechaHUD({
   mecha,
   maxValues,
@@ -97,6 +178,9 @@ export default function MechaHUD({
   assemblyTask,
   onAssemblyConfirm,
   onAssemblyCancel,
+  activeRole = 'unknown',
+  resourceActions,
+  hotkeys,
 }) {
   const mergedMecha = resolveMechaState(mecha);
   const mergedSizing = resolveUiSizing(uiSizing);
@@ -158,6 +242,8 @@ export default function MechaHUD({
         className="absolute bottom-12 left-12 z-10 flex w-[432px] flex-col gap-1.5 drop-shadow-xl"
         style={{ transform: `scale(${mechaHudScale})`, transformOrigin: 'bottom left' }}
       >
+        <PurchaseHintPanel activeRole={activeRole} resourceActions={resourceActions} hotkeys={hotkeys} />
+
         {isEngineer && (
           <StatusBuffList
             buffs={mergedBoostBuffs}

@@ -1,5 +1,5 @@
 export const DEFAULT_RESOURCE_QUANTITIES = {
-  qty17: 10,
+  qty17: 50,
   qty42: 5,
 };
 
@@ -57,14 +57,19 @@ export function buildResourceActionState({
   const normalized42 = floorToStep(quantities?.qty42 ?? DEFAULT_RESOURCE_QUANTITIES.qty42, 5);
   const activeQty = isHero ? normalized42 : normalized17;
   const remoteMin = isHero ? 10 : 100;
+  const remoteQty = Math.max(activeQty, remoteMin);
   const directCost = isHero ? activeQty * 10 : activeQty;
-  const remoteCost = ceilByUnit(activeQty, remoteMin) * 150;
+  const remoteCost = ceilByUnit(remoteQty, remoteMin) * 150;
   const dead = isRobotDead(mecha, respawn);
   const elapsedSec = Math.max(0, 420 - toNumber(timeLeft, 420));
   const healCost = 50 + Math.ceil((elapsedSec / 60) * 20);
-  const reviveCost = Math.ceil(elapsedSec / 60) * 80 + parseRobotLevel(mecha) * 20;
+  const reviveCost = toInt(respawn?.reviveCost, Math.ceil(elapsedSec / 60) * 80 + parseRobotLevel(mecha) * 20);
   const supported = activeRole === 'hero' || activeRole === 'infantry';
   const directCommand = isHero ? 'exchange42mm' : 'exchange17mm';
+  const remoteHealReady = Boolean(mecha?.canRemoteHeal ?? mecha?.can_remote_heal ?? mecha?.remoteHealReady);
+  const remoteAmmoReady = Boolean(mecha?.canRemoteAmmo ?? mecha?.can_remote_ammo ?? mecha?.remoteAmmoReady);
+  const canFreeRespawn = Boolean(respawn?.canFreeRespawn ?? respawn?.can_free_respawn);
+  const canPayRespawn = Boolean(respawn?.canPayRespawn ?? respawn?.can_pay_respawn);
 
   return {
     supported,
@@ -74,17 +79,19 @@ export function buildResourceActionState({
     normalized42,
     activeQty,
     remoteMin,
+    remoteQty,
     directCost,
     remoteCost,
     dead,
     healCost,
     reviveCost,
     canDirectAmmo: supported && activeQty > 0 && directCost <= eco,
-    canRemoteAmmo: supported && activeQty >= remoteMin && remoteCost <= eco,
-    canHeal: supported && !dead && healCost <= eco,
-    canRevive: supported && dead && reviveCost <= eco,
+    canRemoteAmmo: supported && remoteAmmoReady && remoteCost <= eco,
+    canHeal: supported && remoteHealReady && !dead && healCost <= eco,
+    canRevive: supported && dead && canPayRespawn && reviveCost <= eco,
+    canConfirmRespawn: dead && canFreeRespawn,
     directAmmoOperation: buildCommonCommand(directCommand, activeQty),
-    remoteAmmoOperation: buildCommonCommand('remoteBuyAmmo', activeQty),
+    remoteAmmoOperation: buildCommonCommand('remoteBuyAmmo', remoteQty),
     healOperation: buildCommonCommand('remoteBuyHp'),
     reviveOperation: buildCommonCommand('buyRespawn', reviveCost),
   };

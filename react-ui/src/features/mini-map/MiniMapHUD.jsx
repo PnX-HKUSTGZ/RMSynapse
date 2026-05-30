@@ -48,7 +48,7 @@ function MiniMapMarker({ markerSize, player, isCurrent, isDestroyed }) {
       )}
 
       {player.radarHighlighted && !isDestroyed && (
-        <div className="absolute inset-[-7px] rounded-full border-2 border-yellow-300/90 shadow-[0_0_12px_rgba(253,224,71,0.95)]" />
+        <div className={`absolute inset-[-7px] rounded-full border-2 ${player.radarLocatorOffline ? 'border-violet-300/90 shadow-[0_0_12px_rgba(196,181,253,0.95)]' : 'border-yellow-300/90 shadow-[0_0_12px_rgba(253,224,71,0.95)]'}`} />
       )}
 
       <div
@@ -104,6 +104,7 @@ function MiniMapHUD({ miniMap, uiSizing, robotHpById, radarTargets, onMapClick }
       y: clampPercent(radarTarget.y),
       rotation: Number.isFinite(Number(radarTarget.angle)) ? Number(radarTarget.angle) : player.rotation,
       radarHighlighted: radarTarget.highlighted,
+      radarLocatorOffline: Number(radarTarget.highlightState) === 2 || Boolean(radarTarget.locatorOffline),
     };
   });
   const rootClass = isCenterPlacement
