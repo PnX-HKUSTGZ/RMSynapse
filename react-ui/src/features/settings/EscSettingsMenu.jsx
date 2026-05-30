@@ -89,6 +89,42 @@ function SliderRow({ label, icon: Icon, value, min, max, step, onChange, format 
 }
 
 function TextInputRow({ label, icon: Icon, value, onChange, type = 'text', placeholder = '', monospace = true, readOnly = false }) {
+  const inputRef = useRef(null);
+  const isEditingRef = useRef(false);
+  const skipCommitRef = useRef(false);
+  const lastValueRef = useRef(String(value ?? ''));
+
+  useEffect(() => {
+    const nextValue = String(value ?? '');
+    lastValueRef.current = nextValue;
+    if (!isEditingRef.current) {
+      const input = inputRef.current;
+      if (input && input.value !== nextValue) {
+        input.value = nextValue;
+      }
+    }
+  }, [value]);
+
+  const commitDraft = () => {
+    isEditingRef.current = false;
+    if (skipCommitRef.current) {
+      skipCommitRef.current = false;
+      return;
+    }
+    const nextValue = inputRef.current?.value ?? '';
+    if (nextValue !== String(value ?? '')) {
+      onChange(nextValue);
+    }
+  };
+
+  const resetDraft = () => {
+    isEditingRef.current = false;
+    skipCommitRef.current = true;
+    if (inputRef.current) {
+      inputRef.current.value = lastValueRef.current;
+    }
+  };
+
   return (
     <label className="grid grid-cols-[110px_minmax(0,1fr)] items-center gap-3 text-xs text-slate-200">
       <span className="flex min-w-0 items-center gap-2 font-bold">
@@ -96,11 +132,24 @@ function TextInputRow({ label, icon: Icon, value, onChange, type = 'text', place
         <span className="truncate">{label}</span>
       </span>
       <input
+        ref={inputRef}
         type={type}
-        value={value}
+        defaultValue={String(value ?? '')}
         placeholder={placeholder}
         readOnly={readOnly}
-        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => {
+          isEditingRef.current = true;
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            resetDraft();
+            event.currentTarget.blur();
+          }
+        }}
         className={`min-w-0 rounded border border-slate-700 bg-slate-950/90 px-2 py-1.5 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-400/70 ${readOnly ? 'cursor-default text-slate-300' : ''} ${monospace ? 'font-mono' : ''}`}
       />
     </label>

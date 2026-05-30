@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Box,
@@ -130,17 +130,76 @@ function IconButton({ active, onClick, icon: Icon, children, disabled = false })
   );
 }
 
-function NumberInput({ value, min, step, onChange, onBlur }) {
+function normalizeInputQuantity(rawValue, fallback, min, step) {
+  const numeric = Number(rawValue);
+  const source = Number.isFinite(numeric) ? numeric : fallback;
+  return Math.max(min, floorToStep(source, step));
+}
+
+function NumberInput({ value, min, step, onChange }) {
+  const inputRef = useRef(null);
+  const isEditingRef = useRef(false);
+  const skipCommitRef = useRef(false);
+  const lastValueRef = useRef(String(value ?? ''));
+
+  useEffect(() => {
+    const nextValue = String(value ?? '');
+    lastValueRef.current = nextValue;
+    if (!isEditingRef.current) {
+      const input = inputRef.current;
+      if (input && input.value !== nextValue) {
+        input.value = nextValue;
+      }
+    }
+  }, [value]);
+
+  const commitDraft = () => {
+    isEditingRef.current = false;
+    if (skipCommitRef.current) {
+      skipCommitRef.current = false;
+      return;
+    }
+
+    const draftValue = inputRef.current?.value ?? '';
+    const nextValue = normalizeInputQuantity(draftValue, value, min, step);
+    if (inputRef.current) {
+      inputRef.current.value = String(nextValue);
+    }
+    if (nextValue !== value) {
+      onChange(nextValue);
+    }
+  };
+
+  const resetDraft = () => {
+    isEditingRef.current = false;
+    skipCommitRef.current = true;
+    if (inputRef.current) {
+      inputRef.current.value = lastValueRef.current;
+    }
+  };
+
   return (
     <input
+      ref={inputRef}
       className="rounded border border-slate-700 bg-slate-950 px-2 text-center font-mono text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-45"
       type="number"
       inputMode="numeric"
       min={min}
       step={step}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      onBlur={onBlur}
+      defaultValue={String(value ?? '')}
+      onFocus={() => {
+        isEditingRef.current = true;
+      }}
+      onBlur={commitDraft}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.currentTarget.blur();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          resetDraft();
+          event.currentTarget.blur();
+        }
+      }}
     />
   );
 }
@@ -287,8 +346,6 @@ function ResourceControls({
   const setQty17 = (value) => updateQuantity('qty17', DEFAULT_RESOURCE_QUANTITIES.qty17, value);
   const setQty42 = (value) => updateQuantity('qty42', DEFAULT_RESOURCE_QUANTITIES.qty42, value);
 
-  const normalizeQty17 = () => setQty17((prev) => floorToStep(prev, 10));
-  const normalizeQty42 = () => setQty42((prev) => floorToStep(prev, 5));
   const directAmmoHint = formatDoubleTapHint(hotkeys, 'directAmmo');
   const remoteAmmoHint = formatDoubleTapHint(hotkeys, 'remoteAmmo');
   const healHint = formatDoubleTapHint(hotkeys, 'heal');
@@ -318,14 +375,14 @@ function ResourceControls({
             <IconButton disabled={!canDirectAmmo} onClick={sendDirectAmmo} icon={Crosshair}>
               {labelWithHotkey(`17mm兑换 · ${formatCost(directCost)}`, directAmmoHint)}
             </IconButton>
-            <NumberInput value={qty17} min={10} step={10} onChange={setQty17} onBlur={normalizeQty17} />
+            <NumberInput value={qty17} min={10} step={10} onChange={setQty17} />
           </>
         ) : (
           <>
             <IconButton disabled={!canDirectAmmo} onClick={sendDirectAmmo} icon={Crosshair}>
               {labelWithHotkey(`42mm兑换 · ${formatCost(directCost)}`, directAmmoHint)}
             </IconButton>
-            <NumberInput value={qty42} min={5} step={5} onChange={setQty42} onBlur={normalizeQty42} />
+            <NumberInput value={qty42} min={5} step={5} onChange={setQty42} />
           </>
         )}
       </div>
