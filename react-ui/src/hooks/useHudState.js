@@ -3,9 +3,13 @@ import { parseGodotPayload } from '../bridge/godot';
 import { DEFAULT_UI_STATE, deepMerge, mergeRadarTargets, normalizeIncomingData } from '../state';
 
 const RADAR_TARGET_TTL_MS = 3000;
-const DESTROYED_OUTPOST_STATES = new Set([3, 4, 5]);
+const REVIVE_HIGHLIGHT_MS = 3000;
 
-function mergeRobotMax(prevRobots, incomingRobots) {
+function buffKey(buff, fallback = 'unknown') {
+  return `${buff?.robotId ?? 'global'}:${buff?.id ?? buff?.type ?? fallback}`;
+}
+
+function mergeRobotMax(prevRobots, incomingRobots, { now = Date.now(), detectRevive = false } = {}) {
   if (!incomingRobots) return incomingRobots;
   const next = { ...incomingRobots };
 
@@ -17,7 +21,9 @@ function mergeRobotMax(prevRobots, incomingRobots) {
     );
     next[side] = incomingRobots[side].map((robot) => {
       const hp = Number(robot.hp);
-      const prevMax = Number(prevById.get(Number(robot.id))?.max);
+      const prevRobot = prevById.get(Number(robot.id));
+      const prevHp = Number(prevRobot?.hp);
+      const prevMax = Number(prevRobot?.max);
       const incomingMax = Number(robot.max);
       const max = Math.max(
         Number.isFinite(prevMax) ? prevMax : 0,
@@ -25,79 +31,137 @@ function mergeRobotMax(prevRobots, incomingRobots) {
         Number.isFinite(hp) ? hp : 0,
         1,
       );
-      return { ...robot, max };
+      const prevHighlightUntil = Number(prevRobot?.reviveHighlightUntil);
+      const reviveHighlightUntil = detectRevive
+        && Number.isFinite(prevHp)
+        && prevHp <= 0
+        && Number.isFinite(hp)
+        && hp > 0
+        && hp >= max
+        ? now + REVIVE_HIGHLIGHT_MS
+        : prevHighlightUntil > now
+          ? prevHighlightUntil
+          : undefined;
+
+      return {
+        ...robot,
+        max,
+        ...(reviveHighlightUntil ? { reviveHighlightUntil } : {}),
+      };
     });
   });
 
   return next;
 }
 
-function mergeBoostBuffs(prevBuffs, incomingBuffs) {
-  if (!Array.isArray(incomingBuffs)) return Array.isArray(prevBuffs) ? prevBuffs : [];
+function mergeBoostBuffs(prevBuffs, incomingBuffs, now = Date.now()) {
+  if (!Array.isArray(incomingBuffs)) return pruneBoostBuffs(prevBuffs, now);
   const nextByKey = new Map();
-  if (Array.isArray(prevBuffs)) {
-    prevBuffs.forEach((buff, index) => {
-      const key = `${buff?.robotId ?? 'global'}:${buff?.id ?? buff?.type ?? index}`;
-      nextByKey.set(key, buff);
-    });
-  }
+  pruneBoostBuffs(prevBuffs, now).forEach((buff, index) => {
+    nextByKey.set(buffKey(buff, index), buff);
+  });
+
   incomingBuffs.forEach((buff, index) => {
     if (!buff || typeof buff !== 'object') return;
-    const key = `${buff.robotId ?? 'global'}:${buff.id ?? buff.type ?? index}`;
-    nextByKey.set(key, buff);
-  });
-  return Array.from(nextByKey.values());
-}
-
-function mergeFortressMemory(prev, incoming) {
-  const previous = prev.fortress ?? {};
-  const next = { ...previous };
-  const outposts = incoming.outposts ?? {};
-
-  ['left', 'right'].forEach((side) => {
-    const outpost = outposts[side];
-    const wasDestroyed = Boolean(previous?.[side]?.outpostEverDestroyed);
-    const hp = Number(outpost?.hp);
-    const state = Number(outpost?.state);
-    const destroyedNow = (Number.isFinite(hp) && hp <= 0)
-      || (Number.isFinite(state) && DESTROYED_OUTPOST_STATES.has(state));
-    if (wasDestroyed || destroyedNow) {
-      next[side] = {
-        ...(previous?.[side] ?? {}),
-        outpostEverDestroyed: true,
-      };
+    const key = buffKey(buff, index);
+    const time = Number(buff.time ?? buff.duration);
+    if (buff.active === false || !Number.isFinite(time) || time <= 0) {
+      nextByKey.delete(key);
+      return;
     }
+    nextByKey.set(key, {
+      ...buff,
+      time,
+      expiresAt: now + (time * 1000),
+    });
   });
 
-  return next;
+  return Array.from(nextByKey.values());
 }
 
 function pruneRadarTargets(targets, now = Date.now()) {
   if (!Array.isArray(targets)) return [];
-  return targets.filter((target) => {
+  const nextTargets = targets.filter((target) => {
     const timestamp = Number(target?.timestamp);
     return Number.isFinite(timestamp) && now - timestamp <= RADAR_TARGET_TTL_MS;
   });
+  return nextTargets.length === targets.length ? targets : nextTargets;
+}
+
+function pruneBoostBuffs(buffs, now = Date.now()) {
+  if (!Array.isArray(buffs)) return [];
+  let changed = false;
+  const nextBuffs = buffs.reduce((items, buff) => {
+    if (!buff || typeof buff !== 'object') {
+      changed = true;
+      return items;
+    }
+    const expiresAt = Number(buff.expiresAt);
+    if (Number.isFinite(expiresAt)) {
+      changed = true;
+      if (expiresAt <= now) return items;
+      items.push({
+        ...buff,
+        time: Math.max(0, (expiresAt - now) / 1000),
+      });
+      return items;
+    }
+
+    const time = Number(buff.time ?? buff.duration);
+    if (!Number.isFinite(time) || time <= 0 || buff.active === false) {
+      changed = true;
+      return items;
+    }
+    items.push(buff);
+    return items;
+  }, []);
+  return changed ? nextBuffs : buffs;
+}
+
+function pruneRobotHighlights(robots, now = Date.now()) {
+  if (!robots) return robots;
+  let changed = false;
+  const next = { ...robots };
+
+  ['left', 'right'].forEach((side) => {
+    if (!Array.isArray(robots[side])) return;
+    next[side] = robots[side].map((robot) => {
+      const reviveHighlightUntil = Number(robot?.reviveHighlightUntil);
+      if (!Number.isFinite(reviveHighlightUntil) || reviveHighlightUntil > now) return robot;
+      changed = true;
+      const rest = { ...robot };
+      delete rest.reviveHighlightUntil;
+      return rest;
+    });
+  });
+
+  return changed ? next : robots;
 }
 
 function mergeHudState(prev, incoming) {
+  const now = Date.now();
   const adjustedIncoming = { ...incoming };
   if (incoming.robots) {
-    adjustedIncoming.robots = mergeRobotMax(prev.robots, incoming.robots);
+    adjustedIncoming.robots = mergeRobotMax(prev.robots, incoming.robots, {
+      now,
+      detectRevive: prev.globalUnit?.sideBasis === 'ally_enemy',
+    });
   }
   const merged = deepMerge(prev, adjustedIncoming);
   if (adjustedIncoming.robots) {
     merged.robots = adjustedIncoming.robots;
   }
-  merged.fortress = mergeFortressMemory(prev, adjustedIncoming);
   if (Array.isArray(incoming.radarTargets)) {
-    merged.radarTargets = pruneRadarTargets(mergeRadarTargets(prev.radarTargets, incoming.radarTargets));
+    merged.radarTargets = pruneRadarTargets(mergeRadarTargets(prev.radarTargets, incoming.radarTargets), now);
   } else {
-    merged.radarTargets = pruneRadarTargets(merged.radarTargets);
+    merged.radarTargets = pruneRadarTargets(merged.radarTargets, now);
   }
   if (Array.isArray(incoming.boostBuffs)) {
-    merged.boostBuffs = mergeBoostBuffs(prev.boostBuffs, incoming.boostBuffs);
+    merged.boostBuffs = mergeBoostBuffs(prev.boostBuffs, incoming.boostBuffs, now);
+  } else {
+    merged.boostBuffs = pruneBoostBuffs(merged.boostBuffs, now);
   }
+  merged.robots = pruneRobotHighlights(merged.robots, now);
   return merged;
 }
 
@@ -122,9 +186,23 @@ export function useHudState() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setUiState((prev) => {
-        const nextTargets = pruneRadarTargets(prev.radarTargets);
-        if (nextTargets.length === (prev.radarTargets ?? []).length) return prev;
-        return { ...prev, radarTargets: nextTargets };
+        const now = Date.now();
+        const nextTargets = pruneRadarTargets(prev.radarTargets, now);
+        const nextBuffs = pruneBoostBuffs(prev.boostBuffs, now);
+        const nextRobots = pruneRobotHighlights(prev.robots, now);
+        if (
+          nextTargets === prev.radarTargets
+          && nextBuffs === prev.boostBuffs
+          && nextRobots === prev.robots
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          radarTargets: nextTargets,
+          boostBuffs: nextBuffs,
+          robots: nextRobots,
+        };
       });
     }, 1000);
 

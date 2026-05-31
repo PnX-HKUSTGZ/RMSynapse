@@ -330,7 +330,7 @@ export default function App() {
             uiSizing={effectiveUiSizing}
             match={uiState.match}
             mechanisms={uiState.mechanisms}
-            fortress={uiState.fortress}
+            clientTeam={clientTeam}
             links={uiState.links}
             fallbackBaseStateMeta={DEFAULT_UI_STATE.baseStateMeta}
             fallbackOutpostStateMeta={DEFAULT_UI_STATE.outpostStateMeta}

@@ -78,6 +78,7 @@ const DEFAULT_LINKS = [
   { name: 'VIDEO', status: 'ok' },
   { name: 'DATA', status: 'ok' },
 ];
+const FORTRESS_CAPTURE_DURATION_SEC = 20;
 
 function resolveStatusMeta(type, state, configuredStates, fallbackStates) {
   const builtin = type === 'base' ? BASE_STATUS_META : OUTPOST_STATUS_META;
@@ -317,49 +318,30 @@ function effectTimeById(effects, effectId) {
   return Math.max(0, Number(effect?.remainingSec ?? effect?.remaining_sec) || 0);
 }
 
-function resolveFortressState({ base, memory, stageElapsedSec, captureSec }) {
-  const baseState = Number(base?.state);
-  if (captureSec > 0) {
-    return {
-      key: 'capturing',
-      label: '占领中',
-      tone: 'capturing',
-      progress: Math.min(100, (captureSec / 20) * 100),
-      timerLabel: `${Math.trunc(captureSec)}/20s`,
-    };
-  }
-  if (baseState === 2) {
-    return { key: 'triggered', label: '已触发', tone: 'triggered', progress: 100, timerLabel: '' };
-  }
-  const elapsed = Number(stageElapsedSec);
-  if (memory?.outpostEverDestroyed && Number.isFinite(elapsed) && elapsed >= 180) {
-    return { key: 'open', label: '可占领', tone: 'open', progress: 0, timerLabel: '' };
-  }
-  return { key: 'locked', label: '未开放', tone: 'locked', progress: 0, timerLabel: '' };
+function fortressTeamByMechanismId(mechanismId, clientTeam) {
+  const ownTeam = clientTeam === 'blue' ? 'blue' : 'red';
+  const enemyTeam = ownTeam === 'blue' ? 'red' : 'blue';
+  if (Number(mechanismId) === 1) return ownTeam;
+  if (Number(mechanismId) === 2) return enemyTeam;
+  return null;
 }
 
-function FortressCard({ team, label, base, memory, stageElapsedSec, captureSec }) {
+function FortressCard({ team, label, captureSec }) {
   const isRed = team === 'red';
-  const state = resolveFortressState({ base, memory, stageElapsedSec, captureSec });
-  const toneClass = {
-    locked: 'border-slate-700/80 bg-slate-950/70 text-slate-500',
-    open: isRed
-      ? 'border-red-400/40 bg-red-950/35 text-red-100'
-      : 'border-blue-400/40 bg-blue-950/35 text-blue-100',
-    capturing: 'border-yellow-400/55 bg-yellow-950/45 text-yellow-100 shadow-[0_0_16px_rgba(250,204,21,0.18)]',
-    triggered: 'border-orange-400/55 bg-orange-950/45 text-orange-200 shadow-[0_0_14px_rgba(251,146,60,0.2)]',
-  }[state.tone];
-  const fillClass = state.tone === 'capturing'
-    ? 'bg-yellow-300 shadow-[0_0_10px_rgba(253,224,71,0.72)]'
-    : isRed
-      ? 'bg-red-400/70'
-      : 'bg-blue-400/70';
+  const progress = Math.max(
+    0,
+    Math.min(100, ((FORTRESS_CAPTURE_DURATION_SEC - captureSec) / FORTRESS_CAPTURE_DURATION_SEC) * 100),
+  );
+  const fillClass = isRed ? 'bg-red-400/70' : 'bg-blue-400/70';
+  const toneClass = isRed
+    ? 'border-red-400/45 bg-red-950/40 text-red-100 shadow-[0_0_16px_rgba(248,113,113,0.18)]'
+    : 'border-blue-400/45 bg-blue-950/40 text-blue-100 shadow-[0_0_16px_rgba(96,165,250,0.18)]';
 
   return (
     <div className={`relative h-[42px] w-[190px] overflow-hidden rounded-md border px-3 py-2 backdrop-blur-md ${toneClass}`}>
       <div
         className={`absolute bottom-0 top-0 ${isRed ? 'left-0' : 'right-0'} opacity-25 transition-all duration-300 ${fillClass}`}
-        style={{ width: `${state.progress}%` }}
+        style={{ width: `${progress}%` }}
       />
       <div className="relative z-10 flex h-full items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
@@ -367,38 +349,41 @@ function FortressCard({ team, label, base, memory, stageElapsedSec, captureSec }
           <span className="truncate text-[10px] font-black tracking-[0.16em]">{label}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {state.timerLabel && <Timer size={12} className="text-yellow-200" />}
-          <span className="font-orbitron text-[11px] font-black">{state.timerLabel || state.label}</span>
+          <Timer size={12} className="text-yellow-200" />
+          <span className="text-[9px] font-black tracking-wider text-yellow-100">占领中</span>
+          <span className="font-orbitron text-[11px] font-black">{Math.ceil(captureSec)}s</span>
         </div>
       </div>
     </div>
   );
 }
 
-function FortressStatusRow({ bases, match, mechanisms, fortress }) {
+function FortressStatusRow({ mechanisms, clientTeam }) {
   const effects = mechanisms?.fortress?.effects ?? mechanisms?.effects;
-  const stageElapsedSec = Number(match?.stageElapsedSec);
-  const leftCaptureSec = effectTimeById(effects, 1);
-  const rightCaptureSec = effectTimeById(effects, 2);
+  const fortressItems = [1, 2].reduce((items, mechanismId) => {
+    const captureSec = effectTimeById(effects, mechanismId);
+    const team = fortressTeamByMechanismId(mechanismId, clientTeam);
+    if (!team || captureSec <= 0) return items;
+    items.push({
+      team,
+      captureSec,
+      label: team === 'red' ? '红方堡垒' : '蓝方堡垒',
+    });
+    return items;
+  }, []).sort((left, right) => (left.team === right.team ? 0 : left.team === 'red' ? -1 : 1));
+
+  if (fortressItems.length === 0) return null;
 
   return (
     <div className="mt-1.5 flex items-center justify-center gap-2">
-      <FortressCard
-        team="red"
-        label="红方堡垒"
-        base={bases?.left}
-        memory={fortress?.left}
-        stageElapsedSec={stageElapsedSec}
-        captureSec={leftCaptureSec}
-      />
-      <FortressCard
-        team="blue"
-        label="蓝方堡垒"
-        base={bases?.right}
-        memory={fortress?.right}
-        stageElapsedSec={stageElapsedSec}
-        captureSec={rightCaptureSec}
-      />
+      {fortressItems.map((item) => (
+        <FortressCard
+          key={item.team}
+          team={item.team}
+          label={item.label}
+          captureSec={item.captureSec}
+        />
+      ))}
     </div>
   );
 }
@@ -412,6 +397,7 @@ function RobotSlot({ robot, team, level }) {
   const isDead = hp === 0 || robot.aliveState === 2 || robot.status === 'dead';
   const isOffline = !hasHp || robot.isOffline || robot.status === 'offline';
   const isLow = hasHp && !isDead && hpPercent < 30;
+  const isReviveHighlighted = !isDead && !isOffline && Number(robot.reviveHighlightUntil) > 0;
   const tags = Array.isArray(robot.tags) ? robot.tags : [];
   const safeLevel = Number(level ?? robot.level);
   const levelLabel = Number.isFinite(safeLevel) && safeLevel > 0 ? `LV.${Math.trunc(safeLevel)}` : 'LV.--';
@@ -427,9 +413,12 @@ function RobotSlot({ robot, team, level }) {
       : isLow
         ? 'border-red-500/80 bg-neutral-950/82 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.28)] animate-pulse'
         : 'border-white/10 bg-neutral-950/80 text-white/90';
+  const reviveClass = isReviveHighlighted
+    ? 'border-emerald-300/90 bg-emerald-950/45 text-emerald-100 shadow-[0_0_18px_rgba(52,211,153,0.45)] ring-1 ring-emerald-300/70 animate-pulse'
+    : '';
 
   return (
-    <div className={`relative h-[48px] min-w-[75px] flex-1 overflow-hidden rounded-md border backdrop-blur-md transition-all duration-300 ${cardClass}`}>
+    <div className={`relative h-[48px] min-w-[75px] flex-1 overflow-hidden rounded-md border backdrop-blur-md transition-all duration-300 ${cardClass} ${reviveClass}`}>
       {!isDead && !isOffline && (
         <div
           className={`absolute inset-y-0 left-0 z-0 transition-all duration-300 ease-out ${fillClass}`}
@@ -549,7 +538,7 @@ export default function TopCoreLayout({
   uiSizing,
   match,
   mechanisms,
-  fortress,
+  clientTeam,
   links,
   fallbackBaseStateMeta,
   fallbackOutpostStateMeta,
@@ -651,7 +640,7 @@ export default function TopCoreLayout({
         <RobotStrip robots={rightRobots} team="blue" levels={robotLevels?.blue} />
       </div>
 
-      <FortressStatusRow bases={bases} match={match} mechanisms={mechanisms} fortress={fortress} />
+      <FortressStatusRow mechanisms={mechanisms} clientTeam={clientTeam} />
     </div>
   );
 }

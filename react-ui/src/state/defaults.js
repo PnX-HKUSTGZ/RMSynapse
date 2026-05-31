@@ -388,17 +388,7 @@ const DEFAULT_UI_STATE = {
     isShooting: false,
     overheatLabel: 'OVERHEAT',
   },
-  boostBuffs: [
-    { id: 1, type: 'attack', name: '攻击增益', time: 10, maxTime: 10, value: '+20%' },
-    { id: 2, type: 'defense', name: '防御增益', time: 15, maxTime: 15, value: '+150%' },
-    { id: 3, type: 'cooling', name: '射击热量冷却', time: 5, maxTime: 5, value: '+5/s' },
-    { id: 4, type: 'power', name: '底盘功率', time: 12, maxTime: 12 },
-    { id: 5, type: 'regen', name: '回血增益', time: 6, maxTime: 6, value: '+10%' },
-    { id: 6, type: 'terrain', name: '地形跨越', time: -1 },
-    { id: 7, type: 'invincible', name: '无敌', time: 5, maxTime: 5 },
-    { id: 8, type: 'weak', name: '虚弱', time: -1 },
-    { id: 9, type: 'eco', name: '节能', time: -1 },
-  ],
+  boostBuffs: [],
   miniMap: {
     title: '小地图',
     imageSrc: './map.png',

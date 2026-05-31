@@ -192,11 +192,25 @@ function toBoolean(value) {
   return Boolean(value);
 }
 
-function normalizeMechanismEffects(effects) {
-  if (!Array.isArray(effects)) return [];
-  return effects.map((item, index) => ({
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value[Symbol.iterator] === 'function') return Array.from(value);
+  return [];
+}
+
+function normalizeMechanismEffects(source) {
+  if (!Array.isArray(source)) {
+    const ids = toArray(source?.mechanism_id);
+    const times = toArray(source?.mechanism_time_sec);
+    return ids.slice(0, times.length).map((id, index) => ({
+      id: toNonNegativeInt(id),
+      remainingSec: toFiniteNumber(times[index]),
+    }));
+  }
+
+  return source.map((item, index) => ({
     id: toNonNegativeInt(item?.id ?? item?.mechanism_id ?? index),
-    remainingSec: toFiniteNumber(item?.remaining_sec ?? item?.remainingSec),
+    remainingSec: toFiniteNumber(item?.remaining_sec ?? item?.remainingSec ?? item?.mechanism_time_sec),
   }));
 }
 
@@ -404,10 +418,11 @@ function buildProtoPatch(data) {
 
   if (isPlainObject(data.GlobalSpecialMechanism)) {
     const source = data.GlobalSpecialMechanism;
+    const effects = normalizeMechanismEffects(source.effects ?? source);
     patch.mechanisms = {
-      effects: normalizeMechanismEffects(source.effects),
+      effects,
       fortress: {
-        effects: normalizeMechanismEffects(source.effects),
+        effects,
         lastUpdateMsec: toNonNegativeInt(source.last_update_msec),
       },
     };
