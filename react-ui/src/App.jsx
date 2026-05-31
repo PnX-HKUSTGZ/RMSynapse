@@ -331,6 +331,7 @@ export default function App() {
             match={uiState.match}
             mechanisms={uiState.mechanisms}
             clientTeam={clientTeam}
+            enemyAux={uiState.enemyAux}
             links={uiState.links}
             fallbackBaseStateMeta={DEFAULT_UI_STATE.baseStateMeta}
             fallbackOutpostStateMeta={DEFAULT_UI_STATE.outpostStateMeta}

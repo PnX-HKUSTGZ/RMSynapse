@@ -79,6 +79,25 @@ const DEFAULT_LINKS = [
   { name: 'DATA', status: 'ok' },
 ];
 const FORTRESS_CAPTURE_DURATION_SEC = 20;
+const ROBOT_SLOT_ORDER = {
+  red: [7, 6, 4, 3, 2, 1],
+  blue: [1, 2, 3, 4, 6, 7],
+};
+const ROBOT_FALLBACK_MAX_HP = {
+  1: 2000,
+  2: 400,
+  3: 400,
+  4: 400,
+  6: 500,
+  7: 600,
+};
+const ENEMY_PROJECTILE_KEY_BY_ROBOT_ID = {
+  1: 'hero1',
+  3: 'infantry3',
+  4: 'infantry4',
+  6: 'aerial6',
+  7: 'sentry7',
+};
 
 function resolveStatusMeta(type, state, configuredStates, fallbackStates) {
   const builtin = type === 'base' ? BASE_STATUS_META : OUTPOST_STATUS_META;
@@ -195,6 +214,53 @@ function BackgroundSegmentedBar({
       })}
     </div>
   );
+}
+
+function formatNullableNumber(value) {
+  const numeric = Number(value);
+  return value == null || !Number.isFinite(numeric) ? '--' : `${Math.trunc(numeric)}`;
+}
+
+function formatPacketAge(lastUpdateMs) {
+  const numeric = Number(lastUpdateMs);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '--';
+  const ageSec = Math.max(0, (Date.now() - numeric) / 1000);
+  return `${ageSec.toFixed(ageSec < 10 ? 1 : 0)}s`;
+}
+
+function isEnemyTeam(team, clientTeam) {
+  return (clientTeam === 'red' && team === 'blue') || (clientTeam === 'blue' && team === 'red');
+}
+
+function resolveEnemyAmmo(robot, team, clientTeam, enemyAux) {
+  if (!isEnemyTeam(team, clientTeam)) return undefined;
+  const key = ENEMY_PROJECTILE_KEY_BY_ROBOT_ID[Number(robot?.id)];
+  if (!key) return undefined;
+  const packet = enemyAux?.lastPacket;
+  if (!packet?.validAmmo) return null;
+  return packet.enemyProjectile?.[key] ?? null;
+}
+
+function ensureRobotSlots(robots, team) {
+  const order = ROBOT_SLOT_ORDER[team] ?? [];
+  const sourceRobots = Array.isArray(robots) ? robots : [];
+  const byId = new Map(sourceRobots.map((robot) => [Number(robot.id), robot]));
+  const ordered = order.map((id) => {
+    const robot = byId.get(id);
+    if (robot) return robot;
+    return {
+      id,
+      hp: null,
+      max: ROBOT_FALLBACK_MAX_HP[id] ?? 1,
+      isOffline: true,
+    };
+  });
+
+  sourceRobots.forEach((robot) => {
+    if (!order.includes(Number(robot.id))) ordered.push(robot);
+  });
+
+  return ordered;
 }
 
 function LinkStatus({ name, status = 'ok', outdated = false }) {
@@ -388,7 +454,7 @@ function FortressStatusRow({ mechanisms, clientTeam }) {
   );
 }
 
-function RobotSlot({ robot, team, level }) {
+function RobotSlot({ robot, team, level, ammo, ammoStale = false }) {
   const isRed = team === 'red';
   const maxHp = Number(robot.max ?? robot.maxHp) > 0 ? Number(robot.max ?? robot.maxHp) : 1;
   const hasHp = robot.hp != null && Number.isFinite(Number(robot.hp));
@@ -416,9 +482,15 @@ function RobotSlot({ robot, team, level }) {
   const reviveClass = isReviveHighlighted
     ? 'border-emerald-300/90 bg-emerald-950/45 text-emerald-100 shadow-[0_0_18px_rgba(52,211,153,0.45)] ring-1 ring-emerald-300/70 animate-pulse'
     : '';
+  const showAmmo = ammo !== undefined;
+  const ammoClass = ammoStale
+    ? 'text-white/25'
+    : isRed
+      ? 'text-red-100/85'
+      : 'text-blue-100/85';
 
   return (
-    <div className={`relative h-[48px] min-w-[75px] flex-1 overflow-hidden rounded-md border backdrop-blur-md transition-all duration-300 ${cardClass} ${reviveClass}`}>
+    <div className={`relative h-[52px] min-w-[75px] flex-1 overflow-hidden rounded-md border backdrop-blur-md transition-all duration-300 ${cardClass} ${reviveClass}`}>
       {!isDead && !isOffline && (
         <div
           className={`absolute inset-y-0 left-0 z-0 transition-all duration-300 ease-out ${fillClass}`}
@@ -450,7 +522,15 @@ function RobotSlot({ robot, team, level }) {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex items-end justify-between gap-2">
+          {showAmmo ? (
+            <div className={`flex min-w-[26px] flex-col items-start font-orbitron leading-none ${ammoClass}`}>
+              <span className="text-[6px] font-black tracking-[0.12em] text-white/35">AMMO</span>
+              <span className="text-[11px] font-black">{formatNullableNumber(ammo)}</span>
+            </div>
+          ) : (
+            <span />
+          )}
           {isDead ? (
             <span className="font-orbitron text-[13px] font-black leading-none text-neutral-500">DEAD</span>
           ) : isOffline ? (
@@ -466,13 +546,21 @@ function RobotSlot({ robot, team, level }) {
   );
 }
 
-function RobotStrip({ robots, team, levels }) {
+function RobotStrip({ robots, team, levels, enemyAux, clientTeam }) {
   const sideLevels = levels ?? {};
+  const displayRobots = ensureRobotSlots(robots, team);
 
   return (
     <div className={`flex min-w-0 flex-1 gap-2 ${team === 'blue' ? 'justify-end' : 'justify-start'}`}>
-      {robots.map((robot) => (
-        <RobotSlot key={`${team}-${robot.id}`} robot={robot} team={team} level={sideLevels[robot.id]} />
+      {displayRobots.map((robot) => (
+        <RobotSlot
+          key={`${team}-${robot.id}`}
+          robot={robot}
+          team={team}
+          level={sideLevels[robot.id]}
+          ammo={resolveEnemyAmmo(robot, team, clientTeam, enemyAux)}
+          ammoStale={Boolean(enemyAux?.isStale)}
+        />
       ))}
     </div>
   );
@@ -494,14 +582,27 @@ function LevelDots({ level, max, colorClass }) {
   );
 }
 
-function EcoHub({ labels, stats, maxValues }) {
+function EcoHub({ labels, stats, maxValues, enemyAux, clientTeam }) {
+  const enemyPacket = enemyAux?.lastPacket;
+  const enemyEconomy = enemyPacket?.validEconomy ? enemyPacket.enemyEconomy?.coinsRemaining : null;
+  const redEco = clientTeam === 'blue' ? enemyEconomy : stats.eco;
+  const blueEco = clientTeam === 'blue' ? stats.eco : enemyEconomy;
+  const staleEnemyClass = enemyAux?.isStale ? 'text-white/25' : '';
+  const redStale = clientTeam === 'blue' ? staleEnemyClass : '';
+  const blueStale = clientTeam === 'red' ? staleEnemyClass : '';
+  const ageLabel = formatPacketAge(enemyAux?.lastUpdateMs);
+
   return (
-    <div className="flex h-[46px] min-w-[260px] items-center justify-center gap-4 rounded-lg border border-white/10 bg-neutral-950/72 px-4 shadow-[0_8px_18px_rgba(0,0,0,0.28)] backdrop-blur-md">
+    <div className="flex h-[52px] min-w-[285px] items-center justify-center gap-4 rounded-lg border border-white/10 bg-neutral-950/72 px-4 shadow-[0_8px_18px_rgba(0,0,0,0.28)] backdrop-blur-md">
       <div className="flex flex-col items-center">
         <span className="mb-0.5 text-[8px] font-black tracking-[0.18em] text-white/40">{labels.eco}</span>
-        <div className="flex items-baseline gap-1 font-orbitron">
-          <span className="text-[15px] font-black text-yellow-300">{stats.eco}</span>
-          <span className="text-[9px] font-bold text-white/30">/ {stats.totalEco}</span>
+        <div className="flex items-baseline gap-1.5 font-orbitron">
+          <span className={`text-[15px] font-black ${redStale || 'text-red-300'}`}>{formatNullableNumber(redEco)}</span>
+          <span className="text-[9px] font-bold text-white/30">/</span>
+          <span className={`text-[15px] font-black ${blueStale || 'text-blue-300'}`}>{formatNullableNumber(blueEco)}</span>
+        </div>
+        <div className="mt-0.5 font-orbitron text-[7px] font-bold tracking-[0.12em] text-white/30">
+          UPDATE {ageLabel}
         </div>
       </div>
 
@@ -532,6 +633,7 @@ export default function TopCoreLayout({
   bases,
   outposts,
   stats,
+  enemyAux,
   leftRobots,
   rightRobots,
   robotLevels,
@@ -635,9 +737,9 @@ export default function TopCoreLayout({
       </div>
 
       <div className="mt-2 flex w-full items-center justify-between gap-4">
-        <RobotStrip robots={leftRobots} team="red" levels={robotLevels?.red} />
-        <EcoHub labels={labels} stats={stats} maxValues={maxValues} />
-        <RobotStrip robots={rightRobots} team="blue" levels={robotLevels?.blue} />
+        <RobotStrip robots={leftRobots} team="red" levels={robotLevels?.red} enemyAux={enemyAux} clientTeam={clientTeam} />
+        <EcoHub labels={labels} stats={stats} maxValues={maxValues} enemyAux={enemyAux} clientTeam={clientTeam} />
+        <RobotStrip robots={rightRobots} team="blue" levels={robotLevels?.blue} enemyAux={enemyAux} clientTeam={clientTeam} />
       </div>
 
       <FortressStatusRow mechanisms={mechanisms} clientTeam={clientTeam} />

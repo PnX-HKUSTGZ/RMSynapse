@@ -1,5 +1,6 @@
 import { deepMerge, isPlainObject, toFiniteNumber, toNonNegativeInt } from './utils';
 import { DEFAULT_UI_STATE } from './defaults';
+import { parseEnemyAuxPacketV1 } from './enemyAux';
 
 const HANDLED_PROTO_KEYS = [
   'GameStatus',
@@ -698,10 +699,36 @@ function buildProtoPatch(data) {
 
   if (isPlainObject(data.CustomByteBlock)) {
     const source = data.CustomByteBlock;
+    const rawData = Array.isArray(source.data) ? source.data : [];
+    const packet = parseEnemyAuxPacketV1(rawData);
     patch.customByteBlock = {
-      data: Array.isArray(source.data) ? source.data : [],
+      data: rawData,
       lastUpdateMsec: toNonNegativeInt(source.last_update_msec, Date.now()),
     };
+    if (packet) {
+      const packetPatch = {
+        receivedAtMs: packet.receivedAtMs,
+        activeTimeMs: packet.activeTimeMs,
+      };
+      if (packet.validAmmo) {
+        packetPatch.validAmmo = true;
+        packetPatch.enemyProjectile = packet.enemyProjectile;
+      }
+      if (packet.validEconomy) {
+        packetPatch.validEconomy = true;
+        packetPatch.enemyEconomy = packet.enemyEconomy;
+      }
+      patch.enemyAux = {
+        lastPacket: packetPatch,
+        lastUpdateMs: packet.receivedAtMs,
+        isStale: false,
+      };
+    } else if (rawData.length > 0) {
+      console.debug('[EnemyAux] drop invalid CustomByteBlock packet', {
+        length: rawData.length,
+        data: rawData,
+      });
+    }
   }
 
   if (isPlainObject(data.RobotRespawnStatus)) {

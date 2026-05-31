@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { parseGodotPayload } from '../bridge/godot';
 import { DEFAULT_UI_STATE, deepMerge, mergeRadarTargets, normalizeIncomingData } from '../state';
+import { ENEMY_AUX_STALE_MS } from '../state/enemyAux';
 
 const RADAR_TARGET_TTL_MS = 3000;
 const REVIVE_HIGHLIGHT_MS = 3000;
@@ -138,6 +139,13 @@ function pruneRobotHighlights(robots, now = Date.now()) {
   return changed ? next : robots;
 }
 
+function markEnemyAuxStale(enemyAux, now = Date.now()) {
+  if (!enemyAux) return enemyAux;
+  const lastUpdateMs = Number(enemyAux.lastUpdateMs);
+  const isStale = !Number.isFinite(lastUpdateMs) || now - lastUpdateMs > ENEMY_AUX_STALE_MS;
+  return enemyAux.isStale === isStale ? enemyAux : { ...enemyAux, isStale };
+}
+
 function mergeHudState(prev, incoming) {
   const now = Date.now();
   const adjustedIncoming = { ...incoming };
@@ -148,6 +156,20 @@ function mergeHudState(prev, incoming) {
     });
   }
   const merged = deepMerge(prev, adjustedIncoming);
+  if (adjustedIncoming.enemyAux?.lastPacket) {
+    merged.enemyAux = {
+      ...(merged.enemyAux ?? {}),
+      lastPacket: {
+        ...(merged.enemyAux?.lastPacket ?? {}),
+      },
+    };
+    if (adjustedIncoming.enemyAux.lastPacket.enemyProjectile) {
+      merged.enemyAux.lastPacket.enemyProjectile = adjustedIncoming.enemyAux.lastPacket.enemyProjectile;
+    }
+    if (adjustedIncoming.enemyAux.lastPacket.enemyEconomy) {
+      merged.enemyAux.lastPacket.enemyEconomy = adjustedIncoming.enemyAux.lastPacket.enemyEconomy;
+    }
+  }
   if (adjustedIncoming.robots) {
     merged.robots = adjustedIncoming.robots;
   }
@@ -162,6 +184,7 @@ function mergeHudState(prev, incoming) {
     merged.boostBuffs = pruneBoostBuffs(merged.boostBuffs, now);
   }
   merged.robots = pruneRobotHighlights(merged.robots, now);
+  merged.enemyAux = markEnemyAuxStale(merged.enemyAux, now);
   return merged;
 }
 
@@ -190,10 +213,12 @@ export function useHudState() {
         const nextTargets = pruneRadarTargets(prev.radarTargets, now);
         const nextBuffs = pruneBoostBuffs(prev.boostBuffs, now);
         const nextRobots = pruneRobotHighlights(prev.robots, now);
+        const nextEnemyAux = markEnemyAuxStale(prev.enemyAux, now);
         if (
           nextTargets === prev.radarTargets
           && nextBuffs === prev.boostBuffs
           && nextRobots === prev.robots
+          && nextEnemyAux === prev.enemyAux
         ) {
           return prev;
         }
@@ -202,6 +227,7 @@ export function useHudState() {
           radarTargets: nextTargets,
           boostBuffs: nextBuffs,
           robots: nextRobots,
+          enemyAux: nextEnemyAux,
         };
       });
     }, 1000);

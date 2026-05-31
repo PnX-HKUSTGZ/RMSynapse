@@ -369,6 +369,8 @@ func _get_publish_qos(topic: String) -> int:
 	return _normalize_qos(int(publish_qos_by_topic.get(topic, publish_qos_default)))
 
 func _get_subscribe_qos(topic: String) -> int:
+	if topic == TOPIC_CUSTOM_BYTE_BLOCK:
+		return Qos.QOS1
 	return _normalize_qos(int(subscribe_qos_by_topic.get(topic, subscribe_qos_default)))
 
 func _normalize_qos(qos: int) -> int:
@@ -420,6 +422,7 @@ func _ensure_qos_maps() -> void:
 			publish_qos_by_topic[topic] = publish_qos_default
 		if not subscribe_qos_by_topic.has(topic):
 			subscribe_qos_by_topic[topic] = subscribe_qos_default
+	subscribe_qos_by_topic[TOPIC_CUSTOM_BYTE_BLOCK] = Qos.QOS1
 
 func _register_default_mappings() -> void:
 	register_mapping(TOPIC_KEYBOARD_MOUSE_CONTROL, RMProto.KeyboardMouseControl)

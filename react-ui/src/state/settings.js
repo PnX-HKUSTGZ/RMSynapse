@@ -29,7 +29,7 @@ export const DEFAULT_HUD_SETTINGS = {
     },
   },
   logging: {
-    enabled: false,
+    enabled: true,
     mode: 'receive',
     path: 'user://logs/rm_synapse_debug.jsonl',
   },
@@ -115,7 +115,7 @@ function normalizeLoggingSettings(source) {
   const mode = normalizeString(source?.mode, defaults.mode);
 
   return {
-    enabled: source?.enabled === true,
+    enabled: source?.enabled !== false,
     mode: mode === 'all' ? 'all' : 'receive',
     path: normalizeString(source?.path, defaults.path) || defaults.path,
   };

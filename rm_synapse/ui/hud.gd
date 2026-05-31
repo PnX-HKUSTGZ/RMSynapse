@@ -36,7 +36,7 @@ var _last_data_update_msec := 0
 var _command_panel_open := false
 var _settings_menu_open := false
 var _mouse_sensitivity := 1.0
-var _debug_log_enabled := false
+var _debug_log_enabled := true
 var _debug_log_mode := "receive"
 var _debug_log_path := "user://logs/rm_synapse_debug.jsonl"
 var _debug_log_file_dialog: FileDialog = null
@@ -1138,7 +1138,7 @@ func _on_debug_raw_message(topic, payload) -> void:
 		"topic": str(topic),
 		"payloadType": "bytes",
 		"size": bytes.size(),
-		"sampleHex": _bytes_to_hex_sample(bytes, 48)
+		"hex": _bytes_to_hex(bytes)
 	})
 
 func _on_debug_text_message(topic, text) -> void:
@@ -1147,7 +1147,7 @@ func _on_debug_text_message(topic, text) -> void:
 		"topic": str(topic),
 		"payloadType": "text",
 		"size": text_value.length(),
-		"sample": text_value.substr(0, 240)
+		"text": text_value
 	})
 
 func _on_debug_message_sent(topic, size, result, qos) -> void:
@@ -1203,10 +1203,9 @@ func _write_debug_log(kind: String, data: Dictionary, force: bool = false) -> vo
 	}) + "\n")
 	file.close()
 
-func _bytes_to_hex_sample(bytes: PackedByteArray, max_count: int) -> String:
+func _bytes_to_hex(bytes: PackedByteArray) -> String:
 	var parts: Array[String] = []
-	var count: int = min(bytes.size(), max_count)
-	for i in range(count):
+	for i in range(bytes.size()):
 		parts.append("%02x" % int(bytes[i]))
 	return " ".join(parts)
 

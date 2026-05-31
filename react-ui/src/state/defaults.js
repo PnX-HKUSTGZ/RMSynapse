@@ -202,6 +202,11 @@ const DEFAULT_UI_STATE = {
     tech: 4,
     radar: 5,
   },
+  enemyAux: {
+    lastPacket: null,
+    lastUpdateMs: null,
+    isStale: true,
+  },
   messageCenter: {
     enabled: true,
     topPercent: 25,
